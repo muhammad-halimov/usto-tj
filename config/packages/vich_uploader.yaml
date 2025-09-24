@@ -1,0 +1,23 @@
+vich_uploader:
+    db_driver: orm
+
+    mappings:
+        profile_photos:
+            uri_prefix: /images/profile_photos
+            upload_destination: '%kernel.project_dir%/public/images/profile_photos'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+
+        service_category_photos:
+            uri_prefix: /images/service_category_photos
+            upload_destination: '%kernel.project_dir%/public/images/service_category_photos'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+
+        service_district_photos:
+            uri_prefix: /images/service_district_photos
+            upload_destination: '%kernel.project_dir%/public/images/service_district_photos'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+
+        service_city_photos:
+            uri_prefix: /images/service_city_photos
+            upload_destination: '%kernel.project_dir%/public/images/service_city_photos'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
