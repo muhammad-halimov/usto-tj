@@ -33,6 +33,9 @@ class UserTicket
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $notice = null;
+
     #[ORM\Column(nullable: true)]
     private ?int $timing = null;
 
@@ -68,6 +71,17 @@ class UserTicket
     {
         $this->description = $description;
 
+        return $this;
+    }
+
+    public function getNotice(): ?string
+    {
+        return $this->notice;
+    }
+
+    public function setNotice(?string $notice): UserTicket
+    {
+        $this->notice = $notice;
         return $this;
     }
 

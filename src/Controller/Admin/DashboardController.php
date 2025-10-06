@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Entity\Chat\UserServiceChat;
 use App\Entity\Geography\UserServiceGeography;
 use App\Entity\Geography\UserServiceGeographyCity;
 use App\Entity\Geography\UserServiceGeographyDistrict;
@@ -59,6 +60,7 @@ class DashboardController extends AbstractDashboardController
 
         yield MenuItem::section('Пользователи и группы');
             yield MenuItem::linkToCrud('Пользователи', 'fas fa-users', User::class);
+            yield MenuItem::linkToCrud('Чат и сообщения', 'fas fa-comments', UserServiceChat::class);
 
         yield MenuItem::section('Доп. настройки');
             yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([

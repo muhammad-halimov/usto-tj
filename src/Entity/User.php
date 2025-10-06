@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use App\Entity\Chat\UserServiceChat;
+use App\Entity\Chat\UserServiceChatMessage;
 use App\Entity\Service\Gallery\UserServiceGallery;
 use App\Entity\Service\UserService;
 use App\Entity\Traits\CreatedAtTrait;
@@ -108,12 +110,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: UserService::class, mappedBy: 'user')]
     private Collection $userServices;
 
+    /**
+     * @var Collection<int, UserServiceChat>
+     */
+    #[ORM\OneToMany(targetEntity: UserServiceChat::class, mappedBy: 'messageAuthor')]
+    private Collection $userServiceChats;
+
+    #[ORM\ManyToOne(inversedBy: 'author')]
+    private ?UserServiceChatMessage $userServiceChatMessage = null;
+
     public function __construct()
     {
         $this->userSocialNetworks = new ArrayCollection();
         $this->userServiceGalleries = new ArrayCollection();
         $this->userServiceReviews = new ArrayCollection();
         $this->userServices = new ArrayCollection();
+        $this->userServiceChats = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -408,6 +420,48 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $userService->setUser(null);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, UserServiceChat>
+     */
+    public function getUserServiceChats(): Collection
+    {
+        return $this->userServiceChats;
+    }
+
+    public function addUserServiceChat(UserServiceChat $userServiceChat): static
+    {
+        if (!$this->userServiceChats->contains($userServiceChat)) {
+            $this->userServiceChats->add($userServiceChat);
+            $userServiceChat->setMessageAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUserServiceChat(UserServiceChat $userServiceChat): static
+    {
+        if ($this->userServiceChats->removeElement($userServiceChat)) {
+            // set the owning side to null (unless already changed)
+            if ($userServiceChat->getMessageAuthor() === $this) {
+                $userServiceChat->setMessageAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getUserServiceChatMessage(): ?UserServiceChatMessage
+    {
+        return $this->userServiceChatMessage;
+    }
+
+    public function setUserServiceChatMessage(?UserServiceChatMessage $userServiceChatMessage): static
+    {
+        $this->userServiceChatMessage = $userServiceChatMessage;
 
         return $this;
     }

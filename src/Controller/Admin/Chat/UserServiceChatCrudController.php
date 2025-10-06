@@ -1,36 +1,33 @@
 <?php
 
-namespace App\Controller\Admin;
+namespace App\Controller\Admin\Chat;
 
-use App\Entity\UserTicket;
+use App\Entity\Chat\UserServiceChat;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
-class UserTicketCrudController extends AbstractCrudController
+class UserServiceChatCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return UserTicket::class;
+        return UserServiceChat::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Объявления')
-            ->setEntityLabelInSingular('объявление')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление объявления')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение объявления')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о объявлении");
+            ->setEntityLabelInPlural('Чат')
+            ->setEntityLabelInSingular('чат')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление чата')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение чата')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о чате");
     }
 
 
@@ -59,30 +56,19 @@ class UserTicketCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield AssociationField::new('category', 'Категория')
-            ->setRequired(true)
-            ->setColumns(3);
-
-        yield TextField::new('title', 'Название')
-            ->setColumns(5)
-            ->setRequired(true);
-
-        yield NumberField::new('budget', 'Бюджет')
-            ->setRequired(true)
-            ->setNumDecimals(1)
-            ->setColumns(2);
-
-        yield IntegerField::new('timing', 'Сроки')
-            ->setRequired(true)
-            ->setColumns(2);
-
-        yield TextEditorField::new('description', 'Описание')
+        yield AssociationField::new('messageAuthor', 'Автор')
             ->setRequired(true)
             ->setColumns(6);
 
-        yield TextEditorField::new('notice', 'Доп. описание')
+        yield AssociationField::new('replyAuthor', 'Ответчик')
             ->setRequired(true)
             ->setColumns(6);
+
+        yield CollectionField::new('message', 'Сообщения')
+            ->useEntryCrudForm(UserServiceChatMessageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();
