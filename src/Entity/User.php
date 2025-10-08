@@ -3,12 +3,20 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use App\Entity\Chat\UserServiceChat;
 use App\Entity\Chat\UserServiceChatMessage;
 use App\Entity\Service\Gallery\UserServiceGallery;
 use App\Entity\Service\UserService;
+use App\Entity\Ticket\UserTicket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User\UserServiceReview;
+use App\Entity\User\UserSocialNetwork;
 use App\Repository\UserRepository;
 use DateTime;
 use Deprecated;
@@ -18,6 +26,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -26,7 +35,28 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[Vich\Uploadable]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
-#[ApiResource]
+#[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Post(),
+        new Patch(security:
+            "is_granted('ROLE_ADMIN') or
+             is_granted('ROLE_MASTER') or
+             is_granted('ROLE_CLIENT') or"
+        ),
+        new Delete(security:
+            "is_granted('ROLE_ADMIN') or
+             is_granted('ROLE_MASTER') or
+             is_granted('ROLE_CLIENT') or"
+        )
+    ],
+    normalizationContext: ['groups' => [
+        'masters:read',
+        'clients:read',
+    ]],
+    paginationEnabled: false,
+)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     use UpdatedAtTrait, CreatedAtTrait;
@@ -45,24 +75,63 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+        'reviews:read',
+    ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+        'reviews:read',
+    ])]
     private ?string $email = null;
 
     #[ORM\Column(length: 32)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+        'reviews:read',
+    ])]
     private ?string $name = null;
 
     #[ORM\Column(length: 32)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+        'reviews:read',
+    ])]
     private ?string $surname = null;
 
     #[ORM\Column(length: 32, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+    ])]
     private ?string $patronymic = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
     private ?string $bio = null;
 
     #[ORM\Column(type: 'float', nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+        'reviews:read',
+    ])]
     private ?float $rating = null;
 
     #[Vich\UploadableField(mapping: 'profile_photos', fileNameProperty: 'image')]
@@ -70,12 +139,38 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+        'reviews:read',
+    ])]
     private ?string $image = null;
+
+    #[ORM\Column(length: 15, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+    ])]
+    private ?string $phone1 = null;
+
+    #[ORM\Column(length: 15, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'masterServices:read',
+    ])]
+    private ?string $phone2 = null;
 
     /**
      * @var list<string> The user roles
      */
     #[ORM\Column]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
     private array $roles = [];
 
     /**
@@ -90,6 +185,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, UserSocialNetwork>
      */
     #[ORM\OneToMany(targetEntity: UserSocialNetwork::class, mappedBy: 'user', cascade: ['all'])]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
     private Collection $userSocialNetworks;
 
     /**
@@ -119,6 +218,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToOne(inversedBy: 'author')]
     private ?UserServiceChatMessage $userServiceChatMessage = null;
 
+    /**
+     * @var Collection<int, UserTicket>
+     */
+    #[ORM\OneToMany(targetEntity: UserTicket::class, mappedBy: 'author')]
+    private Collection $userTickets;
+
     public function __construct()
     {
         $this->userSocialNetworks = new ArrayCollection();
@@ -126,6 +231,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->userServiceReviews = new ArrayCollection();
         $this->userServices = new ArrayCollection();
         $this->userServiceChats = new ArrayCollection();
+        $this->userTickets = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -224,6 +330,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             $this->updatedAt = new DateTime();
         }
 
+        return $this;
+    }
+
+    public function getPhone1(): ?string
+    {
+        return $this->phone1;
+    }
+
+    public function setPhone1(?string $phone1): User
+    {
+        $this->phone1 = $phone1;
+        return $this;
+    }
+
+    public function getPhone2(): ?string
+    {
+        return $this->phone2;
+    }
+
+    public function setPhone2(?string $phone2): User
+    {
+        $this->phone2 = $phone2;
         return $this;
     }
 
@@ -462,6 +590,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setUserServiceChatMessage(?UserServiceChatMessage $userServiceChatMessage): static
     {
         $this->userServiceChatMessage = $userServiceChatMessage;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, UserTicket>
+     */
+    public function getUserTickets(): Collection
+    {
+        return $this->userTickets;
+    }
+
+    public function addUserTicket(UserTicket $userTicket): static
+    {
+        if (!$this->userTickets->contains($userTicket)) {
+            $this->userTickets->add($userTicket);
+            $userTicket->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUserTicket(UserTicket $userTicket): static
+    {
+        if ($this->userTickets->removeElement($userTicket)) {
+            // set the owning side to null (unless already changed)
+            if ($userTicket->getAuthor() === $this) {
+                $userTicket->setAuthor(null);
+            }
+        }
 
         return $this;
     }

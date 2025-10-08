@@ -2,6 +2,7 @@
 
 namespace App\Entity\Geography;
 
+use ApiPlatform\Metadata\ApiResource;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\UserServiceGeographyRepository;
@@ -11,6 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: UserServiceGeographyRepository::class)]
 #[ORM\HasLifecycleCallbacks]
+#[ApiResource]
 class UserServiceGeography
 {
     use UpdatedAtTrait, CreatedAtTrait;

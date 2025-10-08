@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Controller\Admin;
+namespace App\Controller\Admin\Ticket;
 
-use App\Entity\UserTicket;
+use App\Entity\Ticket\UserTicket;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -63,17 +63,17 @@ class UserTicketCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(3);
 
+        yield AssociationField::new('author', 'Клиент')
+            ->setRequired(true)
+            ->setColumns(3);
+
         yield TextField::new('title', 'Название')
-            ->setColumns(5)
+            ->setColumns(4)
             ->setRequired(true);
 
         yield NumberField::new('budget', 'Бюджет')
             ->setRequired(true)
             ->setNumDecimals(1)
-            ->setColumns(2);
-
-        yield IntegerField::new('timing', 'Сроки')
-            ->setRequired(true)
             ->setColumns(2);
 
         yield TextEditorField::new('description', 'Описание')
@@ -83,6 +83,12 @@ class UserTicketCrudController extends AbstractCrudController
         yield TextEditorField::new('notice', 'Доп. описание')
             ->setRequired(true)
             ->setColumns(6);
+
+        yield CollectionField::new('userTicketImages', 'Галерея изображений')
+            ->useEntryCrudForm(UserTicketImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();

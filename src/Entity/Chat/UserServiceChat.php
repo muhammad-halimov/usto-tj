@@ -2,6 +2,7 @@
 
 namespace App\Entity\Chat;
 
+use ApiPlatform\Metadata\ApiResource;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -12,6 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: UserServiceChatRepository::class)]
+#[ApiResource]
 class UserServiceChat
 {
     use UpdatedAtTrait, CreatedAtTrait;

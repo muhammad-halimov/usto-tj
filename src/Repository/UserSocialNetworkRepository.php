@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\UserSocialNetwork;
+use App\Entity\User\UserSocialNetwork;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

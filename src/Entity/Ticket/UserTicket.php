@@ -1,12 +1,15 @@
 <?php
 
-namespace App\Entity;
+namespace App\Entity\Ticket;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Entity\Service\UserServiceCategory;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User;
 use App\Repository\UserTicketRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -37,13 +40,24 @@ class UserTicket
     private ?string $notice = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $timing = null;
-
-    #[ORM\Column(nullable: true)]
     private ?float $budget = null;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     private ?UserServiceCategory $category = null;
+
+    #[ORM\ManyToOne(inversedBy: 'userTickets')]
+    private ?User $author = null;
+
+    /**
+     * @var Collection<int, UserTicketImage>
+     */
+    #[ORM\OneToMany(targetEntity: UserTicketImage::class, mappedBy: 'userTicket')]
+    private Collection $userTicketImages;
+
+    public function __construct()
+    {
+        $this->userTicketImages = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -85,18 +99,6 @@ class UserTicket
         return $this;
     }
 
-    public function getTiming(): ?int
-    {
-        return $this->timing;
-    }
-
-    public function setTiming(?int $timing): static
-    {
-        $this->timing = $timing;
-
-        return $this;
-    }
-
     public function getBudget(): ?float
     {
         return $this->budget;
@@ -117,6 +119,48 @@ class UserTicket
     public function setCategory(?UserServiceCategory $category): static
     {
         $this->category = $category;
+
+        return $this;
+    }
+
+    public function getAuthor(): ?User
+    {
+        return $this->author;
+    }
+
+    public function setAuthor(?User $author): static
+    {
+        $this->author = $author;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, UserTicketImage>
+     */
+    public function getUserTicketImages(): Collection
+    {
+        return $this->userTicketImages;
+    }
+
+    public function addUserTicketImage(UserTicketImage $userTicketImage): static
+    {
+        if (!$this->userTicketImages->contains($userTicketImage)) {
+            $this->userTicketImages->add($userTicketImage);
+            $userTicketImage->setUserTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeUserTicketImage(UserTicketImage $userTicketImage): static
+    {
+        if ($this->userTicketImages->removeElement($userTicketImage)) {
+            // set the owning side to null (unless already changed)
+            if ($userTicketImage->getUserTicket() === $this) {
+                $userTicketImage->setUserTicket(null);
+            }
+        }
 
         return $this;
     }

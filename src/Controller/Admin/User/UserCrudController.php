@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Controller\Admin;
+namespace App\Controller\Admin\User;
 
+use App\Controller\Admin\Field\VichImageField;
 use App\Entity\User;
-use App\Entity\UserSocialNetwork;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -14,9 +14,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TelephoneField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-use App\Controller\Admin\Field\VichImageField;
 
 class UserCrudController extends AbstractCrudController
 {
@@ -108,6 +108,16 @@ class UserCrudController extends AbstractCrudController
 
         yield $plainPassword;
 
+        yield TelephoneField::new('phone1', 'Телефон 1')
+            ->hideOnIndex()
+            ->setColumns(6)
+            ->setRequired(false);
+
+        yield TelephoneField::new('phone2', 'Телефон 2')
+            ->hideOnIndex()
+            ->setColumns(6)
+            ->setRequired(false);
+
         yield TextEditorField::new('bio', 'О себе')
             ->hideOnIndex()
             ->setColumns(12)
@@ -135,6 +145,7 @@ class UserCrudController extends AbstractCrudController
 
         yield TextField::new('password', 'Пароль')
             ->onlyOnDetail();
+
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();

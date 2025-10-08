@@ -26,3 +26,13 @@ vich_uploader:
             uri_prefix: /images/chat_photos
             upload_destination: '%kernel.project_dir%/public/images/chat_photos'
             namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+
+        user_ticket_photos:
+            uri_prefix: /images/user_ticket_photos
+            upload_destination: '%kernel.project_dir%/public/images/user_ticket_photos'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+
+        user_service_photos:
+            uri_prefix: /images/user_service_photos
+            upload_destination: '%kernel.project_dir%/public/images/user_service_photos'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
