@@ -8,15 +8,15 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Entity\Chat\UserServiceChat;
-use App\Entity\Chat\UserServiceChatMessage;
-use App\Entity\Service\Gallery\UserServiceGallery;
-use App\Entity\Service\UserService;
-use App\Entity\Ticket\UserTicket;
+use App\Entity\Chat\Chat;
+use App\Entity\Chat\ChatMessage;
+use App\Entity\Gallery\Gallery;
+use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Entity\User\UserServiceReview;
-use App\Entity\User\UserSocialNetwork;
+use App\Entity\User\Education;
+use App\Entity\User\Review;
+use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
 use DateTime;
 use Deprecated;
@@ -43,12 +43,12 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Patch(security:
             "is_granted('ROLE_ADMIN') or
              is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT') or"
+             is_granted('ROLE_CLIENT')"
         ),
         new Delete(security:
             "is_granted('ROLE_ADMIN') or
              is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT') or"
+             is_granted('ROLE_CLIENT')"
         )
     ],
     normalizationContext: ['groups' => [
@@ -80,6 +80,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
     ])]
     private ?int $id = null;
 
@@ -89,24 +92,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
     ])]
     private ?string $email = null;
 
-    #[ORM\Column(length: 32)]
+    #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
         'masters:read',
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
     ])]
     private ?string $name = null;
 
-    #[ORM\Column(length: 32)]
+    #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
         'masters:read',
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
     ])]
     private ?string $surname = null;
 
@@ -131,6 +143,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'userTickets:read',
     ])]
     private ?float $rating = null;
 
@@ -144,6 +157,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'galleries:read',
+        'userTickets:read',
     ])]
     private ?string $image = null;
 
@@ -152,6 +167,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
         'masterServices:read',
+        'chats:read',
     ])]
     private ?string $phone1 = null;
 
@@ -160,6 +176,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
         'masterServices:read',
+        'chats:read',
     ])]
     private ?string $phone2 = null;
 
@@ -182,9 +199,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $plainPassword = null;
 
     /**
-     * @var Collection<int, UserSocialNetwork>
+     * @var Collection<int, SocialNetwork>
      */
-    #[ORM\OneToMany(targetEntity: UserSocialNetwork::class, mappedBy: 'user', cascade: ['all'])]
+    #[ORM\OneToMany(targetEntity: SocialNetwork::class, mappedBy: 'user', cascade: ['all'])]
     #[Groups([
         'masters:read',
         'clients:read',
@@ -192,46 +209,60 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $userSocialNetworks;
 
     /**
-     * @var Collection<int, UserServiceGallery>
+     * @var Collection<int, Review>
      */
-    #[ORM\ManyToMany(targetEntity: UserServiceGallery::class, mappedBy: 'user')]
-    private Collection $userServiceGalleries;
-
-    /**
-     * @var Collection<int, UserServiceReview>
-     */
-    #[ORM\OneToMany(targetEntity: UserServiceReview::class, mappedBy: 'user')]
+    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'user')]
     private Collection $userServiceReviews;
 
     /**
-     * @var Collection<int, UserService>
+     * @var Collection<int, Chat>
      */
-    #[ORM\OneToMany(targetEntity: UserService::class, mappedBy: 'user')]
-    private Collection $userServices;
-
-    /**
-     * @var Collection<int, UserServiceChat>
-     */
-    #[ORM\OneToMany(targetEntity: UserServiceChat::class, mappedBy: 'messageAuthor')]
+    #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'messageAuthor')]
     private Collection $userServiceChats;
 
-    #[ORM\ManyToOne(inversedBy: 'author')]
-    private ?UserServiceChatMessage $userServiceChatMessage = null;
+    /**
+     * @var Collection<int, Ticket>
+     */
+    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'author')]
+    private Collection $userTickets;
 
     /**
-     * @var Collection<int, UserTicket>
+     * @var Collection<int, Education>
      */
-    #[ORM\OneToMany(targetEntity: UserTicket::class, mappedBy: 'author')]
-    private Collection $userTickets;
+    #[ORM\OneToMany(targetEntity: Education::class, mappedBy: 'user', cascade: ['all'])]
+    #[Groups([
+        'masters:read',
+    ])]
+    private Collection $education;
+
+    /**
+     * @var Collection<int, ChatMessage>
+     */
+    #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'author')]
+    private Collection $chatMessages;
+
+    /**
+     * @var Collection<int, Gallery>
+     */
+    #[ORM\OneToMany(targetEntity: Gallery::class, mappedBy: 'user')]
+    private Collection $galleries;
+
+    /**
+     * @var Collection<int, Ticket>
+     */
+    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'master')]
+    private Collection $tickets;
 
     public function __construct()
     {
         $this->userSocialNetworks = new ArrayCollection();
-        $this->userServiceGalleries = new ArrayCollection();
         $this->userServiceReviews = new ArrayCollection();
-        $this->userServices = new ArrayCollection();
         $this->userServiceChats = new ArrayCollection();
         $this->userTickets = new ArrayCollection();
+        $this->education = new ArrayCollection();
+        $this->chatMessages = new ArrayCollection();
+        $this->galleries = new ArrayCollection();
+        $this->tickets = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -436,14 +467,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, UserSocialNetwork>
+     * @return Collection<int, SocialNetwork>
      */
     public function getUserSocialNetworks(): Collection
     {
         return $this->userSocialNetworks;
     }
 
-    public function addUserSocialNetwork(UserSocialNetwork $userSocialNetwork): static
+    public function addUserSocialNetwork(SocialNetwork $userSocialNetwork): static
     {
         if (!$this->userSocialNetworks->contains($userSocialNetwork)) {
             $this->userSocialNetworks->add($userSocialNetwork);
@@ -453,7 +484,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function removeUserSocialNetwork(UserSocialNetwork $userSocialNetwork): static
+    public function removeUserSocialNetwork(SocialNetwork $userSocialNetwork): static
     {
         if ($this->userSocialNetworks->removeElement($userSocialNetwork)) {
             // set the owning side to null (unless already changed)
@@ -466,41 +497,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, UserServiceGallery>
-     */
-    public function getUserServiceGalleries(): Collection
-    {
-        return $this->userServiceGalleries;
-    }
-
-    public function addUserServiceGallery(UserServiceGallery $userServiceGallery): static
-    {
-        if (!$this->userServiceGalleries->contains($userServiceGallery)) {
-            $this->userServiceGalleries->add($userServiceGallery);
-            $userServiceGallery->addUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeUserServiceGallery(UserServiceGallery $userServiceGallery): static
-    {
-        if ($this->userServiceGalleries->removeElement($userServiceGallery)) {
-            $userServiceGallery->removeUser($this);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, UserServiceReview>
+     * @return Collection<int, Review>
      */
     public function getUserServiceReviews(): Collection
     {
         return $this->userServiceReviews;
     }
 
-    public function addUserServiceReview(UserServiceReview $userServiceReview): static
+    public function addUserServiceReview(Review $userServiceReview): static
     {
         if (!$this->userServiceReviews->contains($userServiceReview)) {
             $this->userServiceReviews->add($userServiceReview);
@@ -510,7 +514,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function removeUserServiceReview(UserServiceReview $userServiceReview): static
+    public function removeUserServiceReview(Review $userServiceReview): static
     {
         if ($this->userServiceReviews->removeElement($userServiceReview)) {
             // set the owning side to null (unless already changed)
@@ -523,44 +527,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, UserService>
-     */
-    public function getUserServices(): Collection
-    {
-        return $this->userServices;
-    }
-
-    public function addUserService(UserService $userService): static
-    {
-        if (!$this->userServices->contains($userService)) {
-            $this->userServices->add($userService);
-            $userService->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeUserService(UserService $userService): static
-    {
-        if ($this->userServices->removeElement($userService)) {
-            // set the owning side to null (unless already changed)
-            if ($userService->getUser() === $this) {
-                $userService->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, UserServiceChat>
+     * @return Collection<int, Chat>
      */
     public function getUserServiceChats(): Collection
     {
         return $this->userServiceChats;
     }
 
-    public function addUserServiceChat(UserServiceChat $userServiceChat): static
+    public function addUserServiceChat(Chat $userServiceChat): static
     {
         if (!$this->userServiceChats->contains($userServiceChat)) {
             $this->userServiceChats->add($userServiceChat);
@@ -570,7 +544,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function removeUserServiceChat(UserServiceChat $userServiceChat): static
+    public function removeUserServiceChat(Chat $userServiceChat): static
     {
         if ($this->userServiceChats->removeElement($userServiceChat)) {
             // set the owning side to null (unless already changed)
@@ -582,27 +556,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getUserServiceChatMessage(): ?UserServiceChatMessage
-    {
-        return $this->userServiceChatMessage;
-    }
-
-    public function setUserServiceChatMessage(?UserServiceChatMessage $userServiceChatMessage): static
-    {
-        $this->userServiceChatMessage = $userServiceChatMessage;
-
-        return $this;
-    }
-
     /**
-     * @return Collection<int, UserTicket>
+     * @return Collection<int, Ticket>
      */
     public function getUserTickets(): Collection
     {
         return $this->userTickets;
     }
 
-    public function addUserTicket(UserTicket $userTicket): static
+    public function addUserTicket(Ticket $userTicket): static
     {
         if (!$this->userTickets->contains($userTicket)) {
             $this->userTickets->add($userTicket);
@@ -612,12 +574,132 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function removeUserTicket(UserTicket $userTicket): static
+    public function removeUserTicket(Ticket $userTicket): static
     {
         if ($this->userTickets->removeElement($userTicket)) {
             // set the owning side to null (unless already changed)
             if ($userTicket->getAuthor() === $this) {
                 $userTicket->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Education>
+     */
+    public function getEducation(): Collection
+    {
+        return $this->education;
+    }
+
+    public function addEducation(Education $education): static
+    {
+        if (!$this->education->contains($education)) {
+            $this->education->add($education);
+            $education->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeEducation(Education $education): static
+    {
+        if ($this->education->removeElement($education)) {
+            // set the owning side to null (unless already changed)
+            if ($education->getUser() === $this) {
+                $education->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ChatMessage>
+     */
+    public function getChatMessages(): Collection
+    {
+        return $this->chatMessages;
+    }
+
+    public function addChatMessage(ChatMessage $chatMessage): static
+    {
+        if (!$this->chatMessages->contains($chatMessage)) {
+            $this->chatMessages->add($chatMessage);
+            $chatMessage->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChatMessage(ChatMessage $chatMessage): static
+    {
+        if ($this->chatMessages->removeElement($chatMessage)) {
+            // set the owning side to null (unless already changed)
+            if ($chatMessage->getAuthor() === $this) {
+                $chatMessage->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Gallery>
+     */
+    public function getGalleries(): Collection
+    {
+        return $this->galleries;
+    }
+
+    public function addGallery(Gallery $gallery): static
+    {
+        if (!$this->galleries->contains($gallery)) {
+            $this->galleries->add($gallery);
+            $gallery->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeGallery(Gallery $gallery): static
+    {
+        if ($this->galleries->removeElement($gallery)) {
+            // set the owning side to null (unless already changed)
+            if ($gallery->getUser() === $this) {
+                $gallery->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Ticket>
+     */
+    public function getTickets(): Collection
+    {
+        return $this->tickets;
+    }
+
+    public function addTicket(Ticket $ticket): static
+    {
+        if (!$this->tickets->contains($ticket)) {
+            $this->tickets->add($ticket);
+            $ticket->setMaster($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTicket(Ticket $ticket): static
+    {
+        if ($this->tickets->removeElement($ticket)) {
+            // set the owning side to null (unless already changed)
+            if ($ticket->getMaster() === $this) {
+                $ticket->setMaster(null);
             }
         }
 

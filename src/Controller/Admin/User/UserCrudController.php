@@ -87,8 +87,7 @@ class UserCrudController extends AbstractCrudController
             ->setColumns(4)
             ->setRequired(false);
 
-        yield NumberField::new('rating', 'Оценка')
-            ->hideOnIndex()
+        yield NumberField::new('rating', 'Рейтинг')
             ->setNumDecimals(1)
             ->setColumns(4)
             ->setRequired(false);
@@ -109,12 +108,10 @@ class UserCrudController extends AbstractCrudController
         yield $plainPassword;
 
         yield TelephoneField::new('phone1', 'Телефон 1')
-            ->hideOnIndex()
             ->setColumns(6)
             ->setRequired(false);
 
         yield TelephoneField::new('phone2', 'Телефон 2')
-            ->hideOnIndex()
             ->setColumns(6)
             ->setRequired(false);
 
@@ -124,7 +121,13 @@ class UserCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield CollectionField::new('userSocialNetworks', 'Соц. сети')
-            ->useEntryCrudForm(UserSocialNetworkCrudController::class)
+            ->useEntryCrudForm(SocialNetworkCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
+
+        yield CollectionField::new('education', 'Образование')
+            ->useEntryCrudForm(EducationCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);
@@ -142,10 +145,8 @@ class UserCrudController extends AbstractCrudController
             ->onlyOnForms()
             ->setColumns(12);
 
-
         yield TextField::new('password', 'Пароль')
             ->onlyOnDetail();
-
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();
