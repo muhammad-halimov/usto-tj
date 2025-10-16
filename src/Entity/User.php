@@ -51,10 +51,10 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
              is_granted('ROLE_CLIENT')"
         )
     ],
-    normalizationContext: ['groups' => [
-        'masters:read',
-        'clients:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['masters:read', 'clients:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
 class User implements UserInterface, PasswordAuthenticatedUserInterface

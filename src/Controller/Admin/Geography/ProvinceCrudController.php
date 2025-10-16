@@ -2,7 +2,7 @@
 
 namespace App\Controller\Admin\Geography;
 
-use App\Entity\Geography\Geography;
+use App\Entity\Geography\Province;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -13,22 +13,22 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 
-class GeographyCrudController extends AbstractCrudController
+class ProvinceCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return Geography::class;
+        return Province::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('География работ')
-            ->setEntityLabelInSingular('географию работ')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление географии')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение географии')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о географии");
+            ->setEntityLabelInPlural('Область')
+            ->setEntityLabelInSingular('область')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление области')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение области')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об области");
     }
 
     public function configureActions(Actions $actions): Actions
@@ -57,18 +57,13 @@ class GeographyCrudController extends AbstractCrudController
             ->onlyOnIndex();
 
         yield ChoiceField::new('province', 'Провинция')
-            ->setColumns(4)
-            ->setChoices(Geography::PROVINCES)
+            ->setColumns(6)
+            ->setChoices(Province::PROVINCES)
             ->setRequired(true);
 
         yield AssociationField::new('city', 'Город')
-            ->setColumns(4)
-            ->setFormTypeOptions(['by_reference' => false])
-            ->setRequired(true);
-
-        yield AssociationField::new('district', 'Район')
-            ->setColumns(4)
-            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(6)
+//            ->setFormTypeOptions(['by_reference' => false])
             ->setRequired(true);
 
         yield TextEditorField::new('description', 'Описание')

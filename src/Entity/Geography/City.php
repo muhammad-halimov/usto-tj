@@ -2,6 +2,12 @@
 
 namespace App\Entity\Geography;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\CityRepository;
@@ -12,12 +18,31 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 #[ORM\Entity(repositoryClass: CityRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
+#[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Post(),
+        new Patch(security:
+            "is_granted('ROLE_ADMIN')"
+        ),
+        new Delete(security:
+            "is_granted('ROLE_ADMIN')"
+        )
+    ],
+    normalizationContext: [
+        'groups' => ['cities:read'],
+        'skip_null_values' => false,
+    ],
+    paginationEnabled: false,
+)]
 class City
 {
     use UpdatedAtTrait, CreatedAtTrait;
@@ -31,19 +56,26 @@ class City
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
+        'cities:read',
         'geographies:read',
         'userTickets:read',
+        'districts:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
+        'cities:read',
         'geographies:read',
         'userTickets:read',
+        'districts:read',
     ])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups([
+        'cities:read',
+    ])]
     private ?string $description = null;
 
     #[Vich\UploadableField(mapping: 'service_city_photos', fileNameProperty: 'image')]
@@ -52,20 +84,33 @@ class City
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
+        'cities:read',
         'geographies:read',
         'userTickets:read',
+        'districts:read',
     ])]
     private ?string $image = null;
 
     /**
-     * @var Collection<int, Geography>
+     * @var Collection<int, Province>
      */
-    #[ORM\OneToMany(targetEntity: Geography::class, mappedBy: 'city')]
+    #[ORM\OneToMany(targetEntity: Province::class, mappedBy: 'city')]
     private Collection $geographies;
+
+    /**
+     * @var Collection<int, District>
+     */
+    #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'city')]
+    #[Groups([
+        'cities:read',
+        'geographies:read',
+    ])]
+    private Collection $districts;
 
     public function __construct()
     {
         $this->geographies = new ArrayCollection();
+        $this->districts = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -124,15 +169,25 @@ class City
         return $this;
     }
 
+    #[Groups([
+        'cities:read',
+        'districts:read',
+    ])]
+    #[SerializedName('province')]
+    public function getProvinceObject(): ?Province
+    {
+        return $this->geographies->first() ?: null;
+    }
+
     /**
-     * @return Collection<int, Geography>
+     * @return Collection<int, Province>
      */
     public function getGeographies(): Collection
     {
         return $this->geographies;
     }
 
-    public function addGeography(Geography $geography): static
+    public function addGeography(Province $geography): static
     {
         if (!$this->geographies->contains($geography)) {
             $this->geographies->add($geography);
@@ -142,12 +197,42 @@ class City
         return $this;
     }
 
-    public function removeGeography(Geography $geography): static
+    public function removeGeography(Province $geography): static
     {
         if ($this->geographies->removeElement($geography)) {
             // set the owning side to null (unless already changed)
             if ($geography->getCity() === $this) {
                 $geography->setCity(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, District>
+     */
+    public function getDistricts(): Collection
+    {
+        return $this->districts;
+    }
+
+    public function addDistrict(District $district): static
+    {
+        if (!$this->districts->contains($district)) {
+            $this->districts->add($district);
+            $district->setCity($this);
+        }
+
+        return $this;
+    }
+
+    public function removeDistrict(District $district): static
+    {
+        if ($this->districts->removeElement($district)) {
+            // set the owning side to null (unless already changed)
+            if ($district->getCity() === $this) {
+                $district->setCity(null);
             }
         }
 

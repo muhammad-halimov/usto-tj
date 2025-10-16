@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -57,7 +58,12 @@ class DistrictCrudController extends AbstractCrudController
             ->onlyOnIndex();
 
         yield TextField::new('title', 'Название')
-            ->setColumns(12)
+            ->setColumns(6)
+            ->setRequired(true);
+
+        yield AssociationField::new('city', 'Город')
+            ->setColumns(6)
+            ->setFormTypeOptions(['by_reference' => false])
             ->setRequired(true);
 
         yield TextEditorField::new('description', 'Описание')

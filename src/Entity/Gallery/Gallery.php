@@ -36,9 +36,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
              is_granted('ROLE_MASTER')"
         )
     ],
-    normalizationContext: ['groups' => [
-        'galleries:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['galleries:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
 class Gallery

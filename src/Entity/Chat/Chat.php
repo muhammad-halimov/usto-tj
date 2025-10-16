@@ -36,9 +36,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
              is_granted('ROLE_CLIENT')"
         )
     ],
-    normalizationContext: ['groups' => [
-        'chats:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['chats:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]class Chat
 {

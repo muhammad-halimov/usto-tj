@@ -2,22 +2,22 @@
 
 namespace App\Repository;
 
-use App\Entity\Geography\Geography;
+use App\Entity\Geography\Province;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Geography>
+ * @extends ServiceEntityRepository<Province>
  */
-class GeographyRepository extends ServiceEntityRepository
+class ProvinceRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Geography::class);
+        parent::__construct($registry, Province::class);
     }
 
 //    /**
-//     * @return Geography[] Returns an array of Geography objects
+//     * @return Province[] Returns an array of Province objects
 //     */
 //    public function findByExampleField($value): array
 //    {
@@ -31,7 +31,7 @@ class GeographyRepository extends ServiceEntityRepository
 //        ;
 //    }
 
-//    public function findOneBySomeField($value): ?Geography
+//    public function findOneBySomeField($value): ?Province
 //    {
 //        return $this->createQueryBuilder('u')
 //            ->andWhere('u.exampleField = :val')

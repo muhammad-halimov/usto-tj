@@ -7,7 +7,7 @@ use App\Entity\Chat\Chat;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\City;
 use App\Entity\Geography\District;
-use App\Entity\Geography\Geography;
+use App\Entity\Geography\Province;
 use App\Entity\Service\Category;
 use App\Entity\Service\Unit;
 use App\Entity\Ticket\Ticket;
@@ -57,9 +57,9 @@ class DashboardController extends AbstractDashboardController
 
         yield MenuItem::section('Доп. настройки');
             yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([
-                MenuItem::linkToCrud('Локация', 'fas fa-map-pin', Geography::class),
-                MenuItem::linkToCrud('Город', 'fas fa-city', City::class),
+                MenuItem::linkToCrud('Область', 'fas fa-map-pin', Province::class),
                 MenuItem::linkToCrud('Район', 'fas fa-building', District::class),
+                MenuItem::linkToCrud('Город', 'fas fa-city', City::class),
             ]);
             yield MenuItem::linkToCrud('Категории работ', 'fas fa-list', Category::class);
             yield MenuItem::linkToCrud('Ед. измерения', 'fas fa-gauge', Unit::class);

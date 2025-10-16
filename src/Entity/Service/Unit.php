@@ -32,9 +32,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
             "is_granted('ROLE_ADMIN')"
         )
     ],
-    normalizationContext: ['groups' => [
-        'masterServiceUnits:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['masterServiceUnits:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
 class Unit

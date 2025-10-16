@@ -38,9 +38,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
              is_granted('ROLE_CLIENT') or"
         )
     ],
-    normalizationContext: ['groups' => [
-        'reviews:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['reviews:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
 class Review

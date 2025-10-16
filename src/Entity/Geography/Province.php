@@ -11,13 +11,13 @@ use ApiPlatform\Metadata\Post;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Repository\GeographyRepository;
+use App\Repository\ProvinceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
-#[ORM\Entity(repositoryClass: GeographyRepository::class)]
+#[ORM\Entity(repositoryClass: ProvinceRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
@@ -31,18 +31,19 @@ use Symfony\Component\Serializer\Attribute\Groups;
             "is_granted('ROLE_ADMIN')"
         )
     ],
-    normalizationContext: ['groups' => [
-        'geographies:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['geographies:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
-class Geography
+class Province
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
     public function __toString(): string
     {
-        return "г. $this->city - р. $this->district";
+        return $this->province ?? "";
     }
 
     public function __construct()
@@ -63,6 +64,8 @@ class Geography
     #[Groups([
         'geographies:read',
         'userTickets:read',
+        'cities:read',
+        'districts:read',
     ])]
     private ?int $id = null;
 
@@ -70,6 +73,8 @@ class Geography
     #[Groups([
         'geographies:read',
         'userTickets:read',
+        'cities:read',
+        'districts:read',
     ])]
     private ?string $province = null;
 
@@ -91,13 +96,6 @@ class Geography
         'userTickets:read',
     ])]
     private ?City $city = null;
-
-    #[ORM\ManyToOne(inversedBy: 'geographies')]
-    #[Groups([
-        'geographies:read',
-        'userTickets:read',
-    ])]
-    private ?District $district = null;
 
     public function getId(): ?int
     {
@@ -121,7 +119,7 @@ class Geography
         return $this->description;
     }
 
-    public function setDescription(?string $description): Geography
+    public function setDescription(?string $description): Province
     {
         $this->description = $description;
         return $this;
@@ -165,18 +163,6 @@ class Geography
     public function setCity(?City $city): static
     {
         $this->city = $city;
-
-        return $this;
-    }
-
-    public function getDistrict(): ?District
-    {
-        return $this->district;
-    }
-
-    public function setDistrict(?District $district): static
-    {
-        $this->district = $district;
 
         return $this;
     }

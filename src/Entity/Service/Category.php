@@ -39,9 +39,10 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
              is_granted('ROLE_MASTER')"
         )
     ],
-    normalizationContext: ['groups' => [
-        'masterServiceCategories:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['masterServiceCategories:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
 class Category

@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Entity\Geography\Geography;
+use App\Entity\Geography\Province;
 use App\Entity\Service\Category;
 use App\Entity\Service\Unit;
 use App\Entity\Traits\CreatedAtTrait;
@@ -43,9 +43,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
              is_granted('ROLE_MASTER')"
         )
     ],
-    normalizationContext: ['groups' => [
-        'userTickets:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['userTickets:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
 class Ticket
@@ -144,7 +145,7 @@ class Ticket
     #[Groups([
         'userTickets:read',
     ])]
-    private ?Geography $place = null;
+    private ?Province $place = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
@@ -323,12 +324,12 @@ class Ticket
         return $this;
     }
 
-    public function getPlace(): ?Geography
+    public function getPlace(): ?Province
     {
         return $this->place;
     }
 
-    public function setPlace(?Geography $place): static
+    public function setPlace(?Province $place): static
     {
         $this->place = $place;
 

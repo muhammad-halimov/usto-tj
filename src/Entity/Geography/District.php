@@ -2,12 +2,16 @@
 
 namespace App\Entity\Geography;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\DistrictRepository;
 use DateTime;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
@@ -18,6 +22,24 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[ORM\Entity(repositoryClass: DistrictRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
+#[ApiResource(
+    operations: [
+        new Get(),
+        new GetCollection(),
+        new Post(),
+        new Patch(security:
+            "is_granted('ROLE_ADMIN')"
+        ),
+        new Delete(security:
+            "is_granted('ROLE_ADMIN')"
+        )
+    ],
+    normalizationContext: [
+        'groups' => ['districts:read'],
+        'skip_null_values' => false,
+    ],
+    paginationEnabled: false,
+)]
 class District
 {
     use UpdatedAtTrait, CreatedAtTrait;
@@ -31,19 +53,26 @@ class District
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
+        'districts:read',
         'geographies:read',
         'userTickets:read',
+        'cities:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
+        'districts:read',
         'geographies:read',
         'userTickets:read',
+        'cities:read',
     ])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups([
+        'districts:read',
+    ])]
     private ?string $description = null;
 
     #[Vich\UploadableField(mapping: 'service_district_photos', fileNameProperty: 'image')]
@@ -52,21 +81,18 @@ class District
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
+        'districts:read',
         'geographies:read',
         'userTickets:read',
+        'cities:read',
     ])]
     private ?string $image = null;
 
-    /**
-     * @var Collection<int, Geography>
-     */
-    #[ORM\OneToMany(targetEntity: Geography::class, mappedBy: 'district')]
-    private Collection $geographies;
-
-    public function __construct()
-    {
-        $this->geographies = new ArrayCollection();
-    }
+    #[ORM\ManyToOne(inversedBy: 'districts')]
+    #[Groups([
+        'districts:read',
+    ])]
+    private ?City $city = null;
 
     public function getId(): ?int
     {
@@ -124,32 +150,14 @@ class District
         return $this;
     }
 
-    /**
-     * @return Collection<int, Geography>
-     */
-    public function getGeographies(): Collection
+    public function getCity(): ?City
     {
-        return $this->geographies;
+        return $this->city;
     }
 
-    public function addGeography(Geography $geography): static
+    public function setCity(?City $city): static
     {
-        if (!$this->geographies->contains($geography)) {
-            $this->geographies->add($geography);
-            $geography->setDistrict($this);
-        }
-
-        return $this;
-    }
-
-    public function removeGeography(Geography $geography): static
-    {
-        if ($this->geographies->removeElement($geography)) {
-            // set the owning side to null (unless already changed)
-            if ($geography->getDistrict() === $this) {
-                $geography->setDistrict(null);
-            }
-        }
+        $this->city = $city;
 
         return $this;
     }

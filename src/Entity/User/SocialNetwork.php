@@ -33,9 +33,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
              is_granted('ROLE_CLIENT') or"
         )
     ],
-    normalizationContext: ['groups' => [
-        'social:read',
-    ]],
+    normalizationContext: [
+        'groups' => ['social:read'],
+        'skip_null_values' => false,
+    ],
     paginationEnabled: false,
 )]
 class SocialNetwork
