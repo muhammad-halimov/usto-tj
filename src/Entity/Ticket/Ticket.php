@@ -8,7 +8,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Entity\Geography\Province;
+use App\Entity\Geography\District;
 use App\Entity\Service\Category;
 use App\Entity\Service\Unit;
 use App\Entity\Traits\CreatedAtTrait;
@@ -145,18 +145,18 @@ class Ticket
     ])]
     private ?User $master = null;
 
-    #[ORM\ManyToOne(inversedBy: 'tickets')]
-    #[ORM\JoinColumn(name: 'place_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'userTickets:read',
-    ])]
-    private ?Province $place = null;
-
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'userTickets:read',
     ])]
     private ?bool $service = null;
+
+    #[ORM\ManyToOne(inversedBy: 'tickets')]
+    #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Groups([
+        'userTickets:read',
+    ])]
+    private ?District $address = null;
 
     public function getId(): ?int
     {
@@ -329,18 +329,6 @@ class Ticket
         return $this;
     }
 
-    public function getPlace(): ?Province
-    {
-        return $this->place;
-    }
-
-    public function setPlace(?Province $place): static
-    {
-        $this->place = $place;
-
-        return $this;
-    }
-
     public function getService(): ?bool
     {
         return $this->service;
@@ -349,6 +337,18 @@ class Ticket
     public function setService(?bool $service): Ticket
     {
         $this->service = $service;
+        return $this;
+    }
+
+    public function getAddress(): ?District
+    {
+        return $this->address;
+    }
+
+    public function setAddress(?District $address): static
+    {
+        $this->address = $address;
+
         return $this;
     }
 }

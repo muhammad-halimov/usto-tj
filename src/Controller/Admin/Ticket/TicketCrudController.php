@@ -73,7 +73,7 @@ class TicketCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(3);
 
-        yield AssociationField::new('place', 'Место')
+        yield AssociationField::new('address', 'Адрес')
             ->setRequired(true)
             ->setColumns(3);
 
@@ -106,7 +106,6 @@ class TicketCrudController extends AbstractCrudController
 
         yield TextEditorField::new('notice', 'Доп. описание')
             ->hideOnIndex()
-            ->setRequired(true)
             ->setColumns(6);
 
         yield CollectionField::new('userTicketImages', 'Галерея изображений')

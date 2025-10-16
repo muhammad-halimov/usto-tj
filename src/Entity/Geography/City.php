@@ -86,7 +86,6 @@ class City
     #[Groups([
         'cities:read',
         'provinces:read',
-        'userTickets:read',
         'districts:read',
     ])]
     private ?string $image = null;
@@ -106,6 +105,7 @@ class City
     #[Groups([
         'cities:read',
         'districts:read',
+        'userTickets:read',
     ])]
     private ?Province $province = null;
 

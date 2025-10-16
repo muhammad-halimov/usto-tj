@@ -38,7 +38,6 @@ class UnitCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield TextEditorField::new('description', 'Описание')
-            ->setRequired(true)
             ->setColumns(12);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')

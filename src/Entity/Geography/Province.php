@@ -8,7 +8,6 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\ProvinceRepository;
@@ -16,6 +15,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: ProvinceRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -48,7 +48,6 @@ class Province
 
     public function __construct()
     {
-        $this->tickets = new ArrayCollection();
         $this->cities = new ArrayCollection();
     }
 
@@ -77,6 +76,7 @@ class Province
         'cities:read',
         'districts:read',
     ])]
+    #[SerializedName('title')]
     private ?string $province = null;
 
     #[ORM\Column(type: 'text', nullable: true)]
@@ -84,12 +84,6 @@ class Province
         'provinces:read',
     ])]
     private ?string $description = null;
-
-    /**
-     * @var Collection<int, Ticket>
-     */
-    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'place', cascade: ['persist'], orphanRemoval: false)]
-    private Collection $tickets;
 
     /**
      * @var Collection<int, City>
@@ -125,36 +119,6 @@ class Province
     public function setDescription(?string $description): Province
     {
         $this->description = $description;
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Ticket>
-     */
-    public function getTickets(): Collection
-    {
-        return $this->tickets;
-    }
-
-    public function addTicket(Ticket $ticket): static
-    {
-        if (!$this->tickets->contains($ticket)) {
-            $this->tickets->add($ticket);
-            $ticket->setPlace($this);
-        }
-
-        return $this;
-    }
-
-    public function removeTicket(Ticket $ticket): static
-    {
-        if ($this->tickets->removeElement($ticket)) {
-            // set the owning side to null (unless already changed)
-            if ($ticket->getPlace() === $this) {
-                $ticket->setPlace(null);
-            }
-        }
-
         return $this;
     }
 
