@@ -103,12 +103,14 @@ class Ticket
     private ?bool $active = null;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',
     ])]
     private ?Category $category = null;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
+    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',
     ])]
@@ -124,6 +126,7 @@ class Ticket
     private Collection $userTicketImages;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
+    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',
     ])]
@@ -136,12 +139,14 @@ class Ticket
     private Collection $reviews;
 
     #[ORM\ManyToOne(inversedBy: 'tickets')]
+    #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',
     ])]
     private ?User $master = null;
 
     #[ORM\ManyToOne(inversedBy: 'tickets')]
+    #[ORM\JoinColumn(name: 'place_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',
     ])]

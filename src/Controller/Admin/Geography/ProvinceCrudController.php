@@ -61,9 +61,9 @@ class ProvinceCrudController extends AbstractCrudController
             ->setChoices(Province::PROVINCES)
             ->setRequired(true);
 
-        yield AssociationField::new('city', 'Город')
+        yield AssociationField::new('cities', 'Города')
             ->setColumns(6)
-//            ->setFormTypeOptions(['by_reference' => false])
+            ->setFormTypeOptions(['by_reference' => false])
             ->setRequired(true);
 
         yield TextEditorField::new('description', 'Описание')

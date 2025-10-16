@@ -59,12 +59,14 @@ use Symfony\Component\Serializer\Attribute\Groups;
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'userServiceChats')]
+    #[ORM\JoinColumn(name: 'message_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
     ])]
     private ?User $messageAuthor = null;
 
     #[ORM\ManyToOne(inversedBy: 'userServiceChats')]
+    #[ORM\JoinColumn(name: 'reply_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
     ])]

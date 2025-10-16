@@ -57,7 +57,7 @@ class City
     #[ORM\Column]
     #[Groups([
         'cities:read',
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'districts:read',
     ])]
@@ -66,7 +66,7 @@ class City
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'cities:read',
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'districts:read',
     ])]
@@ -85,31 +85,32 @@ class City
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'cities:read',
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'districts:read',
     ])]
     private ?string $image = null;
 
     /**
-     * @var Collection<int, Province>
-     */
-    #[ORM\OneToMany(targetEntity: Province::class, mappedBy: 'city')]
-    private Collection $geographies;
-
-    /**
      * @var Collection<int, District>
      */
-    #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'city')]
+    #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'city', cascade: ['persist'], orphanRemoval: false)]
     #[Groups([
         'cities:read',
-        'geographies:read',
+        'provinces:read',
     ])]
     private Collection $districts;
 
+    #[ORM\ManyToOne(inversedBy: 'cities')]
+    #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Groups([
+        'cities:read',
+        'districts:read',
+    ])]
+    private ?Province $province = null;
+
     public function __construct()
     {
-        $this->geographies = new ArrayCollection();
         $this->districts = new ArrayCollection();
     }
 
@@ -169,46 +170,6 @@ class City
         return $this;
     }
 
-    #[Groups([
-        'cities:read',
-        'districts:read',
-    ])]
-    #[SerializedName('province')]
-    public function getProvinceObject(): ?Province
-    {
-        return $this->geographies->first() ?: null;
-    }
-
-    /**
-     * @return Collection<int, Province>
-     */
-    public function getGeographies(): Collection
-    {
-        return $this->geographies;
-    }
-
-    public function addGeography(Province $geography): static
-    {
-        if (!$this->geographies->contains($geography)) {
-            $this->geographies->add($geography);
-            $geography->setCity($this);
-        }
-
-        return $this;
-    }
-
-    public function removeGeography(Province $geography): static
-    {
-        if ($this->geographies->removeElement($geography)) {
-            // set the owning side to null (unless already changed)
-            if ($geography->getCity() === $this) {
-                $geography->setCity(null);
-            }
-        }
-
-        return $this;
-    }
-
     /**
      * @return Collection<int, District>
      */
@@ -235,6 +196,18 @@ class City
                 $district->setCity(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getProvince(): ?Province
+    {
+        return $this->province;
+    }
+
+    public function setProvince(?Province $province): static
+    {
+        $this->province = $province;
 
         return $this;
     }

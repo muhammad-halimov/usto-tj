@@ -32,7 +32,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         )
     ],
     normalizationContext: [
-        'groups' => ['geographies:read'],
+        'groups' => ['provinces:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
@@ -49,6 +49,7 @@ class Province
     public function __construct()
     {
         $this->tickets = new ArrayCollection();
+        $this->cities = new ArrayCollection();
     }
 
     public const PROVINCES = [
@@ -62,7 +63,7 @@ class Province
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'cities:read',
         'districts:read',
@@ -71,7 +72,7 @@ class Province
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'cities:read',
         'districts:read',
@@ -80,22 +81,24 @@ class Province
 
     #[ORM\Column(type: 'text', nullable: true)]
     #[Groups([
-        'geographies:read',
+        'provinces:read',
     ])]
     private ?string $description = null;
 
     /**
      * @var Collection<int, Ticket>
      */
-    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'place')]
+    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'place', cascade: ['persist'], orphanRemoval: false)]
     private Collection $tickets;
 
-    #[ORM\ManyToOne(inversedBy: 'geographies')]
+    /**
+     * @var Collection<int, City>
+     */
+    #[ORM\OneToMany(targetEntity: City::class, mappedBy: 'province', cascade: ['persist'], orphanRemoval: false)]
     #[Groups([
-        'geographies:read',
-        'userTickets:read',
+        'provinces:read',
     ])]
-    private ?City $city = null;
+    private Collection $cities;
 
     public function getId(): ?int
     {
@@ -155,14 +158,32 @@ class Province
         return $this;
     }
 
-    public function getCity(): ?City
+    /**
+     * @return Collection<int, City>
+     */
+    public function getCities(): Collection
     {
-        return $this->city;
+        return $this->cities;
     }
 
-    public function setCity(?City $city): static
+    public function addCity(City $city): static
     {
-        $this->city = $city;
+        if (!$this->cities->contains($city)) {
+            $this->cities->add($city);
+            $city->setProvince($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCity(City $city): static
+    {
+        if ($this->cities->removeElement($city)) {
+            // set the owning side to null (unless already changed)
+            if ($city->getProvince() === $this) {
+                $city->setProvince(null);
+            }
+        }
 
         return $this;
     }

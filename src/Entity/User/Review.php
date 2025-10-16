@@ -87,6 +87,7 @@ class Review
     private ?bool $forReviewer = null;
 
     #[ORM\ManyToOne(inversedBy: 'reviews')]
+    #[ORM\JoinColumn(name: 'services_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Ticket $services = null;
 
     public function getId(): ?int

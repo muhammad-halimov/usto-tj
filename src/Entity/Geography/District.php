@@ -54,7 +54,7 @@ class District
     #[ORM\Column]
     #[Groups([
         'districts:read',
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'cities:read',
     ])]
@@ -63,7 +63,7 @@ class District
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'districts:read',
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'cities:read',
     ])]
@@ -82,13 +82,14 @@ class District
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'districts:read',
-        'geographies:read',
+        'provinces:read',
         'userTickets:read',
         'cities:read',
     ])]
     private ?string $image = null;
 
     #[ORM\ManyToOne(inversedBy: 'districts')]
+    #[ORM\JoinColumn(name: 'city_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'districts:read',
     ])]

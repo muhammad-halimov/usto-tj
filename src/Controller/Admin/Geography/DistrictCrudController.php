@@ -63,7 +63,6 @@ class DistrictCrudController extends AbstractCrudController
 
         yield AssociationField::new('city', 'Город')
             ->setColumns(6)
-            ->setFormTypeOptions(['by_reference' => false])
             ->setRequired(true);
 
         yield TextEditorField::new('description', 'Описание')
