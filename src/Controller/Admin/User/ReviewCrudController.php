@@ -5,6 +5,7 @@ namespace App\Controller\Admin\User;
 use App\Entity\User\Review;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -19,6 +20,12 @@ class ReviewCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return Review::class;
+    }
+
+    public function configureAssets(Assets $assets): Assets
+    {
+        return parent::configureAssets($assets)
+            ->addJsFile("assets/js/reviewCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud
@@ -71,6 +78,7 @@ class ReviewCrudController extends AbstractCrudController
 
         yield AssociationField::new('services', 'Услуга')
             ->setFormTypeOptions(['by_reference' => false])
+            ->addCssClass("services-field")
             ->setColumns(3);
 
         yield NumberField::new('rating', 'Оценка')

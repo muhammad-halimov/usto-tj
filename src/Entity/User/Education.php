@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Repository\User\EducationRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity(repositoryClass: EducationRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -53,6 +54,7 @@ class Education
     private ?bool $graduated = null;
 
     #[ORM\ManyToOne(inversedBy: 'education')]
+    #[Ignore]
     private ?User $user = null;
 
     public function getId(): ?int

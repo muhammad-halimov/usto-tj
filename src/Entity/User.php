@@ -27,6 +27,7 @@ use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -67,9 +68,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'Клиент' => 'ROLE_CLIENT',
     ];
 
+    public const GENDERS = [
+        'Женский' => 'gender_female',
+        'Мужской' => 'gender_male',
+        'Не указано' => 'gender_neutral',
+    ];
+
     public function __toString(): string
     {
         return $this->getEmail();
+    }
+
+    public function __construct()
+    {
+        $this->userSocialNetworks = new ArrayCollection();
+        $this->userServiceReviews = new ArrayCollection();
+        $this->userServiceChats = new ArrayCollection();
+        $this->userTickets = new ArrayCollection();
+        $this->education = new ArrayCollection();
+        $this->chatMessages = new ArrayCollection();
+        $this->galleries = new ArrayCollection();
+        $this->tickets = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -147,6 +166,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?float $rating = null;
 
+    #[ORM\Column(length: 16, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
+    private ?string $gender = null;
+
     #[Vich\UploadableField(mapping: 'profile_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
@@ -196,6 +222,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $password = null;
 
+    #[Ignore]
     private ?string $plainPassword = null;
 
     /**
@@ -212,18 +239,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, Review>
      */
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'user')]
+    #[Ignore]
     private Collection $userServiceReviews;
 
     /**
      * @var Collection<int, Chat>
      */
     #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'messageAuthor')]
+    #[Ignore]
     private Collection $userServiceChats;
 
     /**
      * @var Collection<int, Ticket>
      */
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $userTickets;
 
     /**
@@ -239,31 +269,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, ChatMessage>
      */
     #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $chatMessages;
 
     /**
      * @var Collection<int, Gallery>
      */
     #[ORM\OneToMany(targetEntity: Gallery::class, mappedBy: 'user')]
+    #[Ignore]
     private Collection $galleries;
 
     /**
      * @var Collection<int, Ticket>
      */
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'master')]
+    #[Ignore]
     private Collection $tickets;
-
-    public function __construct()
-    {
-        $this->userSocialNetworks = new ArrayCollection();
-        $this->userServiceReviews = new ArrayCollection();
-        $this->userServiceChats = new ArrayCollection();
-        $this->userTickets = new ArrayCollection();
-        $this->education = new ArrayCollection();
-        $this->chatMessages = new ArrayCollection();
-        $this->galleries = new ArrayCollection();
-        $this->tickets = new ArrayCollection();
-    }
 
     public function getId(): ?int
     {
@@ -334,6 +355,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRating(?float $rating): User
     {
         $this->rating = $rating;
+        return $this;
+    }
+
+    public function getGender(): ?string
+    {
+        return $this->gender;
+    }
+
+    public function setGender(?string $gender): User
+    {
+        $this->gender = $gender;
         return $this;
     }
 

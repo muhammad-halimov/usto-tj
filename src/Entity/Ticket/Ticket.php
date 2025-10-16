@@ -21,6 +21,8 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: TicketRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -123,6 +125,7 @@ class Ticket
     #[Groups([
         'userTickets:read',
     ])]
+    #[SerializedName('ticketImages')]
     private Collection $userTicketImages;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
@@ -136,6 +139,7 @@ class Ticket
      * @var Collection<int, Review>
      */
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'services')]
+    #[Ignore]
     private Collection $reviews;
 
     #[ORM\ManyToOne(inversedBy: 'tickets')]

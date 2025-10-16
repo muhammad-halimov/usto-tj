@@ -11,6 +11,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -42,6 +43,7 @@ class ChatMessage
     private ?string $text = null;
 
     #[ORM\ManyToOne(inversedBy: 'message')]
+    #[Ignore]
     private ?Chat $userServiceChat = null;
 
     #[Vich\UploadableField(mapping: 'chat_photos', fileNameProperty: 'image')]

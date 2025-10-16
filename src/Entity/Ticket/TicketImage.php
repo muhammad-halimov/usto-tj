@@ -10,6 +10,7 @@ use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -42,6 +43,7 @@ class TicketImage
     private ?string $image = null;
 
     #[ORM\ManyToOne(inversedBy: 'userTicketImages')]
+    #[Ignore]
     private ?Ticket $userTicket = null;
 
     public function getId(): ?int

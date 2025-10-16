@@ -6,6 +6,7 @@ use App\Controller\Admin\Field\VichImageField;
 use App\Entity\User;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -23,6 +24,12 @@ class UserCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return User::class;
+    }
+
+    public function configureAssets(Assets $assets): Assets
+    {
+        return parent::configureAssets($assets)
+            ->addJsFile("assets/js/userCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud
@@ -92,6 +99,11 @@ class UserCrudController extends AbstractCrudController
             ->setColumns(4)
             ->setRequired(false);
 
+        yield ChoiceField::new('gender', 'Пол')
+            ->setRequired(true)
+            ->setChoices(User::GENDERS)
+            ->setColumns(4);
+
         $plainPassword = TextField::new('plainPassword')
             ->setRequired(false)
             ->onlyOnForms();
@@ -108,11 +120,11 @@ class UserCrudController extends AbstractCrudController
         yield $plainPassword;
 
         yield TelephoneField::new('phone1', 'Телефон 1')
-            ->setColumns(6)
+            ->setColumns(4)
             ->setRequired(false);
 
         yield TelephoneField::new('phone2', 'Телефон 2')
-            ->setColumns(6)
+            ->setColumns(4)
             ->setRequired(false);
 
         yield TextEditorField::new('bio', 'О себе')

@@ -5,6 +5,7 @@ namespace App\Controller\Admin\Ticket;
 use App\Entity\Ticket\Ticket;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -21,6 +22,12 @@ class TicketCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return Ticket::class;
+    }
+
+    public function configureAssets(Assets $assets): Assets
+    {
+        return parent::configureAssets($assets)
+            ->addJsFile("assets/js/ticketCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud
@@ -62,10 +69,12 @@ class TicketCrudController extends AbstractCrudController
 
         yield BooleanField::new('active', 'Актуально')
             ->addCssClass("form-switch")
+            ->setRequired(true)
             ->setColumns(12);
 
         yield BooleanField::new('service', 'Услуга')
             ->addCssClass("form-switch")
+            ->setRequired(true)
             ->setColumns(12);
 
         yield AssociationField::new('category', 'Категория')
@@ -93,10 +102,12 @@ class TicketCrudController extends AbstractCrudController
 
         yield AssociationField::new('author', 'Клиент')
             ->setRequired(true)
+            ->addCssClass("author-field")
             ->setColumns(6);
 
         yield AssociationField::new('master', 'Мастер')
             ->setRequired(true)
+            ->addCssClass("master-field")
             ->setColumns(6);
 
         yield TextEditorField::new('description', 'Описание')
