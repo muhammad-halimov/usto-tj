@@ -74,7 +74,6 @@ class TicketCrudController extends AbstractCrudController
 
         yield BooleanField::new('service', 'Услуга')
             ->addCssClass("form-switch")
-            ->setRequired(true)
             ->setColumns(12);
 
         yield AssociationField::new('category', 'Категория')

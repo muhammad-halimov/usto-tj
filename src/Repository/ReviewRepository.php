@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\User;
 use App\Entity\User\Review;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -16,28 +17,64 @@ class ReviewRepository extends ServiceEntityRepository
         parent::__construct($registry, Review::class);
     }
 
-    //    /**
-    //     * @return Review[] Returns an array of Review objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('u.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    public function findUserReviewsById(User $user): array
+    {
+        if (in_array('ROLE_CLIENT', $user->getRoles())){
+            return $this
+                ->createQueryBuilder('r')
+                ->innerJoin('r.reviewer', 'rev')
+                ->where('r.reviewer = :reviewerId')
+                ->andWhere("r.forReviewer = :status")
+                ->andWhere("rev.roles LIKE :role")
+                ->setParameter('reviewerId', $user->getId())
+                ->setParameter('status', false)
+                ->setParameter('role', '%ROLE_CLIENT%')
+                ->getQuery()
+                ->getResult();
+        } else if(in_array('ROLE_MASTER', $user->getRoles())){
+            return $this
+                ->createQueryBuilder('r')
+                ->innerJoin('r.user', 'master')
+                ->where('r.user = :userId')
+                ->andWhere("r.forReviewer = :status")
+                ->andWhere("master.roles LIKE :role")
+                ->setParameter('userId', $user->getId())
+                ->setParameter('status', true)
+                ->setParameter('role', '%ROLE_MASTER%')
+                ->getQuery()
+                ->getResult();
+        }
 
-    //    public function findOneBySomeField($value): ?Review
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        return [];
+    }
+
+    public function findUserReviewsByClientRole(User $user): array
+    {
+        return $this
+            ->createQueryBuilder('r')
+            ->innerJoin('r.reviewer', 'rev')
+            ->where('r.reviewer = :reviewerId')
+            ->andWhere("r.forReviewer = :status")
+            ->andWhere("rev.roles LIKE :role")
+            ->setParameter('reviewerId', $user->getId())
+            ->setParameter('status', false)
+            ->setParameter('role', '%ROLE_CLIENT%')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findUserReviewsByMasterRole(User $user): array
+    {
+        return $this
+            ->createQueryBuilder('r')
+            ->innerJoin('r.user', 'master')
+            ->where('r.user = :userId')
+            ->andWhere("r.forReviewer = :status")
+            ->andWhere("master.roles LIKE :role")
+            ->setParameter('userId', $user->getId())
+            ->setParameter('status', true)
+            ->setParameter('role', '%ROLE_MASTER%')
+            ->getQuery()
+            ->getResult();
+    }
 }

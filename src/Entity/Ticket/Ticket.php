@@ -8,6 +8,11 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Ticket\ClientTicketFilterController;
+use App\Controller\Api\Filter\Ticket\MasterTicketFilterController;
+use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
+use App\Controller\Api\Filter\Ticket\RegularTicketFilterController;
+use App\Controller\Api\Filter\Ticket\ServiceTicketFilterController;
 use App\Entity\Geography\District;
 use App\Entity\Service\Category;
 use App\Entity\Service\Unit;
@@ -28,21 +33,78 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(), // TODO удалить этот вход
-        new GetCollection(uriTemplate: 'tickets/me'),
-        new GetCollection(uriTemplate: 'tickets/masters'),
-        new GetCollection(uriTemplate: 'tickets/masters/{id}'),
-        new GetCollection(uriTemplate: 'tickets/clients'),
-        new GetCollection(uriTemplate: 'tickets/clients/{id}'),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER')"
+        new Get(
+            uriTemplate: '/tickets/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER')"
+        new GetCollection(
+            uriTemplate: '/tickets/me',
+            controller: PersonalTicketFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/tickets/masters',
+            controller: ServiceTicketFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/tickets/masters/{id}',
+            requirements: ['id' => '\d+'],
+            controller: MasterTicketFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/tickets/clients',
+            controller: RegularTicketFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/tickets/clients/{id}',
+            requirements: ['id' => '\d+'],
+            controller: ClientTicketFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/tickets',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Patch(
+            uriTemplate: '/tickets/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Delete(
+            uriTemplate: '/tickets/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
         )
     ],
     normalizationContext: [

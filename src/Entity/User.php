@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\User\PersonalUserFilterController;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
@@ -38,18 +39,39 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT')"
+        new Get(
+            uriTemplate: '/users/me',
+            controller: PersonalUserFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                is_granted('ROLE_MASTER') or
+                is_granted('ROLE_CLIENT')",
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT')"
+        new Get(
+            uriTemplate: '/users/{id}',
+            requirements: ['id' => '\d+']
+        ),
+        new GetCollection(
+            uriTemplate: '/users'
+        ),
+        new Post(
+            uriTemplate: '/users'
+        ),
+        new Patch(
+            uriTemplate: '/users/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                is_granted('ROLE_MASTER') or
+                is_granted('ROLE_CLIENT')",
+        ),
+        new Delete(
+            uriTemplate: '/users/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                is_granted('ROLE_MASTER') or
+                is_granted('ROLE_CLIENT')",
         )
     ],
     normalizationContext: [
@@ -458,7 +480,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->password;
     }
 
-    public function setPassword(string $password): static
+    public function setPassword(?string $password): static
     {
         $this->password = $password;
 

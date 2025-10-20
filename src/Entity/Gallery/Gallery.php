@@ -8,6 +8,8 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Gallery\MasterGalleryFilterController;
+use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -22,18 +24,50 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(uriTemplate: 'galleries/me'),
-        new GetCollection(uriTemplate: 'galleries/master/{id}'),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER')"
+        new Get(
+            uriTemplate: '/galleries/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER')"
+        new GetCollection(
+            uriTemplate: '/galleries/me',
+            controller: PersonalGalleryFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new GetCollection(
+            uriTemplate: '/galleries/master/{id}',
+            requirements: ['id' => '\d+'],
+            controller: MasterGalleryFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new GetCollection(
+            uriTemplate: '/galleries',
+        ),
+        new Post(
+            uriTemplate: '/galleries',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Patch(
+            uriTemplate: '/galleries/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Delete(
+            uriTemplate: '/galleries/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
         )
     ],
     normalizationContext: [

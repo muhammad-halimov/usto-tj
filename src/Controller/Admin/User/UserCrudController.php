@@ -4,6 +4,7 @@ namespace App\Controller\Admin\User;
 
 use App\Controller\Admin\Field\VichImageField;
 use App\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -18,9 +19,20 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TelephoneField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserCrudController extends AbstractCrudController
 {
+    private UserPasswordHasherInterface $passwordEncoder;
+
+    public function __construct(
+        UserPasswordHasherInterface $passwordEncoder,
+    )
+    {
+        $this->passwordEncoder = $passwordEncoder;
+    }
+
+
     public static function getEntityFqcn(): string
     {
         return User::class;
@@ -62,6 +74,26 @@ class UserCrudController extends AbstractCrudController
                 Action::DELETE => 'ROLE_ADMIN',
                 Action::EDIT => 'ROLE_ADMIN',
             ]);
+    }
+
+    public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if ($entityInstance instanceof User && $entityInstance->getPlainPassword()) {
+            $this->addFlash('info', 'Пароль изменен и сохранен!');
+            $entityInstance->setPassword($this->passwordEncoder->hashPassword($entityInstance, $entityInstance->getPlainPassword()));
+        }
+
+        parent::persistEntity($entityManager, $entityInstance);
+    }
+
+    public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if ($entityInstance instanceof User && $entityInstance->getPlainPassword()) {
+            $this->addFlash('info', 'Пароль изменен и сохранен!');
+            $entityInstance->setPassword($this->passwordEncoder->hashPassword($entityInstance, $entityInstance->getPlainPassword()));
+        }
+
+        parent::updateEntity($entityManager, $entityInstance);
     }
 
     public function configureFields(string $pageName): iterable

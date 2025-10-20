@@ -8,6 +8,9 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Review\ClientReviewFilterController;
+use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
+use App\Controller\Api\Filter\Review\MasterReviewFilterController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -22,21 +25,60 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(), // TODO удалить этот вход
-        new GetCollection(uriTemplate: 'reviews/me'),
-        new GetCollection(uriTemplate: 'reviews/masters/{id}'),
-        new GetCollection(uriTemplate: 'reviews/clients/{id}'),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT') or"
+        new Get(
+            uriTemplate: '/reviews/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT') or"
+        new GetCollection(
+            uriTemplate: '/reviews/me',
+            controller: PersonalReviewFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/reviews/masters/{id}',
+            controller: MasterReviewFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/reviews/clients/{id}',
+            controller: ClientReviewFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/reviews',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Patch(
+            uriTemplate: '/reviews/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Delete(
+            uriTemplate: '/reviews/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
         )
     ],
     normalizationContext: [

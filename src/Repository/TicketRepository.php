@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Ticket\Ticket;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -16,28 +17,74 @@ class TicketRepository extends ServiceEntityRepository
         parent::__construct($registry, Ticket::class);
     }
 
-    //    /**
-    //     * @return Ticket[] Returns an array of Ticket objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('u.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    public function findUserTicketsById(User $user): array
+    {
+        if (in_array('ROLE_CLIENT', $user->getRoles())){
+            return $this
+                ->createQueryBuilder('t')
+                ->innerJoin('t.author', 'author')
+                ->where('t.author = :authorId')
+                ->andWhere("t.service = :status")
+                ->andWhere("author.roles LIKE :role")
+                ->setParameter('authorId', $user->getId())
+                ->setParameter('status', false)
+                ->setParameter('role', '%ROLE_CLIENT%')
+                ->getQuery()
+                ->getResult();
+        } else if(in_array('ROLE_MASTER', $user->getRoles())){
+            return $this
+                ->createQueryBuilder('t')
+                ->innerJoin('t.master', 'master')
+                ->where('t.master = :masterId')
+                ->andWhere("t.service = :status")
+                ->andWhere("master.roles LIKE :role")
+                ->setParameter('masterId', $user->getId())
+                ->setParameter('status', true)
+                ->setParameter('role', '%ROLE_MASTER%')
+                ->getQuery()
+                ->getResult();
+        }
 
-    //    public function findOneBySomeField($value): ?Ticket
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        return [];
+    }
+
+    public function findUserTicketsByClientRole(User $user): array
+    {
+        return $this
+            ->createQueryBuilder('t')
+            ->innerJoin('t.author', 'author')
+            ->where('t.author = :authorId')
+            ->andWhere("t.service = :status")
+            ->andWhere("author.roles LIKE :role")
+            ->setParameter('authorId', $user->getId())
+            ->setParameter('status', false)
+            ->setParameter('role', '%ROLE_CLIENT%')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findUserTicketsByMasterRole(User $user): array
+    {
+        return $this
+            ->createQueryBuilder('t')
+            ->innerJoin('t.master', 'master')
+            ->where('t.master = :masterId')
+            ->andWhere("t.service = :status")
+            ->andWhere("master.roles LIKE :role")
+            ->setParameter('masterId', $user->getId())
+            ->setParameter('status', true)
+            ->setParameter('role', '%ROLE_MASTER%')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findUserTicketsByStatus(bool $status): array
+    {
+        return $this
+            ->createQueryBuilder('t')
+            ->where("t.service = :status")
+            ->setParameter('status', $status)
+            ->getQuery()
+            ->getResult();
+    }
 }
