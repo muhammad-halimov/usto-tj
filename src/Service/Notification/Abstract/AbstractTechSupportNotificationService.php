@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service\Extra;
+namespace App\Service\Notification\Abstract;
 
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;

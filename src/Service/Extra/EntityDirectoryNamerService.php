@@ -15,7 +15,7 @@ use App\Entity\User\Occupation;
 use Vich\UploaderBundle\Mapping\PropertyMapping;
 use Vich\UploaderBundle\Naming\DirectoryNamerInterface;
 
-readonly class EntityDirectoryNamerService implements DirectoryNamerInterface
+readonly class EntityDirectoryNamerService implements DirectoryNamerInterface // Используется в vich_uploader.yaml. Локализатор путей
 {
     public function directoryName(object|array $object, PropertyMapping $mapping): string
     {

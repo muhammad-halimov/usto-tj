@@ -4,7 +4,7 @@ namespace App\Service\Notification;
 
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
-use App\Service\Extra\AbstractTechSupportNotificationService;
+use App\Service\Notification\Abstract\AbstractTechSupportNotificationService;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 /**

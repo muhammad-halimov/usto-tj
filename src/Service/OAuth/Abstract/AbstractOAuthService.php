@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service\OAuth;
+namespace App\Service\OAuth\Abstract;
 
 use App\ApiResource\AppMessages;
 use App\Entity\User;

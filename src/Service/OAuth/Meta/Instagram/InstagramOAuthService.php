@@ -5,7 +5,7 @@ namespace App\Service\OAuth\Meta\Instagram;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Service\OAuth\AbstractOAuthService;
+use App\Service\OAuth\Abstract\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;

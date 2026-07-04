@@ -3,8 +3,8 @@
 namespace App\Service\Auth;
 
 use App\Entity\User;
-use App\Service\Extra\AbstractMailerService;
 use App\Service\Extra\StateStorageService;
+use App\Service\Notification\Abstract\AbstractMailerService;
 use Psr\Cache\InvalidArgumentException;
 use Random\RandomException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;

@@ -4,11 +4,12 @@ namespace App\Service\Auth;
 
 use App\Entity\User;
 use App\Entity\User\AccountConfirmationToken;
-use App\Service\Extra\AbstractMailerService;
+use App\Service\Notification\Abstract\AbstractMailerService;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Random\RandomException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+
 /**
  * Отправка письма для подтверждения аккаунта.
  *

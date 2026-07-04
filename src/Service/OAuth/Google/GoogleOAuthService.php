@@ -5,7 +5,8 @@ namespace App\Service\OAuth\Google;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Service\OAuth\AbstractOAuthService;
+use App\Entity\User\Phone;
+use App\Service\OAuth\Abstract\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use DateTime;
 use Exception;
@@ -17,8 +18,6 @@ use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
-
-use App\Entity\User\Phone;
 
 class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInterface
 {
