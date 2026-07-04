@@ -9,6 +9,7 @@ use App\Entity\Ticket\Ticket;
 use App\Repository\Ticket\TicketRepository;
 use App\Service\Extra\LocalizationService;
 use App\State\Localization\AbstractLocalizationProvider;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -21,6 +22,7 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
         LocalizationService $localizationService,
         private Security    $security,
         private TicketRepository $ticketRepository,
+        private LoggerInterface $logger,
     ) {
         parent::__construct($itemProvider, $collectionProvider, $requestStack, $localizationService);
     }
@@ -41,6 +43,14 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
         if ($operation instanceof Get) {
             $id     = (int) ($uriVariables['id'] ?? 0);
             $ticket = $this->ticketRepository->find($id);
+
+            $this->logger->info('TicketProvider[GET]', [
+                'id'          => $id,
+                'found'       => $ticket instanceof Ticket,
+                'approved'    => $ticket?->getApproved(),
+                'authorEmail' => $ticket?->getAuthor()?->getUserIdentifier(),
+                'currentUser' => $this->security->getUser()?->getUserIdentifier(),
+            ]);
 
             if (!$ticket instanceof Ticket) {
                 return null;
@@ -65,6 +75,8 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
 
             return null;
         }
+
+        $this->logger->info('TicketProvider[non-Get]', ['opClass' => get_class($operation)]);
 
         return parent::provide($operation, $uriVariables, $context);
     }

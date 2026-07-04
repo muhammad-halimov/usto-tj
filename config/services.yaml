@@ -47,6 +47,7 @@ services:
             $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
             $security: '@security.helper'
             $ticketRepository: '@App\Repository\Ticket\TicketRepository'
+            $logger: '@logger'
         tags:
             - { name: 'api_platform.state_provider' }
 
