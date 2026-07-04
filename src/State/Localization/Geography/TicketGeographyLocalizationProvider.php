@@ -44,14 +44,6 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
             $id     = (int) ($uriVariables['id'] ?? 0);
             $ticket = $this->ticketRepository->find($id);
 
-            $this->logger->info('TicketProvider[GET]', [
-                'id'          => $id,
-                'found'       => $ticket instanceof Ticket,
-                'approved'    => $ticket?->getApproved(),
-                'authorEmail' => $ticket?->getAuthor()?->getUserIdentifier(),
-                'currentUser' => $this->security->getUser()?->getUserIdentifier(),
-            ]);
-
             if (!$ticket instanceof Ticket) {
                 return null;
             }
@@ -64,10 +56,24 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
                 return $ticket;
             }
 
-            // Unapproved: only the author can see it
+            // Unapproved: only the author or master (ticket owner) can see it
             $user = $this->security->getUser();
-            if ($user !== null && $ticket->getAuthor() !== null) {
-                if ($ticket->getAuthor()->getUserIdentifier() === $user->getUserIdentifier()) {
+            if ($user !== null) {
+                $identifier = $user->getUserIdentifier();
+                $isOwner =
+                    ($ticket->getAuthor() !== null && $ticket->getAuthor()->getUserIdentifier() === $identifier) ||
+                    ($ticket->getMaster() !== null && $ticket->getMaster()->getUserIdentifier() === $identifier);
+
+                $this->logger->info('TicketProvider[GET]', [
+                    'id'          => $id,
+                    'approved'    => $ticket->getApproved(),
+                    'authorEmail' => $ticket->getAuthor()?->getUserIdentifier(),
+                    'masterEmail' => $ticket->getMaster()?->getUserIdentifier(),
+                    'currentUser' => $identifier,
+                    'isOwner'     => $isOwner,
+                ]);
+
+                if ($isOwner) {
                     $this->localize($ticket, $locale);
                     return $ticket;
                 }
@@ -76,7 +82,6 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
             return null;
         }
 
-        $this->logger->info('TicketProvider[non-Get]', ['opClass' => get_class($operation)]);
 
         return parent::provide($operation, $uriVariables, $context);
     }
