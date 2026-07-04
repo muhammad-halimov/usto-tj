@@ -26,11 +26,17 @@ readonly class FavoriteStateProvider extends AbstractCollectionEntryStateProvide
     {
         $collection = parent::provide($operation, $uriVariables, $context);
 
-        $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'tj') ?? 'tj';
+        $locale   = $this->requestStack->getCurrentRequest()?->query->get('locale', 'tj') ?? 'tj';
+        $filtered = [];
 
         /** @var Favorite $entry */
         foreach ($collection as $entry) {
             if ($ticket = $entry->getTicket()) {
+                // Skip unapproved tickets
+                if (!$ticket->getApproved()) {
+                    continue;
+                }
+
                 $this->localizationService->localizeGeography($ticket, $locale);
 
                 if ($ticket->getCategory())
@@ -44,11 +50,18 @@ readonly class FavoriteStateProvider extends AbstractCollectionEntryStateProvide
             }
 
             if ($user = $entry->getUser()) {
+                // Skip inactive or unconfirmed users
+                if (!$user->getActive() || !$user->getApproved()) {
+                    continue;
+                }
+
                 foreach ($user->getOccupation() as $occupation)
                     $this->localizationService->localizeEntity($occupation, $locale);
             }
+
+            $filtered[] = $entry;
         }
 
-        return $collection;
+        return $filtered;
     }
 }
