@@ -38,7 +38,8 @@ class TechSupportCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('талон')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление талона')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение талона')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о талоне");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о талоне")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

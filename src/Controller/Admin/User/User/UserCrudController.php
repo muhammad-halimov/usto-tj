@@ -72,7 +72,7 @@ class UserCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление пользователя')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение пользователя')
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о пользователе")
-            ->setDefaultSort(['id' => 'DESC']);
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
     /**

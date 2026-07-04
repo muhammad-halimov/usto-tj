@@ -33,7 +33,8 @@ class EducationCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('образование')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление образования')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение образования')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об образовании");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об образовании")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

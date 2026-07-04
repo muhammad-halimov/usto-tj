@@ -39,7 +39,8 @@ class AppealTicketCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('жалобу на объявление/услугу')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на объявление/услугу')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на объявление/услугу')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на объявление/услугу");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на объявление/услугу")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

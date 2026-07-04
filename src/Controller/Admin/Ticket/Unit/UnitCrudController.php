@@ -29,7 +29,8 @@ class UnitCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('единицу измерения')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление единицы измерения')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение единицы измерения')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об единицы измерения");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об единицы измерения")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
     public function configureFields(string $pageName): iterable

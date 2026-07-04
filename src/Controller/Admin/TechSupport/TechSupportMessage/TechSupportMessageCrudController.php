@@ -32,7 +32,8 @@ class TechSupportMessageCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('сообщение тп')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление сообщении тп')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение сообщении тп')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении тп");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении тп")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

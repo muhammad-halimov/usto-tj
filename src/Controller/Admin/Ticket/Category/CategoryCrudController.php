@@ -36,7 +36,8 @@ class CategoryCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('категорию услуг')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление категории')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение категории')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о категории");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о категории")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

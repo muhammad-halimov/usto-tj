@@ -38,7 +38,8 @@ class DistrictCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('географию района')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление района')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение района')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о районе");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о районе")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

@@ -37,7 +37,8 @@ class OccupationCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('специальность')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление специальности')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение специальности')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о специальности");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о специальности")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

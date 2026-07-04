@@ -36,7 +36,8 @@ class CityCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('географию города')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление города')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение города')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о городе");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о городе")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

@@ -37,7 +37,8 @@ class AppealUserCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('жалобу на пользователя')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на пользователя')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на пользователя')
-            ->setPageTitle(Crud::PAGE_DETAIL, 'Информация о жалобе на пользователя');
+            ->setPageTitle(Crud::PAGE_DETAIL, 'Информация о жалобе на пользователя')
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
     public function configureFilters(Filters $filters): Filters

@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\User\Phone;
 
 use App\Entity\User\Phone;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -17,6 +18,12 @@ class PhoneCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return Phone::class;
+    }
+
+    public function configureCrud(Crud $crud): Crud
+    {
+        return parent::configureCrud($crud)
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
     public function configureFields(string $pageName): iterable

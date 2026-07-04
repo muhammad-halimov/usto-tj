@@ -34,7 +34,8 @@ class GalleryCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('галерею работ')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление галереи')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение галереи')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о галереи");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о галереи")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

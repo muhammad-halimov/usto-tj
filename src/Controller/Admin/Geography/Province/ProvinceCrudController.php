@@ -38,7 +38,8 @@ class ProvinceCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('область')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление области')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение области')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об области");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об области")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

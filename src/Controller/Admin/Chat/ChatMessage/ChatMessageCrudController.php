@@ -32,7 +32,8 @@ class ChatMessageCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('сообщение чата')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление сообщении чата')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение сообщении чата')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении чата");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении чата")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

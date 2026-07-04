@@ -30,7 +30,8 @@ class SocialNetworkCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('соц. сеть')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление соц. сети')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение соц. сети')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о соц. сети");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о соц. сети")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

@@ -45,7 +45,8 @@ class TicketCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('объявление')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление объявления')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение объявления')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о объявлении");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о объявлении")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

@@ -39,7 +39,8 @@ class AppealChatCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('жалобу на чат')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на чат')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на чат')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на чат");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на чат")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

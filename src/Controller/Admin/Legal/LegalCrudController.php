@@ -36,7 +36,8 @@ class LegalCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('регуляцию')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление регуляции')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение регуляции')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о регуляции");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о регуляции")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

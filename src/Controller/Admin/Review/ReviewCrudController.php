@@ -43,7 +43,8 @@ class ReviewCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('отзыв')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление отзыва')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение отзыва')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об отзыве");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об отзыве")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

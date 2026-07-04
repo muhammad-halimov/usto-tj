@@ -32,7 +32,8 @@ class AppealReasonCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('причину жалобы')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление причины жалобы')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение причины жалобы')
-            ->setPageTitle(Crud::PAGE_DETAIL, 'Информация о причине жалобы');
+            ->setPageTitle(Crud::PAGE_DETAIL, 'Информация о причине жалобы')
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
     public function configureFields(string $pageName): iterable

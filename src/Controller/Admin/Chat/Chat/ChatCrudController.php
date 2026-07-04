@@ -32,7 +32,8 @@ class ChatCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('чат')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление чата')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение чата')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о чате");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о чате")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 

@@ -23,7 +23,7 @@ class AddressCrudController extends AbstractCrudController
             ->setEntityLabelInPlural('Адреса')
             ->setPageTitle(Crud::PAGE_NEW, 'Создать адрес')
             ->setPageTitle(Crud::PAGE_EDIT, 'Редактировать адрес')
-            ->setDefaultSort(['id' => 'DESC']);
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
     public function configureFields(string $pageName): iterable

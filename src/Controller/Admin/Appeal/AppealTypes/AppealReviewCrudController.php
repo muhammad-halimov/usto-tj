@@ -39,7 +39,8 @@ class AppealReviewCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('жалобу на отзыв')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на отзыв')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на отзыв')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на отзыв");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на отзыв")
+            ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
 
