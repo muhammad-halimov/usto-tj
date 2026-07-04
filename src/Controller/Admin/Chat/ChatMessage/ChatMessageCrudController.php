@@ -9,7 +9,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
 use App\Controller\Admin\Traits\TimestampFieldsTrait;
@@ -48,7 +47,7 @@ class ChatMessageCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
-        yield TextEditorField::new('description', 'Сообщение')
+        yield TextField::new('description', 'Сообщение')
             ->setRequired(true)
             ->setColumns(12);
 

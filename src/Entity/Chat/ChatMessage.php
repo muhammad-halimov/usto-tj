@@ -84,7 +84,7 @@ class ChatMessage implements HasImagesInterface
 
     public function __toString(): string
     {
-        return "MessageID #{$this->id}; ChatID #{$this->chat?->getId()}; Text: {$this->description}";
+        return $this?->description;
     }
 
     #[ORM\Id]
