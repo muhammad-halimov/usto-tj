@@ -15,6 +15,7 @@ import enProfile from './languages/eng/profile.json';
 import enCreateEdit from './languages/eng/createEdit.json';
 import enAddress from './languages/eng/address.json';
 import enMyTickets from './languages/eng/myTickets.json';
+import enTechSupport from './languages/eng/techSupport.json';
 
 // Импорты для русского языка
 import ruCommon from './languages/ru/common.json';
@@ -28,6 +29,7 @@ import ruProfile from './languages/ru/profile.json';
 import ruCreateEdit from './languages/ru/createEdit.json';
 import ruAddress from './languages/ru/address.json';
 import ruMyTickets from './languages/ru/myTickets.json';
+import ruTechSupport from './languages/ru/techSupport.json';
 
 // Импорты для таджикского языка
 import tjCommon from './languages/tj/common.json';
@@ -41,6 +43,7 @@ import tjProfile from './languages/tj/profile.json';
 import tjCreateEdit from './languages/tj/createEdit.json';
 import tjAddress from './languages/tj/address.json';
 import tjMyTickets from './languages/tj/myTickets.json';
+import tjTechSupport from './languages/tj/techSupport.json';
 import type { Language } from '../types/common';
 
 export type { Language } from '../types/common';
@@ -73,6 +76,7 @@ i18n
                 createEdit: enCreateEdit,
                 address: enAddress,
                 myTickets: enMyTickets,
+                techSupport: enTechSupport,
             },
             ru: {
                 common: ruCommon,
@@ -86,6 +90,7 @@ i18n
                 createEdit: ruCreateEdit,
                 address: ruAddress,
                 myTickets: ruMyTickets,
+                techSupport: ruTechSupport,
             },
             tj: {
                 common: tjCommon,
@@ -99,6 +104,7 @@ i18n
                 createEdit: tjCreateEdit,
                 address: tjAddress,
                 myTickets: tjMyTickets,
+                techSupport: tjTechSupport,
             },
         },
         fallbackLng: 'ru',
@@ -107,7 +113,7 @@ i18n
         interpolation: {
             escapeValue: false,
         },
-        ns: ['common', 'components', 'header', 'search', 'buttons', 'category', 'ticket', 'profile', 'createEdit', 'address', 'myTickets'],
+        ns: ['common', 'components', 'header', 'search', 'buttons', 'category', 'ticket', 'profile', 'createEdit', 'address', 'myTickets', 'techSupport'],
         defaultNS: 'common',
         react: {
             useSuspense: false,

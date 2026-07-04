@@ -1,0 +1,38 @@
+{
+  "pageTitle": "Technical Support",
+  "pageSubtitle": "Describe your issue and we will do our best to help",
+  "form": {
+    "titleLabel": "Subject",
+    "titlePlaceholder": "Briefly describe the issue",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe the problem in detail...",
+    "reasonLabel": "Category",
+    "reasonPlaceholder": "Select category",
+    "priorityLabel": "Priority",
+    "priorityPlaceholder": "Select priority",
+    "emailLabel": "Your email",
+    "emailPlaceholder": "example@mail.com",
+    "photosLabel": "Attach screenshots",
+    "photoAlt": "Screenshot",
+    "submit": "Submit request",
+    "submitting": "Submitting..."
+  },
+  "priority": {
+    "1": "Low",
+    "2": "Medium",
+    "3": "High",
+    "4": "Urgent"
+  },
+  "validation": {
+    "titleRequired": "Please enter a subject",
+    "descriptionRequired": "Please describe the issue",
+    "reasonRequired": "Please select a category",
+    "priorityRequired": "Please select a priority",
+    "emailRequired": "Please enter your email",
+    "emailInvalid": "Please enter a valid email"
+  },
+  "success": "Your request has been received. We will contact you shortly.",
+  "error": "Failed to submit the request. Please try again.",
+  "loadError": "Failed to load support categories."
+}
+

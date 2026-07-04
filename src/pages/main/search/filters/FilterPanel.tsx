@@ -237,17 +237,14 @@ function FilterPanel({
                     {/* Город/Район */}
                     <div className={styles.filter_section}>
                         <h3>{t('filters.cityDistrict')}</h3>
-                        {isCityDistrictLoading ? (
-                            <PageLoader fullPage={false} compact asSpan />
-                        ) : (
-                            <SelectSearch
-                                options={cityDistrictOptions}
-                                value={localFilters.city}
-                                onChange={handleCityChange}
-                                placeholder={t('filters.allCities')}
-                                searchPlaceholder={t('filters.searchCity')}
-                            />
-                        )}
+                        <SelectSearch
+                            options={cityDistrictOptions}
+                            value={localFilters.city}
+                            onChange={handleCityChange}
+                            placeholder={t('filters.allCities')}
+                            searchPlaceholder={t('filters.searchCity')}
+                            loading={isCityDistrictLoading}
+                        />
                     </div>
 
                     {/* Категория */}

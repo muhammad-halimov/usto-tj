@@ -12,7 +12,6 @@ import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage";
 import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage";
 import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage";
 import { Legal } from "../../pages/legal";
-import TechSupport from "../../pages/support/TechSupport";
 import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage";
 import { ROUTE_PATTERNS } from './routes';
 
@@ -44,11 +43,11 @@ const router = createBrowserRouter([
             { path: ROUTE_PATTERNS.EDIT_TICKET, element: <CreateEdit /> },
             { path: ROUTE_PATTERNS.CATEGORY_TICKETS_BY_ID, element: <Category /> },
 
-            // Legal pages
+            // Legal + support pages (shared Tabs layout)
             { path: ROUTE_PATTERNS.PRIVACY_POLICY, element: <Legal /> },
             { path: ROUTE_PATTERNS.TERMS_OF_USE, element: <Legal /> },
             { path: ROUTE_PATTERNS.PUBLIC_OFFER, element: <Legal /> },
-            { path: ROUTE_PATTERNS.TECH_SUPPORT, element: <TechSupport /> },
+            { path: ROUTE_PATTERNS.TECH_SUPPORT, element: <Legal /> },
         ],
     },
     {

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Marquee } from '../Text/Marquee';
+import PageLoader from '../../../widgets/PageLoader/PageLoader';
 import styles from './SelectSearch.module.scss';
 
 export interface SelectOption<T = unknown> {
@@ -27,6 +28,8 @@ interface SelectSearchProps<T = unknown> {
     showSearchIcon?: boolean;
     /** onKeyDown для altMode input */
     onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+    /** Показывает спиннер загрузки вместо триггера */
+    loading?: boolean;
     /**
      * Альтернативный режим: скрывает дропдаун и рендерит
      * обычный текстовый input с иконкой поиска и кнопкой очистки.
@@ -44,6 +47,7 @@ export function SelectSearch<T = unknown>({
     disabled = false,
     showSearchIcon = false,
     altMode = false,
+    loading = false,
     onKeyDown,
 }: SelectSearchProps<T>) {
     const { t } = useTranslation('common');
@@ -114,6 +118,16 @@ export function SelectSearch<T = unknown>({
             handleSelect(filtered[0]);
         }
     }, [filtered, handleSelect]);
+
+    if (loading) {
+        return (
+            <div className={`${styles.wrapper} ${styles.disabled} ${className ?? ''}`}>
+                <div className={styles.trigger} style={{ pointerEvents: 'none' }}>
+                    <PageLoader fullPage={false} compact />
+                </div>
+            </div>
+        );
+    }
 
     if (altMode) {
         return (

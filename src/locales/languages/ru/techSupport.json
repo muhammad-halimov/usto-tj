@@ -1,0 +1,38 @@
+{
+  "pageTitle": "Техническая поддержка",
+  "pageSubtitle": "Опишите вашу проблему, и мы постараемся помочь",
+  "form": {
+    "titleLabel": "Тема обращения",
+    "titlePlaceholder": "Кратко опишите суть проблемы",
+    "descriptionLabel": "Описание",
+    "descriptionPlaceholder": "Подробно опишите проблему...",
+    "reasonLabel": "Категория обращения",
+    "reasonPlaceholder": "Выберите категорию",
+    "priorityLabel": "Приоритет",
+    "priorityPlaceholder": "Выберите приоритет",
+    "emailLabel": "Ваш email",
+    "emailPlaceholder": "example@mail.com",
+    "photosLabel": "Прикрепить скриншоты",
+    "photoAlt": "Скриншот",
+    "submit": "Отправить обращение",
+    "submitting": "Отправка..."
+  },
+  "priority": {
+    "1": "Низкий",
+    "2": "Средний",
+    "3": "Высокий",
+    "4": "Срочный"
+  },
+  "validation": {
+    "titleRequired": "Укажите тему обращения",
+    "descriptionRequired": "Опишите проблему",
+    "reasonRequired": "Выберите категорию обращения",
+    "priorityRequired": "Выберите приоритет",
+    "emailRequired": "Укажите email для обратной связи",
+    "emailInvalid": "Введите корректный email"
+  },
+  "success": "Ваше обращение принято. Мы свяжемся с вами в ближайшее время.",
+  "error": "Не удалось отправить обращение. Попробуйте ещё раз.",
+  "loadError": "Не удалось загрузить категории обращений."
+}
+

@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
 import DOMPurify from 'dompurify';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../app/routers/routes';
 import { Tabs } from '../../shared/ui/Tabs';
 import PageLoader from '../../widgets/PageLoader/PageLoader';
-import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline } from 'react-icons/io5';
+import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline, IoHeadsetOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
 import type { LegalDocument, LegalDocumentType } from '../../entities';
 import { universalApiRequest } from '../../utils/apiUtils';
 import type { LocaleType } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
+import TechSupportForm, { type TechSupportProps as _TSP } from '../support/TechSupport';
+
+const EmbeddedTechSupport = TechSupportForm as React.ComponentType<_TSP>;
+
+type PageTab = LegalDocumentType | 'tech_support';
 
 /**
  * Legal documents page.
@@ -18,30 +24,38 @@ import { resolveApiError } from '../../utils/appMessagesUtils';
  * Content is fetched from the API per document type + locale and sanitised
  * with DOMPurify before being rendered as innerHTML.
  */
+function getTabFromPath(pathname: string): PageTab {
+    if (pathname === ROUTES.TERMS_OF_USE) return 'terms_of_use';
+    if (pathname === ROUTES.PUBLIC_OFFER) return 'public_offer';
+    if (pathname === ROUTES.TECH_SUPPORT) return 'tech_support';
+    return 'privacy_policy';
+}
+
 function Legal() {
     const { t, i18n } = useTranslation('common');
     const location = useLocation();
     const navigate = useNavigate();
     const [document, setDocument] = useState<LegalDocument | null>(null);
-    const [activeType, setActiveType] = useState<LegalDocumentType>('privacy_policy');
+    // Инициализируем сразу из URL — без задержки через useEffect
+    const [activeType, setActiveType] = useState<PageTab>(() => getTabFromPath(location.pathname));
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Определяем активный тип из URL
+    // Синхронизируем вкладку при навигации назад/вперёд
     useEffect(() => {
-        const path = location.pathname;
-        if (path === ROUTES.PRIVACY_POLICY) {
-            setActiveType('privacy_policy');
-        } else if (path === ROUTES.TERMS_OF_USE) {
-            setActiveType('terms_of_use');
-        } else if (path === ROUTES.PUBLIC_OFFER) {
-            setActiveType('public_offer');
-        }
+        setActiveType(getTabFromPath(location.pathname));
     }, [location.pathname]);
 
     // Загружаем документ с API для активного типа
     useEffect(() => {
         const fetchDocument = async () => {
+            if (activeType === 'tech_support') {
+                setDocument(null);
+                setIsLoading(false);
+                setError(null);
+                return;
+            }
+
             try {
                 setIsLoading(true);
                 setError(null);
@@ -65,7 +79,7 @@ function Legal() {
     }, [activeType, i18n.language]);
 
     // Переключение документа
-    const handleTypeChange = (type: LegalDocumentType) => {
+    const handleTypeChange = (type: PageTab) => {
         if (type !== activeType) {
             setActiveType(type);
             let newPath: string = ROUTES.PRIVACY_POLICY;
@@ -73,15 +87,18 @@ function Legal() {
                 newPath = ROUTES.TERMS_OF_USE;
             } else if (type === 'public_offer') {
                 newPath = ROUTES.PUBLIC_OFFER;
+            } else if (type === 'tech_support') {
+                newPath = ROUTES.TECH_SUPPORT;
             }
             navigate(newPath, { replace: true });
         }
     };
 
     const navTabs = [
-        { key: 'terms_of_use' as LegalDocumentType, icon: <IoDocumentTextOutline />, label: t('footer.termsOfUse', 'Условия использования') },
-        { key: 'privacy_policy' as LegalDocumentType, icon: <IoShieldCheckmarkOutline />, label: t('footer.privacyPolicy', 'Политика конфиденциальности') },
-        { key: 'public_offer' as LegalDocumentType, icon: <IoReceiptOutline />, label: t('footer.publicOffer', 'Публичная оферта') },
+        { key: 'terms_of_use' as PageTab, icon: <IoDocumentTextOutline />, label: t('footer.termsOfUse', 'Условия использования') },
+        { key: 'privacy_policy' as PageTab, icon: <IoShieldCheckmarkOutline />, label: t('footer.privacyPolicy', 'Политика конфиденциальности') },
+        { key: 'public_offer' as PageTab, icon: <IoReceiptOutline />, label: t('footer.publicOffer', 'Публичная оферта') },
+        { key: 'tech_support' as PageTab, icon: <IoHeadsetOutline />, label: t('footer.techSupport', 'Техподдержка') },
     ];
 
     return (
@@ -94,7 +111,9 @@ function Legal() {
                 />
             </div>
             <div className={styles.content}>
-                {isLoading ? (
+                {activeType === 'tech_support' ? (
+                    <EmbeddedTechSupport embedded />
+                ) : isLoading ? (
                     <div className={styles.loading_wrap}>
                         <PageLoader fullPage={false} />
                     </div>

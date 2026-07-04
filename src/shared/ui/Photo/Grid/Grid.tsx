@@ -97,7 +97,7 @@ const Grid: React.FC<PhotoGridProps> = ({
                     />
                     <button
                         type="button"
-                        onClick={() => removePhoto(index)}
+                        onClick={(e) => { e.stopPropagation(); removePhoto(index); }}
                         className={styles.removePhotoButton}
                         disabled={disabled}
                     >

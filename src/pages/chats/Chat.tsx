@@ -68,17 +68,17 @@ function Chat() {
 
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const eventSourceRef = useRef<EventSource | null>(null);
     const presenceSourceRef = useRef<EventSource | null>(null);
     const inboxSourceRef = useRef<EventSource | null>(null);
     const currentUserRef = useRef<ApiUser | null>(null);
-    const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const startSSERef = useRef<((chatId: number) => Promise<void>) | null>(null);
     const startPresenceSSERef = useRef<((interlocutorId: number) => void) | null>(null);
     const startInboxSSERef = useRef<(() => Promise<void>) | null>(null);
-    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
+    /** Tracks which chat is currently open so the inbox SSE can route messages to setMessages. */
+    const selectedChatIdRef = useRef<number | null>(null);
+    /** Always points to the latest processActiveChatMessage to avoid stale closures in inbox SSE. */
+    const processActiveChatMessageRef = useRef<((type: string, data: ApiMessage | { id: number; chatId: number }, chatId: number) => void) | null>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
     const MERCURE_HUB_URL = import.meta.env.VITE_MERCURE_HUB_URL;
 
@@ -144,9 +144,10 @@ function Chat() {
 
     // Обработка выбранного чата
     useEffect(() => {
+        selectedChatIdRef.current = selectedChat;
         if (selectedChat) {
-            console.log('Starting SSE for chat:', selectedChat);
-            startSSE(selectedChat);
+            console.log('Loading chat data for:', selectedChat);
+            loadChatData(selectedChat);
 
             const chat = chatsRef.current.find(c => c.id === selectedChat);
             const interlocutor = chat
@@ -162,7 +163,6 @@ function Chat() {
         } else {
             setMessages([]);
             setChatImages([]);
-            stopSSE();
             setIsChatLoading(false);
             if (presenceSourceRef.current) {
                 presenceSourceRef.current.close();
@@ -170,7 +170,6 @@ function Chat() {
             }
         }
         return () => {
-            stopSSE();
             if (presenceSourceRef.current) {
                 presenceSourceRef.current.close();
                 presenceSourceRef.current = null;
@@ -333,175 +332,106 @@ function Chat() {
         }
     }, []);
 
-    const stopSSE = useCallback(() => {
-        if (tokenRefreshRef.current) {
-            clearTimeout(tokenRefreshRef.current);
-            tokenRefreshRef.current = null;
-        }
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-            reconnectTimeoutRef.current = null;
-        }
-        if (eventSourceRef.current) {
-            eventSourceRef.current.close();
-            eventSourceRef.current = null;
-            console.log('SSE connection closed');
-        }
-    }, []);
-
-    const startSSE = useCallback(async (chatId: number) => {
-        stopSSE();
+    /**
+     * Loads initial messages and marks the chat as read.
+     * Real-time delivery is handled by the shared inbox SSE — no per-chat EventSource needed.
+     */
+    const loadChatData = useCallback(async (chatId: number) => {
         setIsChatLoading(true);
-
-        // 1. Начальная загрузка сообщений
         await fetchChatMessages(chatId);
         await markChatAsRead(chatId);
         setIsChatLoading(false);
+    }, [fetchChatMessages, markChatAsRead]);
 
-        // 2. Получаем Mercure JWT
-        const token = getAuthToken();
-        if (!token) return;
+    /**
+     * Processes a Mercure real-time event for the currently open chat.
+     * Called by the inbox SSE handler when event.chatId === selectedChatIdRef.current.
+     */
+    const processActiveChatMessage = useCallback((
+        type: string,
+        data: ApiMessage | { id: number; chatId: number },
+        chatId: number,
+    ) => {
+        const user = currentUserRef.current;
 
-        try {
-            const { token: mercureToken, topic } = await universalApiRequest(`/api/chats/${chatId}/subscribe`, { locale: false }) as { token: string; topic: string };
-
-            // 3. Открываем SSE-соединение
-            const hubUrl = new URL(MERCURE_HUB_URL);
-            hubUrl.searchParams.append('topic', topic);
-            hubUrl.searchParams.append('authorization', mercureToken);
-
-            const es = new EventSource(hubUrl.toString());
-            eventSourceRef.current = es;
-            console.log('SSE connected to topic:', topic);
-
-            es.onmessage = (event) => {
-                try {
-                    const payload = JSON.parse(event.data) as {
-                        type: 'created' | 'updated' | 'deleted';
-                        data: ApiMessage | { id: number; chatId: number };
-                    };
-                    const { type, data } = payload;
-                    const user = currentUserRef.current;
-
-                    if (type === 'deleted') {
-                        const del = data as { id: number; chatId: number };
-                        setMessages(prev => prev.filter(m => m.id !== del.id));
-                        // Обновляем миниатюры через рефреш чата
-                        fetchChatMessages(chatId);
-                        return;
-                    }
-
-                    if (!user) return;
-
-                    const apiMsg = data as ApiMessage;
-                    const createdAt = apiMsg.createdAt ? new Date(apiMsg.createdAt) : new Date();
-                    const updatedAt = apiMsg.updatedAt ? new Date(apiMsg.updatedAt) : null;
-                    const isEdited = !!(updatedAt && apiMsg.createdAt &&
-                        updatedAt.getTime() - new Date(apiMsg.createdAt).getTime() > 1000);
-
-                    const msg: Message = {
-                        id: apiMsg.id,
-                        sender: apiMsg.author.id === user.id ? 'me' : 'other',
-                        name: getTranslatedFullName(apiMsg.author),
-                        text: apiMsg.description,
-                        type: 'text' as const,
-                        time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        createdAt: createdAt.toISOString(),
-                        edited: isEdited,
-                        readAt: apiMsg.readAt ?? null,
-                        replyTo: apiMsg.replyTo ? {
-                            id: apiMsg.replyTo.id,
-                            text: apiMsg.replyTo.description,
-                            name: getTranslatedFullName(apiMsg.replyTo.author)
-                        } : undefined,
-                        images: (apiMsg.images || []).map(img => ({
-                            id: img.id,
-                            url: getImageUrl(img.image),
-                            name: img.image
-                        }))
-                    };
-
-                    if (type === 'created') {
-                        setMessages(prev => {
-                            // Удаляем локальный pending-дубликат только если сообщение от меня
-                            const isMyMsg = msg.sender === 'me';
-                            const filtered = isMyMsg
-                                ? prev.filter(m => !(m.isLocal && m.text === msg.text))
-                                : prev;
-                            if (filtered.some(m => m.id === msg.id)) return filtered;
-                            return [...filtered, msg].sort(
-                                (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
-                            );
-                        });
-                        // Помечаем сообщения как прочитанные если сообщение от собеседника
-                        if (msg.sender === 'other') {
-                            markChatAsRead(chatId);
-                        }
-                        // Обновляем миниатюры если есть фото
-                        if (apiMsg.images && apiMsg.images.length > 0) {
-                            const newThumbs: ChatImageThumbnail[] = apiMsg.images.map(img => ({
-                                id: img.id,
-                                imageUrl: getImageUrl(img.image),
-                                author: img.author,
-                                createdAt: img.createdAt || new Date().toISOString()
-                            }));
-                            setChatImages(prev => {
-                                const merged = [
-                                    ...prev.filter(t => !newThumbs.some(n => n.id === t.id)),
-                                    ...newThumbs
-                                ];
-                                return merged.sort(
-                                    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                                );
-                            });
-                        }
-                    } else if (type === 'updated') {
-                        setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
-                        // Обновляем миниатюры
-                        const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
-                            id: img.id,
-                            imageUrl: getImageUrl(img.image),
-                            author: img.author,
-                            createdAt: img.createdAt || new Date().toISOString()
-                        }));
-                        setChatImages(prev => {
-                            const merged = [
-                                ...prev.filter(t => !updThumbs.some(n => n.id === t.id)),
-                                ...updThumbs
-                            ];
-                            return merged.sort(
-                                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                            );
-                        });
-                    }
-                } catch (err) {
-                    console.error('SSE parse error:', err);
-                }
-            };
-
-            es.onerror = (err) => {
-                console.error('SSE error, reconnecting in 3s:', err);
-                es.close();
-                eventSourceRef.current = null;
-                // Автопереподключение через 3 секунды
-                if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-                reconnectTimeoutRef.current = setTimeout(() => {
-                    console.log('Reconnecting SSE for chat:', chatId);
-                    startSSERef.current?.(chatId);
-                }, 3000);
-            };
-
-            // Обновляем токен за 5 минут до его истечения (55 минут)
-            if (tokenRefreshRef.current) clearTimeout(tokenRefreshRef.current);
-            tokenRefreshRef.current = setTimeout(() => {
-                console.log('Refreshing Mercure token for chat:', chatId);
-                startSSERef.current?.(chatId);
-            }, 55 * 60 * 1000);
-
-        } catch (err) {
-            console.error('Error setting up SSE:', err);
+        if (type === 'deleted') {
+            const del = data as { id: number; chatId: number };
+            setMessages(prev => prev.filter(m => m.id !== del.id));
+            fetchChatMessages(chatId);
+            return;
         }
-    }, [stopSSE, fetchChatMessages, markChatAsRead, setIsChatLoading, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
+
+        if (!user) return;
+
+        const apiMsg = data as ApiMessage;
+        const createdAt = apiMsg.createdAt ? new Date(apiMsg.createdAt) : new Date();
+        const updatedAt = apiMsg.updatedAt ? new Date(apiMsg.updatedAt) : null;
+        const isEdited = !!(updatedAt && apiMsg.createdAt &&
+            updatedAt.getTime() - new Date(apiMsg.createdAt).getTime() > 1000);
+
+        const msg: Message = {
+            id: apiMsg.id,
+            sender: apiMsg.author.id === user.id ? 'me' : 'other',
+            name: getTranslatedFullName(apiMsg.author),
+            text: apiMsg.description,
+            type: 'text' as const,
+            time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            createdAt: createdAt.toISOString(),
+            edited: isEdited,
+            readAt: apiMsg.readAt ?? null,
+            replyTo: apiMsg.replyTo ? {
+                id: apiMsg.replyTo.id,
+                text: apiMsg.replyTo.description,
+                name: getTranslatedFullName(apiMsg.replyTo.author)
+            } : undefined,
+            images: (apiMsg.images || []).map(img => ({
+                id: img.id,
+                url: getImageUrl(img.image),
+                name: img.image
+            }))
+        };
+
+        if (type === 'created') {
+            setMessages(prev => {
+                const isMyMsg = msg.sender === 'me';
+                const filtered = isMyMsg
+                    ? prev.filter(m => !(m.isLocal && m.text === msg.text))
+                    : prev;
+                if (filtered.some(m => m.id === msg.id)) return filtered;
+                return [...filtered, msg].sort(
+                    (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
+                );
+            });
+            if (msg.sender === 'other') markChatAsRead(chatId);
+            if (apiMsg.images && apiMsg.images.length > 0) {
+                const newThumbs: ChatImageThumbnail[] = apiMsg.images.map(img => ({
+                    id: img.id,
+                    imageUrl: getImageUrl(img.image),
+                    author: img.author,
+                    createdAt: img.createdAt || new Date().toISOString()
+                }));
+                setChatImages(prev => {
+                    const merged = [...prev.filter(t => !newThumbs.some(n => n.id === t.id)), ...newThumbs];
+                    return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                });
+            }
+        } else if (type === 'updated') {
+            setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
+            const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
+                id: img.id,
+                imageUrl: getImageUrl(img.image),
+                author: img.author,
+                createdAt: img.createdAt || new Date().toISOString()
+            }));
+            setChatImages(prev => {
+                const merged = [...prev.filter(t => !updThumbs.some(n => n.id === t.id)), ...updThumbs];
+                return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            });
+        }
+    }, [fetchChatMessages, getTranslatedFullName, getImageUrl, markChatAsRead]);
+
+    useEffect(() => { processActiveChatMessageRef.current = processActiveChatMessage; }, [processActiveChatMessage]);
+
 
     const startPresenceSSE = useCallback((interlocutorId: number) => {
         if (presenceSourceRef.current) {
@@ -573,21 +503,23 @@ function Chat() {
                         type: string;
                         data: ApiMessage & { chat?: { id: number } };
                     };
+                    const chatId = (data as any).chat?.id ?? (data as any).chatId;
+                    if (!chatId) return;
+
+                    // Route to active chat message list (replaces the old per-chat EventSource)
+                    if (chatId === selectedChatIdRef.current) {
+                        processActiveChatMessageRef.current?.(type, data, chatId);
+                    }
+
+                    // Also update sidebar chat list for unread counts / last message
                     if (type === 'created') {
-                        const chatId = data.chat?.id;
-                        if (!chatId) return;
                         setChats(prev => prev.map(chat => {
                             if (chat.id !== chatId) return chat;
                             const msgs = chat.messages || [];
-                            // Дедупликация: не добавляем если уже есть по id
                             if (msgs.some(m => m.id === data.id)) return chat;
-                            // Не добавляем сообщения в открытый чат —
-                            // ими управляет основной chat SSE (eventSourceRef)
                             return { ...chat, messages: [...msgs, data] };
                         }));
                     } else if (type === 'updated') {
-                        const chatId = data.chat?.id;
-                        if (!chatId) return;
                         setChats(prev => prev.map(chat => {
                             if (chat.id !== chatId) return chat;
                             const msgs = (chat.messages || []).map(m =>
@@ -610,10 +542,7 @@ function Chat() {
 
     useEffect(() => { startInboxSSERef.current = startInboxSSE; }, [startInboxSSE]);
 
-    // Синхронизируем ref чтобы setTimeout всегда вызывал актуальную версию startSSE
-    useEffect(() => { startSSERef.current = startSSE; }, [startSSE]);
-
-    // Синхронизируем chatsRef чтобы startSSE мог получить актуальный список чатов
+    // Синхронизируем chatsRef чтобы startInboxSSE мог получить актуальный список чатов
     useEffect(() => { chatsRef.current = chats; }, [chats]);
 
     // ===== PRESENCE (ОНЛАЙН/ОФЛАЙН) =====
