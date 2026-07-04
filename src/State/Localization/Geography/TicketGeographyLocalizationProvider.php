@@ -6,7 +6,6 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Ticket\Ticket;
-use App\Entity\User;
 use App\Repository\Ticket\TicketRepository;
 use App\Service\Extra\LocalizationService;
 use App\State\Localization\AbstractLocalizationProvider;
@@ -32,26 +31,39 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
     }
 
     /**
-     * Для одиночного GET: используем findVisibleById — один SQL-запрос с условием
-     *   (approved = true OR author = currentUserId).
-     * Нет lazy loading, нет Security внутри фильтра запроса.
+     * Для одиночного GET:
+     *   1. Загружаем тикет по ID без фильтра approved.
+     *   2. Если approved=true — виден всем.
+     *   3. Если approved=false — виден только автору (сравниваем email/identifier).
      */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
         if ($operation instanceof Get) {
-            $id      = (int) ($uriVariables['id'] ?? 0);
-            $user    = $this->security->getUser();
-            $userId  = ($user instanceof User) ? $user->getId() : null;
-
-            $ticket = $this->ticketRepository->findVisibleById($id, $userId);
+            $id     = (int) ($uriVariables['id'] ?? 0);
+            $ticket = $this->ticketRepository->find($id);
 
             if (!$ticket instanceof Ticket) {
                 return null;
             }
 
             $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'tj') ?? 'tj';
-            $this->localize($ticket, $locale);
-            return $ticket;
+
+            // Approved tickets are visible to everyone
+            if ($ticket->getApproved()) {
+                $this->localize($ticket, $locale);
+                return $ticket;
+            }
+
+            // Unapproved: only the author can see it
+            $user = $this->security->getUser();
+            if ($user !== null && $ticket->getAuthor() !== null) {
+                if ($ticket->getAuthor()->getUserIdentifier() === $user->getUserIdentifier()) {
+                    $this->localize($ticket, $locale);
+                    return $ticket;
+                }
+            }
+
+            return null;
         }
 
         return parent::provide($operation, $uriVariables, $context);
