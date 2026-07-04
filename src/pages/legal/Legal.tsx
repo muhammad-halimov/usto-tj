@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../app/routers/routes';
 import { Tabs } from '../../shared/ui/Tabs';
-import PageLoader from '../../widgets/PageLoader/PageLoader';
+import { EmptyState } from '../../widgets/EmptyState';
 import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline, IoHeadsetOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
 import type { LegalDocument, LegalDocumentType } from '../../entities';
@@ -114,14 +114,15 @@ function Legal() {
                 {activeType === 'tech_support' ? (
                     <EmbeddedTechSupport embedded />
                 ) : isLoading ? (
-                    <div className={styles.loading_wrap}>
-                        <PageLoader fullPage={false} />
+                    <div className={styles.emptyWrap}>
+                        <EmptyState isLoading />
                     </div>
                 ) : error || !document ? (
-                    <div className={styles.error}>
-                        <h1>{t('error.title', 'Ошибка')}</h1>
-                        <p>{error || t('legal.notFound', 'Документ не найден')}</p>
-                        <p>{t('legal.tryAnotherDocument', 'Попробуйте выбрать другой документ из навигации выше')}</p>
+                    <div className={styles.emptyWrap}>
+                        <EmptyState
+                            title={error || t('legal.notFound', 'Документ не найден')}
+                            subtitle={t('legal.tryAnotherDocument', 'Попробуйте выбрать другой документ из навигации выше')}
+                        />
                     </div>
                 ) : (
                     <>

@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './Tabs.module.scss';
-import { Marquee } from '../Text/Marquee/Marquee';
+import { Marquee } from '../Text/Marquee';
 
 export interface TabItem<T extends string = string> {
     key: T;

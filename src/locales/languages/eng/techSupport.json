@@ -1,6 +1,17 @@
 {
   "pageTitle": "Technical Support",
   "pageSubtitle": "Describe your issue and we will do our best to help",
+  "tabs": {
+    "create": "New Request",
+    "my": "My Requests"
+  },
+  "myTickets": {
+    "empty": "You have no support requests yet",
+    "loadError": "Failed to load your requests",
+    "statusLabel": "Status",
+    "priorityLabel": "Priority",
+    "noTitle": "No subject"
+  },
   "form": {
     "titleLabel": "Subject",
     "titlePlaceholder": "Briefly describe the issue",
