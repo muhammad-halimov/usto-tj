@@ -25,7 +25,7 @@ class ApiGetChatMessageController extends AbstractApiGetController
         return parent::buildResponse($entity);
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var ChatMessage $entity */
         $chat = $entity->getChat();

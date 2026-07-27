@@ -24,7 +24,7 @@ class ApiPostReviewController extends AbstractApiPostController
 
     protected function setSerializationGroups(): array { return G::OPS_REVIEWS; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var Review $entity */
         if ($entity->getMaster()) $this->localizationService->localizeUser($entity->getMaster(), $this->getLocale());

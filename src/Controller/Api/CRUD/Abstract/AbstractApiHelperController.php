@@ -111,7 +111,7 @@ abstract class AbstractApiHelperController extends AbstractController
     }
 
     /** Хук для пост-обработки (локализация и т.д.). По умолчанию — no-op. */
-    protected function afterFetch(object|array $entity, User $user): void {}
+    protected function afterFetch(object|array $entity, ?User $user): void {}
 
     /**
      * Сформировать стандартный JSON-ответ для сущности или коллекции.
@@ -170,7 +170,7 @@ abstract class AbstractApiHelperController extends AbstractController
      *   $ownershipError = $this->checkOwnership($entity, $user);
      *   if ($ownershipError) return $ownershipError;
      */
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse { return null; }
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse { return null; }
 
     /**
      * JSON-ответ с кодом и HTTP-статусом из AppError.
@@ -228,6 +228,16 @@ abstract class AbstractApiHelperController extends AbstractController
     protected function getAttribute(string $attribute, mixed $default = null): mixed
     {
         return $this->requestStack->getCurrentRequest()->attributes->get($attribute, $default);
+    }
+
+    /**
+     * Заголовок запроса.
+     *
+     * @param ?string $key ключ заголовка
+     */
+    protected function getHeader(?string $key): string|null
+    {
+        return $this->requestStack->getCurrentRequest()->headers->get($key);
     }
 
     /**

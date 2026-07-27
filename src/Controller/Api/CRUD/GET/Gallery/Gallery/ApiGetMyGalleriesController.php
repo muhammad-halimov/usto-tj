@@ -23,7 +23,7 @@ class ApiGetMyGalleriesController extends AbstractApiGetSelfController
     protected function fetchSelf(User $user): object|array|null
     { return $this->galleryRepository->findUserGallery($user); }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         if ($entity instanceof Gallery && $entity->getUser()) {
             $this->localizationService->localizeUser($entity->getUser(), $this->getLocale());

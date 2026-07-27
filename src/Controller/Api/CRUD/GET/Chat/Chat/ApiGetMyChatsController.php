@@ -29,7 +29,7 @@ class ApiGetMyChatsController extends AbstractApiGetCollectionController
         return $this->chatRepository->findUserChats($user, $ticketId, $active);
     }
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         /** @var Chat $chat */
         foreach ($entity as $chat) {

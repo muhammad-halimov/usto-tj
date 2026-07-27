@@ -28,7 +28,7 @@ class ApiGetMyTechSupportsController extends AbstractApiGetSelfController
         return $results ?: null;
     }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var TechSupport $techSupport */
         foreach ($entity as $techSupport) {

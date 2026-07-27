@@ -23,7 +23,7 @@ class ApiPostChatController extends AbstractApiPostController
 
     protected function setSerializationGroups(): array { return G::OPS_CHATS; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var Chat $entity */
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());

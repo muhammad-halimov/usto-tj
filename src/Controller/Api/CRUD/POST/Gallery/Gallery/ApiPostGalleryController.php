@@ -21,7 +21,7 @@ class ApiPostGalleryController extends AbstractApiPostController
 
     protected function setSerializationGroups(): array { return G::OPS_GALLERIES; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var Gallery $entity */
         if ($entity->getUser()) $this->localizationService->localizeUser($entity->getUser(), $this->getLocale());

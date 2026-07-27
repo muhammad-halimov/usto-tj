@@ -21,7 +21,7 @@ abstract class AbstractPostCollectionEntryController extends AbstractApiPostCont
         $this->localizationService = $localizationService;
     }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var AbstractCollectionEntry $entity */
         if ($entity->getOwner()) $this->localizationService->localizeUser($entity->getOwner(), $this->getLocale());

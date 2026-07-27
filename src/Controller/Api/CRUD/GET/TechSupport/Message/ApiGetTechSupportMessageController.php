@@ -25,7 +25,7 @@ class ApiGetTechSupportMessageController extends AbstractApiGetController
         return parent::buildResponse($entity);
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var TechSupportMessage $entity */
         $chat = $entity->getTechSupport();
@@ -38,7 +38,7 @@ class ApiGetTechSupportMessageController extends AbstractApiGetController
         return null;
     }
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         /** @var TechSupportMessage $techSupportMessage */
         foreach ($entity as $techSupportMessage) {

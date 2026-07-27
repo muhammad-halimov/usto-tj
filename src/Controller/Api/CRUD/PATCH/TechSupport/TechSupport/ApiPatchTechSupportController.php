@@ -32,7 +32,7 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         return $this->techSupportRepository->find($id);
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var TechSupport $entity */
         if ($entity->getAuthor() !== $bearer && $entity->getAdministrant() !== $bearer)
@@ -95,7 +95,7 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         return null;
     }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var TechSupport $entity */
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());

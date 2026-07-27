@@ -21,7 +21,7 @@ class ApiGetMyReviewsController extends AbstractApiGetCollectionController
 
     protected function fetchQuery(User $user): ?QueryBuilder { return $this->reviewRepository->findUserReviews($user); }
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         /** @var Review $review */
         foreach ($entity as $review) {

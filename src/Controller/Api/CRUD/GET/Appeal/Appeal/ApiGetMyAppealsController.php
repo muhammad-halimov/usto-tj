@@ -24,7 +24,7 @@ class ApiGetMyAppealsController extends AbstractApiGetCollectionController
 
     protected function fetchQuery(User $user): QueryBuilder { return $this->appealRepository->findByAuthor($user); }
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         $locale = $this->getLocale();
 

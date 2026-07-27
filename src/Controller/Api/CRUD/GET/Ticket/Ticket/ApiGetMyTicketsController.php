@@ -21,7 +21,7 @@ class ApiGetMyTicketsController extends AbstractApiGetCollectionController
 
     protected function fetchQuery(User $user): ?QueryBuilder { return $this->ticketRepository->findTicketsByUserRole($user); }
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         /** @var Ticket $ticket */
         foreach ($entity as $ticket) {

@@ -22,7 +22,7 @@ class ApiPatchReviewController extends AbstractApiPatchController
 
     protected function getNotFoundError(): string { return AppMessages::REVIEW_NOT_FOUND; }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var Review $entity */
         if ($bearer !== $entity->getClient() && $bearer !== $entity->getMaster())
@@ -60,7 +60,7 @@ class ApiPatchReviewController extends AbstractApiPatchController
         return G::OPS_REVIEWS;
     }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var Review $entity */
         if ($entity->getMaster()) $this->localizationService->localizeUser($entity->getMaster(), $this->getLocale());

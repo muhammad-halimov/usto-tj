@@ -28,7 +28,7 @@ class ApiGetTechSupportController extends AbstractApiGetController
 
     protected function setSerializationGroups(): array { return G::OPS_TECH_SUPPORT; }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var TechSupport $entity */
         $isAdmin = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
@@ -40,7 +40,7 @@ class ApiGetTechSupportController extends AbstractApiGetController
         return null;
     }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var TechSupport $entity */
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());

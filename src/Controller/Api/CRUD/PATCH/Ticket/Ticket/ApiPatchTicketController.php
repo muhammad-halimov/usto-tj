@@ -98,7 +98,7 @@ class ApiPatchTicketController extends AbstractApiHelperController
         return $this->buildResponse($ticket);
     }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var Ticket $entity */
         $this->localizationService->localizeTicket($entity, $this->getLocale());

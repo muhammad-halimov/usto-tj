@@ -15,7 +15,7 @@ class ApiDeleteTechSupportMessageController extends AbstractApiDeleteController
         return TechSupportMessage::class;
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var TechSupportMessage $entity */
         if ($entity->getAuthor() !== $bearer) return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);

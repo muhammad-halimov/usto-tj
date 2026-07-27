@@ -15,7 +15,7 @@ class ApiPatchChatController extends AbstractApiPatchController
 
     protected function getInputClass(): string { return ChatPatchInput::class; }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var Chat $entity */
         if ($entity->getAuthor() !== $bearer && $entity->getReplyAuthor() !== $bearer)

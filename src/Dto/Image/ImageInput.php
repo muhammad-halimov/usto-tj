@@ -15,8 +15,8 @@ class ImageInput
     #[Assert\All([
         new Assert\File(
             maxSize: '10M',
-            maxSizeMessage: 'File is too large ({{ size }}). Maximum allowed size is {{ limit }}.',
             mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+            maxSizeMessage: 'File is too large ({{ size }}). Maximum allowed size is {{ limit }}.',
             mimeTypesMessage: 'Invalid image format',
         ),
     ])]

@@ -198,6 +198,18 @@ class TechSupport implements HasImagesInterface
     private ?string $guestEmail = null;
 
     /**
+     * Токен гостевого пользователя (не авторизован).
+     * Заполняется только когда тикет создаётся без JWT-токена.
+     * Нужен, чтобы пользователь мог загрузить фото.
+     */
+    #[ORM\Column(length: 64, nullable: true, unique: true)]
+    #[Groups([
+        G::TECH_SUPPORT_GUEST_TOKEN, // ← новая группа, только для ответа POST /tech-supports
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?string $guestAccessToken = null;
+
+    /**
      * Фотографии, прикреплённые напрямую к тикету (не через сообщение).
      * Загружаются через POST /tech-supports/{id}/upload-images.
      */
@@ -287,6 +299,17 @@ class TechSupport implements HasImagesInterface
     public function setGuestEmail(?string $guestEmail): static
     {
         $this->guestEmail = $guestEmail;
+        return $this;
+    }
+
+    public function getGuestAccessToken(): ?string
+    {
+        return $this->guestAccessToken;
+    }
+
+    public function setGuestAccessToken(?string $guestAccessToken): static
+    {
+        $this->guestAccessToken = $guestAccessToken;
         return $this;
     }
 

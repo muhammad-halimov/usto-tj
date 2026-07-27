@@ -18,7 +18,7 @@ class ApiGetChatController extends AbstractApiGetController
 
     protected function setSerializationGroups(): array { return G::OPS_CHATS; }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var Chat $entity */
         if ($entity->getAuthor() !== $bearer && $entity->getReplyAuthor() !== $bearer)
@@ -36,7 +36,7 @@ class ApiGetChatController extends AbstractApiGetController
         return parent::buildResponse($entity);
     }
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         /** @var Chat $chat */
         foreach ($entity as $chat) {

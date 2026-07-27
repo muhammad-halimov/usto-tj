@@ -43,7 +43,7 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
         ];
     }
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         $this->localizationService->localizeUser(match (true) {
             $entity instanceof Gallery            => $entity->getUser(),
@@ -64,11 +64,19 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
      */
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        $bearerUser = $this->checkedUser('double');
-        $entity     = $this->entityManager->find($this->getAttribute('_api_resource_class'), $id);
+        $entity = $this->entityManager->find($this->getAttribute('_api_resource_class'), $id);
 
         if (!$entity)
             return $this->errorJson(AppMessages::RESOURCE_NOT_FOUND);
+
+        // Проверку типа сущности делаем ДО обязательной авторизации:
+        // для TechSupport разрешён анонимный доступ (email/токен в форме),
+        // для всех остальных сущностей — обязательна полноценная авторизация.
+        if ($entity instanceof TechSupport) {
+            $bearerUser = $this->checkedUser(grade: 'anonymous');
+        } else {
+            $bearerUser = $this->checkedUser('double');
+        }
 
         $ownershipCheck = $this->checkOwnership($entity, $bearerUser);
 
@@ -98,7 +106,7 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
         return $this->buildResponse($entity);
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         if ($entity instanceof ChatMessage) {
             $chat = $entity->getChat();
@@ -110,10 +118,22 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
         } elseif ($entity instanceof Appeal) {
             $author = $entity->getAuthor();
 
-            // Анонимная жалоба: только ответчик может загружать
             $allowed = $author === null
                 ? $entity->getRespondent() === $bearer
                 : $author === $bearer || $entity->getRespondent() === $bearer;
+        } elseif ($entity instanceof TechSupport && !$bearer) {
+            // Анонимный доступ разрешён ТОЛЬКО для гостевых тикетов (author === null)
+            // и только при точном совпадении guestAccessToken.
+            if ($entity->getAuthor() !== null || $entity->getGuestAccessToken() === null) {
+                return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+            }
+
+            $providedToken = $this->getHeader('X-Guest-Access-Token');
+
+            $allowed = $providedToken !== null
+                && hash_equals($entity->getGuestAccessToken(), $providedToken);
+
+            return $allowed ? null : $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
         } else {
             $parties = match (true) {
                 $entity instanceof Gallery            => [$entity->getUser()],
@@ -144,7 +164,7 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
         return null;
     }
 
-    private function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    private function processImageFile(object $entity, UploadedFile $imageFile, ?User $bearerUser): void
     {
         // User меняет своё аватар — Single image, не MultipleImage
         if ($entity instanceof User) {

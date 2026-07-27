@@ -31,7 +31,7 @@ class ApiPostTicketController extends AbstractApiPostController
 
     protected function getInputClass(): string { return TicketInput::class; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var Ticket $entity */
         $this->localizationService->localizeTicket($entity, $this->getLocale());

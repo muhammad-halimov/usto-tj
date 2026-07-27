@@ -55,7 +55,7 @@ class ApiAssignTechSupportController extends AbstractApiPatchController
         return null;
     }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var TechSupport $entity */
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());

@@ -20,7 +20,7 @@ class ApiPostChatMessageController extends AbstractApiPostController
 
     protected function setSerializationGroups(): array { return G::OPS_CHAT_MSGS; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var ChatMessage $entity */
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
@@ -59,7 +59,7 @@ class ApiPostChatMessageController extends AbstractApiPostController
         return $chatMessage;
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         return null;
     }

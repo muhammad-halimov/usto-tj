@@ -32,7 +32,7 @@ abstract class AbstractApiTechSupportController extends AbstractApiGetCollection
 
     abstract protected function fetchTechSupports(User $user): ?QueryBuilder;
 
-    protected function afterFetch(array|object $entity, User $user): void
+    protected function afterFetch(array|object $entity, ?User $user): void
     {
         /** @var TechSupport $techSupport */
         foreach ($entity as $techSupport) {

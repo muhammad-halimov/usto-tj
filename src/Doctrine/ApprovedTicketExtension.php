@@ -8,20 +8,6 @@ use ApiPlatform\Metadata\Operation;
 use App\Entity\Ticket\Ticket;
 use Doctrine\ORM\QueryBuilder;
 
-/**
- * Doctrine ORM extension: скрывает неодобренные тикеты из коллекций.
- *
- * Применяется ТОЛЬКО к:
- *   GET /api/tickets  — коллекция: только approved=true
- *
- * Item-запросы (GET /api/tickets/{id}) намеренно НЕ фильтруются здесь:
- * логика «автор видит свой неодобренный тикет» реализована в
- * TicketGeographyLocalizationProvider.
- *
- * НЕ применяется к:
- *   GET /api/tickets/me   — репозиторий напрямую, extension не вызывается.
- *   PATCH /api/tickets/{id} — аналогично.
- */
 final class ApprovedTicketExtension implements QueryCollectionExtensionInterface
 {
     public function applyToCollection(
@@ -36,10 +22,22 @@ final class ApprovedTicketExtension implements QueryCollectionExtensionInterface
         }
 
         $alias = $queryBuilder->getRootAliases()[0];
-        $param = $queryNameGenerator->generateParameterName('approved');
+        $approvedParam = $queryNameGenerator->generateParameterName('approved');
 
         $queryBuilder
-            ->andWhere("$alias.approved = :$param")
-            ->setParameter($param, true);
+            ->andWhere("$alias.approved = :$approvedParam")
+            ->setParameter($approvedParam, true);
+
+        $authorAlias = $queryNameGenerator->generateJoinAlias('author');
+        $masterAlias = $queryNameGenerator->generateJoinAlias('master');
+
+        $queryBuilder
+            ->leftJoin("$alias.author", $authorAlias)
+            ->leftJoin("$alias.master", $masterAlias)
+            ->andWhere(
+                "($alias.service = true AND $masterAlias.active = true AND $masterAlias.approved = true)
+                OR
+                ($alias.service = false AND $authorAlias.active = true AND $authorAlias.approved = true)"
+            );
     }
 }

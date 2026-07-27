@@ -15,7 +15,7 @@ class ApiDeleteChatMessageController extends AbstractApiDeleteController
         return ChatMessage::class;
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var ChatMessage $entity */
         if ($entity->getAuthor() !== $bearer) return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);

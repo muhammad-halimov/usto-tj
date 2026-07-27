@@ -19,7 +19,7 @@ class ApiGetMyProfileController extends AbstractApiGetSelfController
 
     protected function fetchSelf(User $user): object|array|null { return $user; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         $this->localizationService->localizeUser($user, $this->getLocale());
     }

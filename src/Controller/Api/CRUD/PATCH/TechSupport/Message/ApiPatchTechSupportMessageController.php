@@ -25,7 +25,7 @@ class ApiPatchTechSupportMessageController extends AbstractApiPatchController
         return $this->entityManager->find(TechSupportMessage::class, $id);
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var TechSupportMessage $entity */
         // Тикет берём из самой сущности сообщения, а не из тела запроса.

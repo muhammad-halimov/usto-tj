@@ -21,7 +21,7 @@ class ApiPatchGalleryController extends AbstractApiPatchController
 
     protected function setSerializationGroups(): array { return G::OPS_GALLERIES; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var Gallery $entity */
         if ($entity->getUser()) $this->localizationService->localizeUser($entity->getUser(), $this->getLocale());
@@ -32,7 +32,7 @@ class ApiPatchGalleryController extends AbstractApiPatchController
         return $this->entityManager->find($this->getEntityClass(), $id);
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var Gallery $entity */
         if ($entity->getUser() !== $bearer) return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);

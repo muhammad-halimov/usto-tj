@@ -24,7 +24,7 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
 
     protected function getInputClass(): string { return ChatMessagePatchInput::class; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
         /** @var ChatMessage $entity */
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
@@ -39,7 +39,7 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
         return $this->entityManager->find(ChatMessage::class, $id);
     }
 
-    protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
+    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         if (!$this->chat) return $this->errorJson(AppMessages::CHAT_NOT_FOUND);
 
