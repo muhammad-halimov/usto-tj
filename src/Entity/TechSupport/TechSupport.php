@@ -202,7 +202,7 @@ class TechSupport implements HasImagesInterface
      * Заполняется только когда тикет создаётся без JWT-токена.
      * Нужен, чтобы пользователь мог загрузить фото.
      */
-    #[ORM\Column(length: 64, nullable: true, unique: true)]
+    #[ORM\Column(length: 64, unique: true, nullable: true)]
     #[Groups([
         G::TECH_SUPPORT_GUEST_TOKEN, // ← новая группа, только для ответа POST /tech-supports
     ])]

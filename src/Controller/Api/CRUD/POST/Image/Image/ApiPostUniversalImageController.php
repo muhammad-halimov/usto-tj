@@ -122,17 +122,17 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
                 ? $entity->getRespondent() === $bearer
                 : $author === $bearer || $entity->getRespondent() === $bearer;
         } elseif ($entity instanceof TechSupport && !$bearer) {
-            // Анонимный доступ разрешён ТОЛЬКО для гостевых тикетов (author === null)
-            // и только при точном совпадении guestAccessToken.
             if ($entity->getAuthor() !== null || $entity->getGuestAccessToken() === null) {
                 return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
             }
 
             $providedToken = $this->getHeader('X-Guest-Access-Token');
 
-            $allowed = $providedToken !== null
-                && hash_equals($entity->getGuestAccessToken(), $providedToken);
+            if ($providedToken === null) {
+                return $this->errorJson(AppMessages::AUTHENTICATION_REQUIRED);
+            }
 
+            $allowed = hash_equals($entity->getGuestAccessToken(), $providedToken);
             return $allowed ? null : $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
         } else {
             $parties = match (true) {
