@@ -29,6 +29,8 @@ interface SupportTicket {
     status?: string;
     createdAt?: string;
     reason?: { title?: string };
+    /** Present only in the POST /tech-supports response for guest (unauthenticated) tickets. */
+    guestAccessToken?: string;
 }
 
 type SupportTab = 'create' | 'my';
@@ -169,23 +171,26 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                 payload.guestEmail = guestEmail.trim();
             }
 
-            const result = await universalApiRequest('/api/tech-supports', {
+            const result: SupportTicket = await universalApiRequest('/api/tech-supports', {
                 method: 'POST',
                 body: payload,
             });
 
-            // Upload photos if any
+            // Upload photos if any.
+            // For guests, the server returns a one-time guestAccessToken in the
+            // create response — it must be sent with each upload to prove ownership
+            // of this specific ticket (anonymous requests can't rely on JWT auth).
             const newFiles = photos
                 .filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new')
                 .map(p => p.file);
 
             if (newFiles.length > 0 && result?.id) {
-                for (const file of newFiles) {
-                    try {
-                        await uploadPhotos('tech-supports', result.id, [file]);
-                    } catch {
-                        // Photo upload failures are non-critical
-                    }
+                const guestToken = !isAuth ? result.guestAccessToken : undefined;
+
+                try {
+                    await uploadPhotos('tech-supports', result.id, newFiles, guestToken);
+                } catch {
+                    // Photo upload failures are non-critical
                 }
             }
 
