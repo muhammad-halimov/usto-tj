@@ -223,7 +223,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         if($this->name && $this->surname) return "ID #$this->id, $this->name $this->surname, ({$this->getEmail()}), [$roles]";
 
-        return $this->getEmail();
+        return $this->getEmail() || "";
     }
 
     public function __construct()
