@@ -8,26 +8,20 @@ use App\Controller\Admin\Appeal\AppealTypes\AppealChatCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealReviewCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealTicketCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealUserCrudController;
+use App\Controller\Admin\Chat\Chat\ChatCrudController;
+use App\Controller\Admin\Gallery\GalleryCrudController;
+use App\Controller\Admin\Geography\City\CityCrudController;
+use App\Controller\Admin\Geography\District\DistrictCrudController;
+use App\Controller\Admin\Geography\Province\ProvinceCrudController;
+use App\Controller\Admin\Legal\LegalCrudController;
+use App\Controller\Admin\Review\ReviewCrudController;
 use App\Controller\Admin\TechSupport\TechSupport\TechSupportCrudController;
-use App\Entity\Appeal\Appeal\Appeal;
-use App\Entity\Appeal\Reason\AppealReason;
-use App\Entity\Appeal\Types\AppealChat;
-use App\Entity\Appeal\Types\AppealReview;
-use App\Entity\Appeal\Types\AppealTicket;
-use App\Entity\Appeal\Types\AppealUser;
-use App\Entity\Chat\Chat;
-use App\Entity\Gallery\Gallery;
-use App\Entity\Geography\City\City;
-use App\Entity\Geography\District\District;
-use App\Entity\Geography\Province\Province;
-use App\Entity\Legal\Legal;
-use App\Entity\Review\Review;
-use App\Entity\TechSupport\TechSupport;
-use App\Entity\Ticket\Category;
-use App\Entity\Ticket\Ticket;
-use App\Entity\Ticket\Unit;
-use App\Entity\User;
-use App\Entity\User\Occupation;
+use App\Controller\Admin\TechSupport\TicketApproval\TicketApprovalCrudController;
+use App\Controller\Admin\Ticket\Category\CategoryCrudController;
+use App\Controller\Admin\Ticket\Ticket\TicketCrudController;
+use App\Controller\Admin\Ticket\Unit\UnitCrudController;
+use App\Controller\Admin\User\Occupation\OccupationCrudController;
+use App\Controller\Admin\User\User\UserCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -48,9 +42,9 @@ class DashboardController extends AbstractDashboardController
     {
         return $this
             ->redirect(url: $this->container
-            ->get(AdminUrlGenerator::class)
-            ->setController(TechSupportCrudController::class)
-            ->generateUrl());
+                ->get(AdminUrlGenerator::class)
+                ->setController(TechSupportCrudController::class)
+                ->generateUrl());
     }
 
     public function configureDashboard(): Dashboard
@@ -62,36 +56,39 @@ class DashboardController extends AbstractDashboardController
     public function configureMenuItems(): iterable
     {
         yield MenuItem::section('Мастера и клиенты');
-            yield MenuItem::linkToCrud('Галерея работ', 'fas fa-images', Gallery::class);
-            yield MenuItem::linkToCrud('Объявление / Услуги', 'fas fa-ticket', Ticket::class);
+        yield MenuItem::linkTo(GalleryCrudController::class, 'Галерея работ', 'fas fa-images');
+        yield MenuItem::linkTo(TicketCrudController::class, 'Объявление / Услуги', 'fas fa-ticket');
 
         yield MenuItem::section('Пользователи и группы');
-            yield MenuItem::linkToCrud('Пользователи', 'fas fa-users', User::class);
-            yield MenuItem::linkToCrud('Чаты и сообщения', 'fas fa-comments', Chat::class);
-            yield MenuItem::linkToCrud('Отзывы', 'fas fa-star', Review::class);
-            yield MenuItem::linkToCrud('Тех. поддержка', 'fas fa-headset', TechSupport::class);
-            yield MenuItem::subMenu('Жалобы', 'fas fa-triangle-exclamation')->setSubItems([
-                MenuItem::linkToCrud('Все жалобы', 'fas fa-list', Appeal::class)->setController(AppealCrudController::class),
-                MenuItem::linkToCrud('На чат', 'fas fa-comments', AppealChat::class)->setController(AppealChatCrudController::class),
-                MenuItem::linkToCrud('На объявление/услугу', 'fas fa-ticket', AppealTicket::class)->setController(AppealTicketCrudController::class),
-                MenuItem::linkToCrud('На отзыв', 'fas fa-star', AppealReview::class)->setController(AppealReviewCrudController::class),
-                MenuItem::linkToCrud('На пользователя', 'fas fa-user-xmark', AppealUser::class)->setController(AppealUserCrudController::class),
-                MenuItem::linkToCrud('Причины жалоб', 'fas fa-tags', AppealReason::class)->setController(AppealReasonCrudController::class),
-            ]);
+        yield MenuItem::linkTo(UserCrudController::class, 'Пользователи', 'fas fa-users');
+        yield MenuItem::linkTo(ChatCrudController::class, 'Чаты и сообщения', 'fas fa-comments');
+        yield MenuItem::linkTo(ReviewCrudController::class, 'Отзывы', 'fas fa-star');
+        yield MenuItem::subMenu('Тех. поддержка', 'fas fa-headset')->setSubItems([
+            MenuItem::linkTo(TechSupportCrudController::class, 'Тех. поддержка', 'fas fa-headset'),
+            MenuItem::linkTo(TicketApprovalCrudController::class, 'Подтверждение объявлений/услуг', 'fas fa-check-double'),
+        ]);
+        yield MenuItem::subMenu('Жалобы', 'fas fa-triangle-exclamation')->setSubItems([
+            MenuItem::linkTo(AppealCrudController::class, 'Все жалобы', 'fas fa-list'),
+            MenuItem::linkTo(AppealChatCrudController::class, 'На чат', 'fas fa-comments'),
+            MenuItem::linkTo(AppealTicketCrudController::class, 'На объявление/услугу', 'fas fa-ticket'),
+            MenuItem::linkTo(AppealReviewCrudController::class, 'На отзыв', 'fas fa-star'),
+            MenuItem::linkTo(AppealUserCrudController::class, 'На пользователя', 'fas fa-user-xmark'),
+            MenuItem::linkTo(AppealReasonCrudController::class, 'Причины жалоб', 'fas fa-tags'),
+        ]);
 
         yield MenuItem::section('Доп. настройки');
-            yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([
-                MenuItem::linkToCrud('Город', 'fas fa-city', City::class),
-                MenuItem::linkToCrud('Район', 'fas fa-building', District::class),
-                MenuItem::linkToCrud('Область', 'fas fa-map-pin', Province::class),
-            ]);
-            yield MenuItem::subMenu('Категории', 'fas fa-layer-group')->setSubItems([
-                MenuItem::linkToCrud('Категории работ', 'fas fa-briefcase', Category::class),
-                MenuItem::linkToCrud('Специальности / Подкатегории', 'fas fa-user-doctor', Occupation::class),
-            ]);
-            yield MenuItem::linkToCrud('Ед. измерения', 'fas fa-gauge', Unit::class);
-            yield MenuItem::linkToCrud('Регуляции', 'fas fa-lock', Legal::class);
-            yield MenuItem::linkToUrl('API','fas fa-link', '/api')
-                ->setLinkTarget('_blank');
+        yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([
+            MenuItem::linkTo(CityCrudController::class, 'Город', 'fas fa-city'),
+            MenuItem::linkTo(DistrictCrudController::class, 'Район', 'fas fa-building'),
+            MenuItem::linkTo(ProvinceCrudController::class, 'Область', 'fas fa-map-pin'),
+        ]);
+        yield MenuItem::subMenu('Категории', 'fas fa-layer-group')->setSubItems([
+            MenuItem::linkTo(CategoryCrudController::class, 'Категории работ', 'fas fa-briefcase'),
+            MenuItem::linkTo(OccupationCrudController::class, 'Специальности / Подкатегории', 'fas fa-user-doctor'),
+        ]);
+        yield MenuItem::linkTo(UnitCrudController::class, 'Ед. измерения', 'fas fa-gauge');
+        yield MenuItem::linkTo(LegalCrudController::class, 'Регуляции', 'fas fa-lock');
+        yield MenuItem::linkToUrl('API','fas fa-link', '/api')
+            ->setLinkTarget('_blank');
     }
 }

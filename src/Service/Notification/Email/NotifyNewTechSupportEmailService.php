@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service\Notification;
+namespace App\Service\Notification\Email;
 
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
@@ -10,10 +10,14 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 /**
  * Email-канал уведомлений о тикетах ТП.
  */
-class NotifyTechSupportEmailService extends AbstractTechSupportNotificationService
+class NotifyNewTechSupportEmailService extends AbstractTechSupportNotificationService
 {
-
-    /** @throws TransportExceptionInterface */
+    /**
+     * @param User $user
+     * @param TechSupport $techSupport
+     * @return string
+     * @throws TransportExceptionInterface
+     */
     public function sendTechSupportNotification(User $user, TechSupport $techSupport): string
     {
         $url      = $this->techSupportAdminUrl($techSupport);

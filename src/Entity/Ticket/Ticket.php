@@ -27,6 +27,7 @@ use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Geography\Abstract\Address;
 use App\Entity\Review\Review;
+use App\Entity\TechSupport\TicketApproval;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
@@ -101,10 +102,17 @@ class Ticket implements HasImagesInterface
 
     public function __toString(): string
     {
-        if (!$this->author && !$this->master) return $this->title;
-        elseif(!$this->master) return "$this->title - $this->author";
-        elseif(!$this->author) return "$this->title - $this->master";
-        else return $this->title ?? "Ticket #$this->id";
+        $label = $this->title ?? "Ticket #$this->id";
+        $counterpart = $this->author ?? $this->master;
+
+        if (!$counterpart) return "$label - ID #$this->id";
+
+        $roles = array_values(array_diff($counterpart->getRoles(), ['ROLE_USER']));
+        $role = $roles[0] ?? 'ROLE_USER';
+
+        $fullName = trim(($counterpart->getName() ?? '') . ' ' . ($counterpart->getSurname() ?? ''));
+
+        return "$label - ID #$this->id, ID #{$counterpart->getId()} $fullName, ({$counterpart->getEmail()}), [$role]";
     }
 
     public function __construct()
@@ -114,6 +122,7 @@ class Ticket implements HasImagesInterface
         $this->chats = new ArrayCollection();
         $this->addresses = new ArrayCollection();
         $this->images = new ArrayCollection();
+        $this->ticketApprovals = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -382,6 +391,12 @@ class Ticket implements HasImagesInterface
         G::CHATS,
     ])]
     private Collection $images;
+
+    /**
+     * @var Collection<int, TicketApproval>
+     */
+    #[ORM\OneToMany(targetEntity: TicketApproval::class, mappedBy: 'ticket')]
+    private Collection $ticketApprovals;
 
     public function getId(): ?int
     {
@@ -719,4 +734,33 @@ class Ticket implements HasImagesInterface
         return $this;
     }
 
+    /**
+     * @return Collection<int, TicketApproval>
+     */
+    public function getTicketApprovals(): Collection
+    {
+        return $this->ticketApprovals;
+    }
+
+    public function addTicketApproval(TicketApproval $ticketApproval): static
+    {
+        if (!$this->ticketApprovals->contains($ticketApproval)) {
+            $this->ticketApprovals->add($ticketApproval);
+            $ticketApproval->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTicketApproval(TicketApproval $ticketApproval): static
+    {
+        if ($this->ticketApprovals->removeElement($ticketApproval)) {
+            // set the owning side to null (unless already changed)
+            if ($ticketApproval->getTicket() === $this) {
+                $ticketApproval->setTicket(null);
+            }
+        }
+
+        return $this;
+    }
 }

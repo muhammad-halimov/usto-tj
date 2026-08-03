@@ -20,7 +20,11 @@ class OAuthProvider
 
     public function __toString(): string
     {
-        return $this->provider ?? "OAuth provider ID $this->providerId";
+        if ($this->provider !== '') return $this->provider;
+
+        return $this->providerId !== ''
+            ? "OAuth provider ID {$this->providerId}"
+            : 'Новый OAuth provider';
     }
 
     #[ORM\Id]
@@ -36,11 +40,11 @@ class OAuthProvider
     /** google | facebook | instagram | telegram */
     #[ORM\Column(length: 50)]
     #[Groups([G::USERS_ME])]
-    private string $provider;
+    private string $provider = '';
 
     #[ORM\Column(type: 'text')]
     #[Groups([G::USERS_ME])]
-    private string $providerId;
+    private string $providerId = '';
 
     public function getId(): ?int
     {

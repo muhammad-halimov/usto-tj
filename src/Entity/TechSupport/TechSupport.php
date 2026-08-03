@@ -148,7 +148,7 @@ class TechSupport implements HasImagesInterface
     ])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,

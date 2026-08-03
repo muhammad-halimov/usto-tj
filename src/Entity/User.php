@@ -43,6 +43,7 @@ use App\Entity\Geography\Abstract\Address;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
+use App\Entity\TechSupport\TicketApproval;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
@@ -247,6 +248,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->addresses = new ArrayCollection();
         $this->oauthProviders = new ArrayCollection();
         $this->phones = new ArrayCollection();
+        $this->ticketApprovals = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -883,6 +885,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     #[ApiProperty(writable: false)]
     private Collection $oauthProviders;
+
+    /**
+     * @var Collection<int, TicketApproval>
+     */
+    #[ORM\OneToMany(targetEntity: TicketApproval::class, mappedBy: 'administrant')]
+    private Collection $ticketApprovals;
 
     public function getId(): ?int
     {
@@ -1731,6 +1739,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($phone->getOwner() === $this) {
                 $phone->setOwner(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TicketApproval>
+     */
+    public function getTicketApprovals(): Collection
+    {
+        return $this->ticketApprovals;
+    }
+
+    public function addTicketApproval(TicketApproval $ticketApproval): static
+    {
+        if (!$this->ticketApprovals->contains($ticketApproval)) {
+            $this->ticketApprovals->add($ticketApproval);
+            $ticketApproval->setAdministrant($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTicketApproval(TicketApproval $ticketApproval): static
+    {
+        if ($this->ticketApprovals->removeElement($ticketApproval)) {
+            // set the owning side to null (unless already changed)
+            if ($ticketApproval->getAdministrant() === $this) {
+                $ticketApproval->setAdministrant(null);
             }
         }
 
