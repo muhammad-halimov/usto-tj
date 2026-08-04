@@ -42,6 +42,10 @@ class TicketApproval
 
     public function setApproved(bool $approved): static
     {
+        if ($this->approved === true && $approved === false) {
+            throw new \LogicException('Отмена одобрения запрещена: approved нельзя перевести обратно в false.');
+        }
+
         $this->approved = $approved;
 
         if ($approved && $this->ticket !== null) {
