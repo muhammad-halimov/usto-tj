@@ -9,8 +9,7 @@ import { EmptyState } from '../../widgets/EmptyState';
 import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline, IoHeadsetOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
 import type { LegalDocument, LegalDocumentType } from '../../entities';
-import { universalApiRequest } from '../../utils/apiUtils';
-import type { LocaleType } from '../../utils/apiUtils';
+import { getLegalDocuments } from '../../utils/dataCacheUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import TechSupportForm, { type TechSupportProps as _TSP } from '../support/TechSupport';
 
@@ -59,13 +58,8 @@ function Legal() {
             try {
                 setIsLoading(true);
                 setError(null);
-                const locale = (i18n.language || 'tj') as LocaleType;
-                const data = await universalApiRequest(`/api/legals?type=${activeType}`, { locale });
-                if (Array.isArray(data) && data.length > 0) {
-                    setDocument(data[0]);
-                } else {
-                    setDocument(null);
-                }
+                const data = await getLegalDocuments(i18n.language, `type=${activeType}`);
+                setDocument(data.length > 0 ? data[0] : null);
             } catch (err) {
                 console.error('Error fetching legal document:', err);
                 setError(resolveApiError(err));

@@ -7,6 +7,7 @@
 import type { Province, City, Occupation, Category, District } from '../entities';
 import type { AppealReason } from '../entities';
 import type { Unit } from '../entities';
+import type { LegalDocument } from '../entities';
 import { universalApiRequest } from './apiUtils';
 import type { LocaleType } from './apiUtils';
 import { getStorageItem, getDefaultLocale } from './storageUtils';
@@ -106,6 +107,40 @@ function createCachedFetcher<T>(
     return fetcher;
 }
 
+/**
+ * TTL-кеш + дедупликация для авторизованных "me"-эндпоинтов, отдающих один
+ * (не привязанный к locale) объект/коллекцию — напр. `/api/tech-supports/me`.
+ * В отличие от createCachedFetcher не разворачивает hydra-коллекцию и не знает
+ * про locale — просто помнит последний ответ на `cacheDuration` мс и позволяет
+ * принудительно обойти кеш (`force`) после мутации на клиенте.
+ */
+function createMeCache<T>(endpoint: string, cacheDuration = CACHE_DURATION) {
+    let cached: { data: T; timestamp: number } | null = null;
+    let inFlight: Promise<T> | null = null;
+
+    async function fetcher(force = false): Promise<T> {
+        if (!force && cached && Date.now() - cached.timestamp < cacheDuration) {
+            return cached.data;
+        }
+        if (inFlight) return inFlight;
+
+        inFlight = (async (): Promise<T> => {
+            try {
+                const data = await universalApiRequest(endpoint) as T;
+                cached = { data, timestamp: Date.now() };
+                return data;
+            } finally {
+                inFlight = null;
+            }
+        })();
+
+        return inFlight;
+    }
+
+    fetcher.clearCache = (): void => { cached = null; inFlight = null; };
+    return fetcher;
+}
+
 // ─── Загрузчики ──────────────────────────────────────────────────────────────
 
 export const getProvinces      = createCachedFetcher<Province>('/api/provinces');
@@ -115,10 +150,13 @@ export const getCategories     = createCachedFetcher<Category>('/api/categories'
 export const getDistricts      = createCachedFetcher<District>('/api/districts',        {}, STATIC_CACHE_DURATION);
 export const getUnits          = createCachedFetcher<Unit>('/api/units',                { locale: false }, STATIC_CACHE_DURATION);
 export const getAppealReasons  = createCachedFetcher<AppealReason>('/api/appeal-reasons');
+export const getLegalDocuments = createCachedFetcher<LegalDocument>('/api/legals',        {}, STATIC_CACHE_DURATION);
+/** Own tech-support tickets — short TTL since it's the user's own mutable data (see TechSupport.tsx). */
+export const getMyTechSupports = createMeCache<unknown>('/api/tech-supports/me', 60 * 1000);
 
 // ─── Управление кешем ────────────────────────────────────────────────────────
 
-export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'categories' | 'districts' | 'units' | 'appealReasons'): void => {
+export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'categories' | 'districts' | 'units' | 'appealReasons' | 'legalDocuments' | 'myTechSupports'): void => {
     if (!type || type === 'provinces')    getProvinces.clearCache();
     if (!type || type === 'cities')       getCities.clearCache();
     if (!type || type === 'occupations')  getOccupations.clearCache();
@@ -126,6 +164,8 @@ export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'cate
     if (!type || type === 'districts')    getDistricts.clearCache();
     if (!type || type === 'units')        getUnits.clearCache();
     if (!type || type === 'appealReasons') getAppealReasons.clearCache();
+    if (!type || type === 'legalDocuments') getLegalDocuments.clearCache();
+    if (!type || type === 'myTechSupports') getMyTechSupports.clearCache();
 };
 
 export const preloadData = async (): Promise<void> => {
@@ -137,4 +177,4 @@ export const preloadData = async (): Promise<void> => {
     }
 };
 
-export type { Province, City, Occupation, Category, District, Unit, AppealReason };
+export type { Province, City, Occupation, Category, District, Unit, AppealReason, LegalDocument };
