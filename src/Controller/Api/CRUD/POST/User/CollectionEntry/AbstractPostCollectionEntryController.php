@@ -55,7 +55,6 @@ abstract class AbstractPostCollectionEntryController extends AbstractApiPostCont
             $user = $dto->user;
 
             if (!$user) return $this->errorJson(AppMessages::USER_NOT_FOUND);
-            if ($bearer === $user) return $this->errorJson(AppMessages::CANNOT_ADD_YOURSELF);
             if ($this->findDuplicate($bearer, $user)) return $this->errorJson(AppMessages::ALREADY_ADDED);
 
             if ($error = $this->validateUser($bearer, $user))
