@@ -35,6 +35,7 @@ use App\Repository\TechSupport\TechSupportRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Context;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
@@ -173,7 +174,19 @@ class TechSupport implements HasImagesInterface
         G::TECH_SUPPORT_ADMIN,
         G::TECH_SUPPORT_MESSAGES,
     ])]
-    #[ApiProperty(writable: false)]
+    // Форсирует узкий набор полей ТОЛЬКО для вложенного User здесь: name,
+    // surname, patronymic, lastSeen, image, imageExternalUrl (G::ADMINISTRANT_PUBLIC).
+    // Полностью подменяет 'groups' в контексте нормализации значения этого
+    // свойства — независимо от групп операции (TECH_SUPPORT/TECH_SUPPORT_MESSAGES
+    // и т.д. сюда уже не просачиваются). См. User::$name и соседние поля.
+    #[Context(normalizationContext: ['groups' => [G::ADMINISTRANT_PUBLIC]])]
+    // readableLink форсирован явно: без него ApiProperty-эвристика решает
+    // embed/IRI по пересечению групп операции с полным набором групп User,
+    // и в связке с узкой ADMINISTRANT_PUBLIC-группой (и тем, что у User
+    // несколько Get-операций: /users/me и /users/{id}) иногда схлопывается
+    // в кривую нерезолвленную IRI-строку вместо объекта. readableLink: true
+    // однозначно говорит сериализатору — всегда встраивать объект целиком.
+    #[ApiProperty(writable: false, readableLink: true)]
     private ?User $administrant = null;
 
     #[ORM\ManyToOne(inversedBy: 'techSupportsAsAuthor')]

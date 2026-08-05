@@ -66,6 +66,15 @@ final class G
     const string TECH_SUPPORT_MESSAGES = 'techSupportMessages:read';
     const string TECH_SUPPORT_GUEST_TOKEN = 'techSupport:guest_token:read';
 
+    // ─── Minimal nested-user projections ────────────────────────────────────
+    //     Used via #[Context(normalizationContext: ['groups' => [...]])] on a
+    //     single relation property, to force a short field set for that one
+    //     nested User — regardless of which groups the outer operation uses.
+    //     See TechSupport::$administrant for the reference usage.
+
+    /** name, surname, patronymic, lastSeen, image, imageExternalUrl only. */
+    const string ADMINISTRANT_PUBLIC = 'administrant:public:read';
+
     // ─── Geography contexts ────────────────────────────────────────────────
 
     const string CITIES    = 'cities:read';

@@ -357,6 +357,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+        G::ADMINISTRANT_PUBLIC,
     ])]
     private ?string $name = null;
 
@@ -384,6 +385,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+        G::ADMINISTRANT_PUBLIC,
     ])]
     private ?string $surname = null;
 
@@ -395,6 +397,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+        G::ADMINISTRANT_PUBLIC,
     ])]
     private ?string $patronymic = null;
 
@@ -488,6 +491,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+        G::ADMINISTRANT_PUBLIC,
     ])]
     #[ApiProperty(writable: false)]
     private ?string $imageExternalUrl = null;
@@ -609,6 +613,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+        G::ADMINISTRANT_PUBLIC,
     ])]
     #[ApiProperty(writable: false)]
     private ?DateTimeImmutable $lastSeen = null;

@@ -32,7 +32,7 @@ class ApiGetMyTechSupportsController extends AbstractApiGetSelfController
     {
         /** @var TechSupport $techSupport */
         foreach ($entity as $techSupport) {
-            $this->localizationService->localizeEntity($techSupport->getReason(), $this->getLocale());
+            if ($techSupport->getReason()) $this->localizationService->localizeEntity($techSupport->getReason(), $this->getLocale());
             if ($techSupport->getAuthor()) $this->localizationService->localizeUser($techSupport->getAuthor(), $this->getLocale());
             if ($techSupport->getAdministrant()) $this->localizationService->localizeUser($techSupport->getAdministrant(), $this->getLocale());
         }

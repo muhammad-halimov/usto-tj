@@ -82,6 +82,8 @@ trait SingleImageTrait
         G::APPEAL_TICKET,
         G::APPEAL_REVIEW,
         G::APPEAL_USER,
+
+        G::ADMINISTRANT_PUBLIC,
     ])]
     protected ?string $image = null;
 
