@@ -42,6 +42,7 @@
     "yesterday": "Yesterday",
     "week": "Week",
     "month": "Month",
-    "title": "Sorting"
+    "title": "Sorting",
+    "reset": "Reset filters"
   }
 }

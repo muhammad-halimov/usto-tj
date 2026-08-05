@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
 import { getAuthToken, fetchCurrentUser } from '../../../utils/authUtils';
-import { getStorageItem } from '../../../utils/storageUtils';
 import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
@@ -18,10 +17,12 @@ import { SectionActions } from '../../../shared/ui/SectionActions';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
+import { SortingFilter } from '../../../widgets/Sorting/CriteriaFilter';
 import { getPageSize } from '../../../utils/pageSizeUtils';
 import { parsePagedResponse, ticketToTicketView, universalApiRequest } from '../../../utils/apiUtils';
 import { useShowMore } from '../../../hooks';
 import type { Ticket, TicketView, User } from '../../../entities';
+import type { SortByType, SecondarySortByType, TimeFilterType } from '../../../types/common';
 
 
 /**
@@ -49,6 +50,11 @@ function MyTickets() {
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Сортировка и фильтр по времени — как в категориях
+    const [sortBy, setSortBy] = useState<SortByType>('newest');
+    const [secondarySortBy, setSecondarySortBy] = useState<SecondarySortByType>('none');
+    const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
 
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
@@ -87,7 +93,7 @@ function MyTickets() {
         }
         if (currentUser) fetchMyTickets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page]);
+    }, [page, sortBy, secondarySortBy, timeFilter]);
 
 
 
@@ -175,18 +181,71 @@ function MyTickets() {
                     };
                 });
 
-                // Сортируем: сначала тикеты из выбранного города, затем по дате (новые первыми)
-                const selectedCity = getStorageItem('selectedCity') || '';
-                formattedTickets.sort((a, b) => {
-                    const aCity = myTickets.find(t => t.id === a.id)?.addresses?.[0]?.city?.title || '';
-                    const bCity = myTickets.find(t => t.id === b.id)?.addresses?.[0]?.city?.title || '';
-                    const aMatch = selectedCity ? aCity === selectedCity : false;
-                    const bMatch = selectedCity ? bCity === selectedCity : false;
-                    if (aMatch !== bMatch) return aMatch ? -1 : 1;
-                    return new Date(b.timeAgo).getTime() - new Date(a.timeAgo).getTime();
+                // Применяем фильтр по времени (как в категориях)
+                let timeFilteredTickets = formattedTickets;
+                if (timeFilter !== 'all') {
+                    const now = new Date();
+                    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const startOfYesterday = new Date(startOfToday);
+                    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+                    const startOfWeek = new Date(startOfToday);
+                    startOfWeek.setDate(startOfWeek.getDate() - 7);
+                    const startOfMonth = new Date(startOfToday);
+                    startOfMonth.setMonth(startOfMonth.getMonth() - 1);
+
+                    timeFilteredTickets = formattedTickets.filter(ticket => {
+                        const ticketDate = new Date(ticket.date);
+
+                        switch (timeFilter) {
+                            case 'today':
+                                return ticketDate >= startOfToday;
+                            case 'yesterday':
+                                return ticketDate >= startOfYesterday && ticketDate < startOfToday;
+                            case 'week':
+                                return ticketDate >= startOfWeek;
+                            case 'month':
+                                return ticketDate >= startOfMonth;
+                            default:
+                                return true;
+                        }
+                    });
+                }
+
+                // Применяем сортировку (как в категориях)
+                const getSortValue = (ticket: TicketView, sortType: SortByType | SecondarySortByType): number => {
+                    switch (sortType) {
+                        case 'newest':
+                            return new Date(ticket.date).getTime();
+                        case 'oldest':
+                            return -new Date(ticket.date).getTime();
+                        case 'price-asc':
+                            return ticket.price;
+                        case 'price-desc':
+                            return -ticket.price;
+                        case 'reviews-asc':
+                            return ticket.userReviewCount || 0;
+                        case 'reviews-desc':
+                            return -(ticket.userReviewCount || 0);
+                        case 'rating-asc':
+                            return ticket.userRating || 0;
+                        case 'rating-desc':
+                            return -(ticket.userRating || 0);
+                        default:
+                            return 0;
+                    }
+                };
+
+                const sortedTickets = [...timeFilteredTickets].sort((a, b) => {
+                    const primaryDiff = getSortValue(b, sortBy) - getSortValue(a, sortBy);
+
+                    if (primaryDiff === 0 && secondarySortBy !== 'none') {
+                        return getSortValue(b, secondarySortBy) - getSortValue(a, secondarySortBy);
+                    }
+
+                    return primaryDiff;
                 });
 
-                applyTicketsFetch(formattedTickets, fetchedHasMore);
+                applyTicketsFetch(sortedTickets, fetchedHasMore);
         } catch (error) {
             console.error('Error fetching tickets:', error);
             setAllTickets([]);
@@ -316,6 +375,18 @@ function MyTickets() {
                     value={searchQuery}
                     onChange={setSearchQuery}
                     placeholder={t('common:search')}
+                />
+            </div>
+
+            {/* Блок сортировки и фильтрации — как в категориях */}
+            <div className={styles.sorting_filter_wrapper}>
+                <SortingFilter
+                    sortBy={sortBy}
+                    secondarySortBy={secondarySortBy}
+                    timeFilter={timeFilter}
+                    onSortChange={setSortBy}
+                    onSecondarySortChange={setSecondarySortBy}
+                    onTimeFilterChange={setTimeFilter}
                 />
             </div>
 

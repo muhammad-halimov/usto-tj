@@ -1,9 +1,9 @@
-import type { User } from '../../api';
-import type { Occupation } from '../../api';
-import type { SocialNetwork } from '../../api';
-import type { Phone } from '../../api';
-import type { Ticket } from '../../api';
-import type { WorkExample } from '../../api';
+import type { User } from '../../Api';
+import type { Occupation } from '../../Api';
+import type { SocialNetwork } from '../../Api';
+import type { Phone } from '../../Api';
+import type { Ticket } from '../../Api';
+import type { WorkExample } from '../../Api';
 import type { AddressFormData } from '../Address';
 import type { EducationItem } from '../Education';
 

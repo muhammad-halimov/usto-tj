@@ -10,7 +10,46 @@
     "loadError": "Не удалось загрузить обращения",
     "statusLabel": "Статус",
     "priorityLabel": "Приоритет",
-    "noTitle": "Без темы"
+    "noTitle": "Без темы",
+    "noResults": "По заданным фильтрам ничего не найдено",
+    "resetFilters": "Сбросить фильтры",
+    "table": {
+      "title": "Тема",
+      "category": "Категория",
+      "status": "Статус",
+      "priority": "Приоритет",
+      "created": "Создано",
+      "updated": "Обновлено"
+    },
+    "filters": {
+      "toggle": "Фильтры и сортировка",
+      "sort": "Сортировка",
+      "sortNewest": "Сначала новые",
+      "sortOldest": "Сначала старые",
+      "category": "Категория",
+      "categoryAll": "Все категории",
+      "status": "Статус",
+      "statusAll": "Любой статус",
+      "priority": "Приоритет",
+      "priorityAll": "Любой приоритет"
+    },
+    "statuses": {
+      "new": "Новое",
+      "renewed": "Возобновлено",
+      "in_progress": "В работе",
+      "resolved": "Решено",
+      "closed": "Закрыто"
+    }
+  },
+  "thread": {
+    "loadError": "Не удалось загрузить обращение",
+    "sendError": "Не удалось отправить сообщение",
+    "originalRequest": "Исходное обращение",
+    "you": "Вы",
+    "support": "Техподдержка",
+    "placeholder": "Введите сообщение...",
+    "send": "Отправить",
+    "noMessages": "Пока нет ответов"
   },
   "form": {
     "titleLabel": "Тема обращения",

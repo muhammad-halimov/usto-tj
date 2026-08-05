@@ -27,6 +27,10 @@ export type ReviewSortByType = 'newest' | 'oldest' | 'rating-high' | 'rating-low
 /** Time-window filter for the review list. */
 export type ReviewTimeFilterType = 'all' | 'today' | 'yesterday' | 'week' | 'month';
 
+// ─── Сортировка и фильтры техподдержки ────────────────────────
+/** Sort direction for the "my tickets" table on the Tech Support page. */
+export type TechSupportSortOrder = 'newest' | 'oldest';
+
 // ─── Роль пользователя ────────────────────────────────────────
 /** Canonical user role. Maps to ROLE_CLIENT / ROLE_MASTER on the backend. */
 export type UserRole = 'master' | 'client';

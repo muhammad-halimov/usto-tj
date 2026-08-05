@@ -18,7 +18,7 @@ import { Marquee } from '../../Text/Marquee';
 import Status from '../Status';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Clear } from '../../Button/Clear/Clear';
-import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
+import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/Api/OAuth';
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
 import { API_BASE_URL } from '../../../../utils/configUtils';
 import { ROUTES } from '../../../../app/routers/routes';

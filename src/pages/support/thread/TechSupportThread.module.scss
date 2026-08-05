@@ -1,0 +1,171 @@
+@use '../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 5);
+}
+
+.threadHeader {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 3);
+}
+
+.threadHeaderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 2);
+  padding-bottom: map.get(vars.$spacing, 4);
+  border-bottom: 1px solid var(--color-stroke);
+}
+
+.threadTitle {
+  font-size: map.get(vars.$font-sizes, xl);
+  font-weight: 600;
+  color: var(--color-text-black);
+  margin: 0;
+}
+
+.threadMeta {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 2);
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: map.get(vars.$font-sizes, sm);
+  padding: 3px map.get(vars.$spacing, 3);
+  border-radius: map.get(vars.$border-radius, sm);
+  background: var(--color-background-tag);
+  color: var(--color-secondary-text);
+  white-space: nowrap;
+}
+
+.status_new { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
+.status_renewed { background: rgba(158, 94, 218, 0.12); color: #9E5EDA; }
+.status_in_progress { background: rgba(230, 162, 40, 0.14); color: #B87400; }
+.status_resolved { background: rgba(41, 168, 105, 0.14); color: #1F9D5D; }
+.status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-secondary-text); }
+
+.reasonTag {
+  font-size: map.get(vars.$font-sizes, sm);
+  color: var(--color-secondary-text);
+  opacity: 0.85;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 3);
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: map.get(vars.$spacing, 1);
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 75%;
+}
+
+.messageIncoming { align-self: flex-start; align-items: flex-start; }
+.messageOutgoing { align-self: flex-end; align-items: flex-end; }
+
+.messageAuthor {
+  font-size: map.get(vars.$font-sizes, xs);
+  color: var(--color-secondary-text);
+  padding: 0 map.get(vars.$spacing, 2);
+}
+
+.messageBubble {
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
+  border-radius: map.get(vars.$border-radius, lg);
+  background: var(--color-background-card);
+  color: var(--color-text-primary);
+  font-size: map.get(vars.$font-sizes, base);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.messageOutgoing .messageBubble {
+  background: var(--color-background-btn);
+  color: var(--color-primary-text-white);
+}
+
+.messageTime {
+  font-size: map.get(vars.$font-sizes, xs);
+  color: var(--color-secondary-text);
+  opacity: 0.7;
+  padding: 0 map.get(vars.$spacing, 2);
+}
+
+.noMessages {
+  text-align: center;
+  padding: map.get(vars.$spacing, 6) 0;
+  color: var(--color-secondary-text);
+  font-size: map.get(vars.$font-sizes, sm);
+}
+
+.threadError {
+  color: var(--color-error, #e53e3e);
+  font-size: map.get(vars.$font-sizes, sm);
+}
+
+.replyBox {
+  display: flex;
+  align-items: flex-end;
+  gap: map.get(vars.$spacing, 3);
+  padding-top: map.get(vars.$spacing, 4);
+  border-top: 1px solid var(--color-stroke);
+}
+
+.replyInput {
+  flex: 1;
+  padding: 12px 16px;
+  background-color: var(--color-background-all);
+  border: none;
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, base);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  resize: none;
+  box-sizing: border-box;
+
+  &::placeholder { color: var(--color-text-placeholder); }
+
+  &:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.sendBtn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background-btn);
+  color: var(--color-primary-text-white);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  svg { width: 20px; height: 20px; }
+
+  &:hover:not(:disabled) { background: var(--color-primary-hover); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+@media screen and (max-width: map.get(vars.$breakpoints, mobile)) {
+  .messages { max-height: 45vh; }
+  .message { max-width: 90%; }
+}

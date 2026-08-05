@@ -176,94 +176,246 @@
 
 // ─── My Tickets ──────────────────────────────────────────────
 
-.myTickets {
+.myTicketsSection {
   display: flex;
   flex-direction: column;
+  gap: map.get(vars.$spacing, 5);
+}
+
+// Loading / empty / error placeholders only — the populated table below is top-aligned, not centered.
+.myTicketsStateWrap {
+  display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 50vh;
+  min-height: 40vh;
 }
 
-.myTicketsEmpty,
-.myTicketsError {
-  text-align: center;
-  padding: map.get(vars.$spacing, 10) 0;
-  color: var(--color-secondary-text);
-  font-size: map.get(vars.$font-sizes, base);
-}
+// ─── Table-header quick filters ────────────────────────────────
+// (The collapsible sort/filter panel itself is now the TechSupportSortingFilter
+// widget — widgets/Sorting/TechSupportCriteriaFilter — sharing SortingFilter's
+// own CSS module, so its styles no longer live here.)
+// The visible label is a Marquee sitting on top of a fully transparent native
+// <select> that covers the whole cell — the <select> handles the actual click
+// / option list (native popups aren't clipped by the table's own
+// `overflow: hidden`, unlike a custom dropdown would be), while the Marquee
+// gives long option text somewhere to scroll instead of just cutting off.
+// The arrow is a plain adjacent glyph, not select background-image, so its
+// position is never at the mercy of the (invisible) select's own box width.
 
-.myTicketsError {
-  color: var(--color-error, #e53e3e);
-}
-
-.myTicketsList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: map.get(vars.$spacing, 4);
-}
-
-.myTicketItem {
-  background: var(--color-background-card);
-  border: 1px solid var(--color-stroke);
-  border-radius: map.get(vars.$border-radius, base);
-  padding: map.get(vars.$spacing, 5);
-  display: flex;
-  flex-direction: column;
-  gap: map.get(vars.$spacing, 2);
-}
-
-.myTicketHeader {
-  display: flex;
+// No `justify-self` override — it stretches to fill its grid column like every
+// other header cell, so the visual gap between columns is always exactly the
+// grid `gap` (content still sits flush left inside it, via the flex default).
+// A `justify-self: start` cell instead hugs its own content, leaving a
+// content-dependent chunk of unused track space before the next column —
+// which is what made the header's column spacing look uneven.
+.headFilterCell {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: map.get(vars.$spacing, 3);
-  flex-wrap: wrap;
+  gap: map.get(vars.$spacing, 1);
+  max-width: 100%;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-within {
+    .headFilterLabel,
+    .headFilterArrow {
+      color: var(--color-primary);
+    }
+  }
 }
 
-.myTicketTitle {
+// `inline-block` (not a flex item) so Marquee's own `flex: 1` (flex-basis: 0)
+// never collapses it — inside a shrink-to-fit flex row, a flex-basis:0 child
+// is measured against 0 during the row's own intrinsic sizing, which made
+// Marquee's container end up narrower than the actual text and scroll text
+// that already fit. As a plain inline-block, this wrapper just hugs its
+// content's real width, which Marquee then measures correctly.
+.headFilterLabel {
+  display: inline-block;
+  max-width: 100%;
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: color 0.15s ease;
+}
+
+.headFilterArrow {
+  flex-shrink: 0;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  transition: color 0.15s ease;
+}
+
+.headFilterNative {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  option {
+    color: var(--color-text-primary);
+    background-color: var(--color-background-primary);
+    font-weight: 400;
+  }
+}
+
+// Created/Updated — a plain `role="button"` div (same as .headFilterCell next to
+// it, and the same pattern .ticketRow itself uses), not a real <button>. No
+// amount of resetting (appearance/outline/::-moz-focus-inner/all:unset) fully
+// stripped every browser's native button chrome; a div simply never has any
+// to begin with.
+.sortableHead {
+  display: inline-flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 1);
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-primary);
+    outline: none;
+  }
+}
+
+.sortArrow {
+  font-size: map.get(vars.$font-sizes, xs);
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+// ─── Tickets table ───────────────────────────────────────────
+
+$ticketsColumns: minmax(180px, 2.2fr) minmax(110px, 1.3fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr);
+
+.ticketsTable {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-stroke);
+  border-radius: map.get(vars.$border-radius, lg);
+  overflow: hidden;
+}
+
+.ticketsTableHead {
+  display: grid;
+  grid-template-columns: $ticketsColumns;
+  align-items: center;
+  gap: map.get(vars.$spacing, 6);
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 5);
+  background: var(--color-background-all);
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ticketRow {
+  display: grid;
+  grid-template-columns: $ticketsColumns;
+  gap: map.get(vars.$spacing, 6);
+  align-items: center;
+  padding: map.get(vars.$spacing, 4) map.get(vars.$spacing, 5);
+  background: var(--color-background-primary);
+  border-top: 1px solid var(--color-stroke);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--color-background-all);
+    outline: none;
+  }
+}
+
+.ticketCell {
+  min-width: 0;
+  font-size: map.get(vars.$font-sizes, sm);
+  color: var(--color-text-secondary);
+}
+
+.ticketCellTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+// Overflow is handled by Marquee itself (scrolls on overflow) — no ellipsis/nowrap needed here.
+.ticketRowTitle {
   font-weight: 600;
   font-size: map.get(vars.$font-sizes, base);
-  color: var(--color-primary-text);
+  color: var(--color-text-black);
 }
 
-.myTicketStatus {
+.ticketRowDesc {
   font-size: map.get(vars.$font-sizes, sm);
-  padding: 2px map.get(vars.$spacing, 2);
+  color: var(--color-text-secondary);
+}
+
+.badge {
+  display: inline-block;
+  font-size: map.get(vars.$font-sizes, xs);
+  padding: 3px map.get(vars.$spacing, 2);
   border-radius: map.get(vars.$border-radius, sm);
-  background: var(--color-background-tag);
-  color: var(--color-secondary-text);
+  background: var(--color-background-all);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
-.myTicketMeta {
-  display: flex;
-  align-items: center;
-  gap: map.get(vars.$spacing, 3);
-  flex-wrap: wrap;
-  font-size: map.get(vars.$font-sizes, sm);
-  color: var(--color-secondary-text);
-}
+.status_new { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
+.status_renewed { background: rgba(158, 94, 218, 0.12); color: #9E5EDA; }
+.status_in_progress { background: rgba(230, 162, 40, 0.14); color: #B87400; }
+.status_resolved { background: rgba(41, 168, 105, 0.14); color: #1F9D5D; }
+.status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-text-secondary); }
 
-.myTicketReason {
-  font-weight: 500;
-}
+@media screen and (max-width: 860px) {
+  .ticketsTable {
+    border: none;
+    border-radius: 0;
+    gap: map.get(vars.$spacing, 3);
+  }
 
-.myTicketPriority,
-.myTicketDate {
-  opacity: 0.75;
-}
+  .ticketsTableHead {
+    display: none;
+  }
 
-.myTicketDesc {
-  font-size: map.get(vars.$font-sizes, sm);
-  color: var(--color-secondary-text);
-  margin: 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  .ticketRow {
+    grid-template-columns: 1fr;
+    gap: map.get(vars.$spacing, 2);
+    border: 1px solid var(--color-stroke);
+    border-radius: map.get(vars.$border-radius, base);
+    margin-bottom: map.get(vars.$spacing, 3);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .ticketCell::before {
+    content: attr(data-label);
+    display: block;
+    font-size: map.get(vars.$font-sizes, xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+    margin-bottom: 2px;
+  }
 }
 

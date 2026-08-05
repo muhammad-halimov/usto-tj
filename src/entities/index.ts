@@ -1,5 +1,5 @@
 // Raw API shapes (backend entities)
-export * from './api';
+export * from './Api';
 
 // Frontend view models
 export * from './view';

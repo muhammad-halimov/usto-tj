@@ -1,5 +1,5 @@
 import type { UserRole } from '../../../types/common';
-import type { Ticket } from '../../api';
+import type { Ticket } from '../../Api';
 
 /**
  * UI representation of a ticket used by all list and detail components.
