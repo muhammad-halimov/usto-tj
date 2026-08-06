@@ -1300,7 +1300,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 addresses: loadedAddresses,
                 canWorkRemotely: userData.atHome || false,
                 services: [],
-                socialNetworks: loadedSocialNetworks as unknown as SocialNetwork[],
+                socialNetworks: loadedSocialNetworks as unknown as SocialNetwork[], 
                 phones: loadedPhones,
                 isOnline: (userData as any).isOnline ?? false,
                 lastSeen: (userData as any).lastSeen ?? null,
@@ -1617,9 +1617,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             console.log(`Fetching services for ${userRole} ID:`, profileData.id);
             const pageSize = getPageSize();
-            const endpoint = userRole === 'client' 
-                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&exists[master]=false&exists[author]=true&author=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`
-                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&exists[author]=false&exists[master]=true&master=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`;
+            // order[priority] reflects the drag-reorder from handleReorderServices below —
+            // matches the persisted manual order instead of the collection's default order.
+            const endpoint = userRole === 'client'
+                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&exists[master]=false&exists[author]=true&author=${profileData.id}&order[priority]=asc&page=${servicesPage}&itemsPerPage=${pageSize}`
+                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&exists[author]=false&exists[master]=true&master=${profileData.id}&order[priority]=asc&page=${servicesPage}&itemsPerPage=${pageSize}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             let servicesRaw: any;
@@ -1666,12 +1668,19 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     service: service.service ?? true,
                     createdAt: service.createdAt,
                     active: service.active !== false,
+                    priority: service.priority ?? undefined,
                     images: serviceImages,
                 };
             });
 
+            // Sort client-side rather than trusting `order[priority]=asc` alone — API Platform's
+            // OrderFilter only sorts by properties explicitly whitelisted server-side, and nothing
+            // in API_REFERENCE.md's filter list for /api/tickets confirms `priority` is one of them.
+            // Same fallback-to-end pattern used for Occupation/Category priority sort elsewhere.
+            transformedServices.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
+
             console.log('Transformed services:', transformedServices);
-            
+
             applyServicesFetch(transformedServices, servicesHasMoreFlag);
 
         } catch (error) {
@@ -2563,21 +2572,38 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const handleReorderServices = async (newServices: Ticket[]) => {
-        setProfileData(prev => prev ? { ...prev, services: newServices } : null);
+    const handleReorderServices = async (newActiveServices: Ticket[]) => {
+        // ServicesSection only ever hands ProfileSection the active-tab subset (it filters
+        // services by tab before passing `items` down), so `newActiveServices` here is just
+        // that subset — not the full list. Re-merge with the untouched past/inactive services
+        // instead of replacing `services` outright, or every reorder would silently drop them.
+        const reindexed = newActiveServices.map((service, index) => ({ ...service, priority: index }));
+        setProfileData(prev => {
+            if (!prev) return null;
+            const pastServices = (prev.services ?? []).filter(s => !s.active);
+            return { ...prev, services: [...reindexed, ...pastServices] };
+        });
         const token = getAuthToken();
         if (!token) return;
         try {
-            await Promise.all(
-                newServices.map((service, index) =>
+            // No bulk-update endpoint exists for tickets (§4 — PATCH is per-resource only), so this
+            // is still one request per ticket — but Promise.allSettled fires them as a single batch
+            // and, per your ask, lets individual failures be skipped instead of Promise.all's
+            // fail-one-fail-all behaviour, which would leave the rest silently unpatched too.
+            const results = await Promise.allSettled(
+                reindexed.map(service =>
                     universalApiRequest(`/api/tickets/${service.id}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/merge-patch+json' },
-                        body: { priority: index },
+                        body: { priority: service.priority },
                         locale: false,
                     })
                 )
             );
+            const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+            if (failed.length > 0) {
+                console.error(`Error reordering ${failed.length}/${reindexed.length} services:`, failed.map(f => f.reason));
+            }
         } catch (error) {
             console.error('Error reordering services:', error);
         }
