@@ -145,6 +145,7 @@ interface TicketInput {
   active?: boolean;
   budget?: number;
   negotiableBudget?: boolean;
+  priority?: number;      // no fixed enum server-side (unlike TechSupport.PRIORITIES) — plain nullable int
   category?: string;      // IRI e.g. "/api/categories/1"
   subcategory?: string;   // IRI to Occupation
   unit?: string;          // IRI to Unit
@@ -159,6 +160,7 @@ interface Ticket {
   notice: string | null;
   budget: number | null;
   negotiableBudget: boolean | null;
+  priority: number | null;
   service: boolean | null;         // true = "service offer", false = "listing/request"
   active: boolean | null;
   approved: boolean;               // read-only, admin-gated visibility
