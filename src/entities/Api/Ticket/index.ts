@@ -25,6 +25,8 @@ export type Ticket = {
     service: boolean;
     active: boolean;
     urgent?: boolean;
+    /** Manual sort order for a master's own service listings (drag-reorder on the profile page). */
+    priority?: number;
     viewsCount?: number;
     responsesCount?: number;
     reviewsCount?: number;
