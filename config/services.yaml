@@ -15,7 +15,7 @@ services:
         bind:
             # [MERCURE] Инжектируем секрет Mercure во все сервисы, у которых есть
             # аргумент конструктора "string $mercureJwtSecret".
-            # Используется в GetChatSubscribeTokenController для подписи JWT-токенов.
+            # Используется в ApiGetChatSubscribeTokenController для подписи JWT-токенов.
             string $mercureJwtSecret: '%env(MERCURE_JWT_SECRET)%'
 
     # makes classes in src/ available to be used as services

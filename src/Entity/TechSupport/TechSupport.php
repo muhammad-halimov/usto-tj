@@ -12,6 +12,8 @@ use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiAdminApiTechSupportCo
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetAllTechSupportsController;
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetMyTechSupportsController;
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetTechSupportController;
+use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetTechSupportInboxTokenController;
+use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetTechSupportSubscribeTokenController;
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiUserApiTechSupportController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiAssignTechSupportController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiPatchTechSupportController;
@@ -75,6 +77,22 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             requirements: ['id' => '\d+'],
             controller: ApiGetTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
+        ),
+        // [MERCURE] Эндпоинт для получения подписного JWT-токена — аналог
+        // /chats/{id}/subscribe (см. Chat). Фронтенд вызывает его перед
+        // открытием SSE-соединения на топик "tech-support:{id}".
+        new Get(
+            uriTemplate: '/tech-supports/{id}/subscribe',
+            requirements: ['id' => '\d+'],
+            controller: ApiGetTechSupportSubscribeTokenController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
+        ),
+        // [MERCURE] Токен для подписки на ВСЕ тикеты техподдержки пользователя
+        // одновременно — аналог /chats/inbox-token (см. Chat).
+        new Get(
+            uriTemplate: '/tech-supports/inbox-token',
+            controller: ApiGetTechSupportInboxTokenController::class,
+            read: false,
         ),
         // Авторизованный или гость (без токена): создать новый тикет.
         // Гость обязан передать guestEmail для обратной связи.
@@ -351,5 +369,17 @@ class TechSupport implements HasImagesInterface
         }
 
         return $this;
+    }
+
+    /**
+     * [MERCURE] Возвращает имя топика этого тикета техподдержки.
+     * Аналог Chat::getMercureTopic() — см. там общее объяснение.
+     * Попадает в JSON-ответ как "mercureTopic": "tech-support:7".
+     */
+    #[Groups([G::TECH_SUPPORT, G::TECH_SUPPORT_MESSAGES])]
+    #[SerializedName('mercureTopic')]
+    public function getMercureTopic(): string
+    {
+        return "tech-support:{$this->id}";
     }
 }

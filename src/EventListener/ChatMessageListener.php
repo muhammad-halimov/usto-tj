@@ -3,12 +3,9 @@
 namespace App\EventListener;
 
 use App\Entity\Chat\ChatMessage;
+use App\Service\Extra\MercurePublisher;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
-use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
-use Symfony\Component\Serializer\Exception\ExceptionInterface;
-use Symfony\Component\Serializer\SerializerInterface;
 
 /**
  * MERCURE — что это такое (простыми словами):
@@ -26,12 +23,15 @@ use Symfony\Component\Serializer\SerializerInterface;
  * Этот класс — слушатель Doctrine. Как только в БД создаётся, меняется
  * или удаляется ChatMessage, Symfony автоматически вызывает методы здесь,
  * и мы публикуем событие в Mercure. Фронтенд получает его мгновенно.
+ * Сама сериализация + публикация в хаб вынесены в MercurePublisher —
+ * тот же сервис использует TechSupportMessageListener.
  *
  * Топик — это просто уникальный ключ канала. Формат: "chat:{chatId}".
  * Каждый чат имеет свой топик. Браузер подписывается только на нужный.
  *
- * private: true означает, что без подписного JWT-токена никто чужой
- * подписаться на этот топик не сможет (см. GetChatSubscribeTokenController).
+ * private: true (внутри MercurePublisher) означает, что без подписного
+ * JWT-токена никто чужой подписаться на этот топик не сможет
+ * (см. ApiGetChatSubscribeTokenController).
  */
 
 #[AsEntityListener(event: Events::postPersist, entity: ChatMessage::class)]
@@ -47,22 +47,15 @@ class ChatMessageListener
      */
     private ?array $removedData = null;
 
-    public function __construct(
-        private readonly HubInterface        $hub,        // Клиент Mercure-хаба
-        private readonly SerializerInterface $serializer, // Для сериализации сущности в JSON
-    ) {}
+    public function __construct(private readonly MercurePublisher $publisher) {}
 
-    /** Вызывается после сохранения нового сообщения в БД
-     * @throws ExceptionInterface
-     */
+    /** Вызывается после сохранения нового сообщения в БД */
     public function postPersist(ChatMessage $message): void
     {
         $this->publish('created', $message);
     }
 
-    /** Вызывается после обновления сообщения в БД
-     * @throws ExceptionInterface
-     */
+    /** Вызывается после обновления сообщения в БД */
     public function postUpdate(ChatMessage $message): void
     {
         $this->publish('updated', $message);
@@ -86,16 +79,7 @@ class ChatMessageListener
         if (!$this->removedData) return;
 
         $chatId = $this->removedData['chatId'];
-        if (!$chatId) return;
-
-        $this->hub->publish(new Update(
-            topics: $this->topic($chatId),
-            data: json_encode([
-                'type' => 'deleted',
-                'data' => $this->removedData,
-            ]),
-            private: true, // Только авторизованные подписчики получат это событие
-        ));
+        if ($chatId) $this->publisher->publishRaw($this->topic($chatId), 'deleted', $this->removedData);
 
         $this->removedData = null;
     }
@@ -103,32 +87,18 @@ class ChatMessageListener
     // -------------------------------------------------------------------------
 
     /**
-     * Универсальный метод публикации: сериализует сообщение в JSON
-     * по группе chatMessages:read и отправляет в Mercure-хаб.
+     * Сериализует сообщение группой chatMessages:read и отправляет в
+     * Mercure-хаб через общий MercurePublisher.
      *
      * Структура события на фронтенде:
      * { "type": "created"|"updated"|"deleted", "data": { ...ChatMessage... } }
-     * @throws ExceptionInterface
      */
     private function publish(string $type, ChatMessage $message): void
     {
         $chatId = $message->getChat()?->getId();
         if (!$chatId) return;
 
-        // Сериализуем сущность теми же группами, что возвращает GET-эндпоинт
-        $data = $this->serializer->serialize($message, 'json', [
-            'groups'           => ['chatMessages:read'],
-            'skip_null_values' => false,
-        ]);
-
-        $this->hub->publish(new Update(
-            topics: $this->topic($chatId),
-            data: json_encode([
-                'type' => $type,
-                'data' => json_decode($data, true),
-            ]),
-            private: true, // Только авторизованные подписчики получат это событие
-        ));
+        $this->publisher->publish($this->topic($chatId), $type, $message, ['chatMessages:read']);
     }
 
     /**
