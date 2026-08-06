@@ -22,11 +22,20 @@ abstract class AddressComponent
 
     public function __toString(): string
     {
-        if ($this->translations->isEmpty()) return "Abstract #$this->id";
+        // $translations типизирован как ?Collection и по умолчанию null —
+        // City/District/Province/Settlement переопределяют __construct() не
+        // вызывая parent::__construct(), поэтому у свежесозданного (ещё не
+        // сохранённого) объекта он реально null. Используем getTranslations()
+        // (тот же безопасный геттер, что и везде в этом классе) вместо сырого
+        // свойства — иначе на пустом/несуществующем translations падает
+        // "Call to a member function isEmpty() on null".
+        $translations = $this->getTranslations();
+
+        if ($translations->isEmpty()) return "Abstract #$this->id";
 
         $titles = [];
 
-        foreach ($this->translations as $translation) {
+        foreach ($translations as $translation) {
             $title = $translation->getTitle();
 
             if ($title !== null && $title !== '') $titles[] = $title;

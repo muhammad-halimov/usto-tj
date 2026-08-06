@@ -31,6 +31,7 @@ use App\Entity\TechSupport\TicketApproval;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\PriorityTrait;
 use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
@@ -98,7 +99,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating', 'reviewsCount'])]
 class Ticket implements HasImagesInterface
 {
-    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, PriorityTrait;
 
     public function __toString(): string
     {

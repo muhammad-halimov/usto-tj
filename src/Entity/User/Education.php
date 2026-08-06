@@ -25,7 +25,7 @@ class Education
         if ($this->beginning && $this->ending)
             return "$this->title, $this->beginning - $this->ending";
 
-        return $this->uniTitle ?? "Education #$this->id";
+        return $this->title ?? "Education #$this->id";
     }
 
     #[ORM\Id]

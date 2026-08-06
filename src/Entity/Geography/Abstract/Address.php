@@ -27,15 +27,21 @@ class Address
 
     public function __toString(): string
     {
+        // Collection::first() возвращает false (не null) на пустой коллекции,
+        // а ->getTranslations()->first()->getTitle() падал с фатальной ошибкой
+        // "Call to a member function getTitle() on bool", если у province/city/…
+        // ещё не было ни одного перевода. AddressComponent::__toString() уже
+        // умеет это безопасно (проверяет isEmpty()) — переиспользуем его вместо
+        // повторения той же логики здесь.
         $parts = [];
 
-        if ($this->province) $parts[] = $this->province->getTranslations()->first()->getTitle();
-        if ($this->city) $parts[] = $this->city->getTranslations()->first()->getTitle();
-        if ($this->district) $parts[] = $this->district->getTranslations()->first()->getTitle();
-        if ($this->suburb) $parts[] = $this->suburb->getTranslations()->first()->getTitle();
-        if ($this->settlement) $parts[] = $this->settlement->getTranslations()->first()->getTitle();
-        if ($this->community) $parts[] = $this->community->getTranslations()->first()->getTitle();
-        if ($this->village) $parts[] = $this->village->getTranslations()->first()->getTitle();
+        if ($this->province)   $parts[] = (string) $this->province;
+        if ($this->city)       $parts[] = (string) $this->city;
+        if ($this->district)   $parts[] = (string) $this->district;
+        if ($this->suburb)     $parts[] = (string) $this->suburb;
+        if ($this->settlement) $parts[] = (string) $this->settlement;
+        if ($this->community)  $parts[] = (string) $this->community;
+        if ($this->village)    $parts[] = (string) $this->village;
 
         return !empty($parts) ? implode(', ', $parts) : 'Адрес #' . ($this->id ?? 'новый');
     }

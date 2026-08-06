@@ -31,7 +31,11 @@ class Translation
 
     public function __toArray(): array
     {
-        return $this->__toArray();
+        return [
+            'id'     => $this->id,
+            'locale' => $this->locale,
+            'title'  => $this->title,
+        ];
     }
 
     public const array LOCALES = [

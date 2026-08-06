@@ -14,6 +14,7 @@ class TicketInput
     public ?bool       $active           = null;
     public ?float      $budget           = null;
     public ?bool       $negotiableBudget = null;
+    public ?int        $priority         = null;
     public ?Category   $category         = null;
     public ?Occupation $subcategory      = null;
     public ?Unit       $unit             = null;

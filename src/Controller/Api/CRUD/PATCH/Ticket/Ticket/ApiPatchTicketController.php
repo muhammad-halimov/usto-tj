@@ -81,6 +81,7 @@ class ApiPatchTicketController extends AbstractApiHelperController
             ->setDescription($dto->description ?? $ticket->getDescription())
             ->setNotice($dto->notice ?? $ticket->getNotice())
             ->setActive($dto->active ?? $ticket->getActive())
+            ->setPriority($dto->priority ?? $ticket->getPriority())
             ->setCategory($category)
             ->setSubcategory($subcategory)
             ->setUnit($unit);

@@ -67,6 +67,7 @@ class ApiPostTicketController extends AbstractApiPostController
             ->setDescription($dto->description)
             ->setNotice($dto->notice)
             ->setActive($dto->active ?? true)
+            ->setPriority($dto->priority)
             ->setCategory($category)
             ->setSubcategory($subcategory)
             ->setUnit($unit);
