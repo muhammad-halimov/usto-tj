@@ -392,11 +392,14 @@ interface AppealReason {
 | POST | `/api/black-lists` | body: `{ user?: IRI, ticket?: IRI }` |
 | DELETE | `/api/black-lists/{id}` | owner or admin |
 
+Self-referencing is allowed: a user can favorite/blacklist their own `user` IRI or their own `ticket` IRI — no ownership check blocks it server-side. `409 already_added` means this exact `(owner, target)` pair already exists for the caller, not a permission error.
+
 ```ts
 interface CollectionEntryInput { user?: string; ticket?: string; }  // IRIs, mutually exclusive
 interface Favorite  { id: number; type: string; user: User|null; ticket: Ticket|null; createdAt: string; updatedAt: string|null; }
 interface BlackList { id: number; type: string; user: User|null; ticket: Ticket|null; createdAt: string; updatedAt: string|null; }
 ```
+`GET /api/favorites/me` additionally hides entries whose target `ticket` isn't `approved` yet, or whose target `user` isn't `active`+`approved` — filtered at the query level, so pagination/`totalItems` reflect only what's actually visible.
 
 ## 11. TECH SUPPORT
 
@@ -407,6 +410,8 @@ interface BlackList { id: number; type: string; user: User|null; ticket: Ticket|
 | GET | `/api/tech-supports/user/{id}` | ROLE_ADMIN: by user |
 | GET | `/api/tech-supports/admin/{id}` | ROLE_ADMIN: by assigned admin |
 | GET | `/api/tech-supports/{id}` | author/administrant/admin |
+| GET | `/api/tech-supports/{id}/subscribe` | Returns Mercure subscriber JWT for this ticket's SSE topic (`tech-support:{id}`). **Only** the ticket's author or its assigned `administrant` can call this — unlike the plain GET above, a generic ROLE_ADMIN without an assignment is rejected (`403 ownership_mismatch`). This is a private 1:1 channel, not an admin monitoring tool. |
+| GET | `/api/tech-supports/inbox-token` | Mercure token covering ALL of the caller's tickets at once (as author or administrant — same scope as `/tech-supports/me`). Empty set → `{ token: null, topics: [] }` |
 | POST | `/api/tech-supports` | body: `TechSupportPostInput`. Works for guests too (no Bearer) — then `guestEmail` is required |
 | PATCH | `/api/tech-supports/{id}` | body: `TechSupportInput` (status transition) |
 | PATCH | `/api/tech-supports/{id}/assign` | ROLE_ADMIN, body: `TechSupportAssignInput` |
@@ -417,6 +422,17 @@ interface TechSupportPostInput { title?: string; reason?: string /* AppealReason
 interface TechSupportInput { status: 'new'|'renewed'|'in_progress'|'resolved'|'closed'; }
 interface TechSupportAssignInput { administrant: string /* User IRI */; }
 
+// Deliberately trimmed shape — only these 6 fields are ever exposed for
+// `administrant`, everywhere it appears (TechSupport.administrant). No `id`.
+interface AdministrantPublic {
+  name: string | null;
+  surname: string | null;
+  patronymic: string | null;
+  lastSeen: string | null;
+  image: string | null;
+  imageExternalUrl: string | null;
+}
+
 interface TechSupport {
   id: number;
   title: string | null;
@@ -424,18 +440,21 @@ interface TechSupport {
   priority: number | null;              // 1 low .. 4 urgent
   reason: AppealReason | null;
   status: string;                       // read-only, see STATUSES
-  administrant: User | null;            // read-only (visible to admin context)
-  author: User | null;                  // read-only
+  administrant: AdministrantPublic | null; // read-only, trimmed shape (see above) — NOT a full User
+  author: User | null;                  // read-only, full User shape (unaffected)
   guestEmail: string | null;            // only set for guest-created tickets
   guestAccessToken: string | null;      // returned ONLY in the POST response, lets a guest upload images afterwards
   images: MultipleImage[];
   messages: TechSupportMessage[];
+  mercureTopic: string;                 // "tech-support:{id}" — subscribe via Mercure hub using the token from /subscribe
   createdAt: string;
   updatedAt: string | null;
 }
 ```
 `TechSupport.STATUSES`: new, renewed, in_progress, resolved, closed.
 `TechSupport.PRIORITIES`: 1=Низкий, 2=Средний, 3=Высокий, 4=Экстренный.
+
+Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tech-supports/{id}/subscribe` or `/tech-supports/inbox-token`), then open an EventSource against the Mercure hub URL with that JWT, subscribed to topic `tech-support:{id}`. Unlike chat, **only new messages are published** (`{"type":"created","data":{...TechSupportMessage...}}`) — editing/deleting a `TechSupportMessage` does *not* emit a Mercure event; poll the normal GET endpoints for that.
 
 | Method | Path | Notes |
 |---|---|---|
