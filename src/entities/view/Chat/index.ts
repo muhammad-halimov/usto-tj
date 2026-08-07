@@ -1,4 +1,4 @@
-import type { User } from '../../Api';
+import type { User } from '../../api';
 
 /** Обработанный URL изображения чата для отображения */
 export interface ChatImageView {

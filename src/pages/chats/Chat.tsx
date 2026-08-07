@@ -23,8 +23,8 @@ import { getPageSize } from '../../utils/pageSizeUtils';
 import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
 import { useShowMore } from '../../hooks';
 import { Marquee } from '../../shared/ui/Text/Marquee';
-import type { User as ApiUser } from '../../entities/Api/User';
-import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/Api/Chat';
+import type { User as ApiUser } from '../../entities/api/User';
+import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
 import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } from '../../entities/view/Chat';
 import { API_BASE_URL } from '../../utils/configUtils';
 

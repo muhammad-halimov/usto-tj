@@ -1,7 +1,7 @@
 import type { UserRole } from '../../../types/common';
 import type { TicketView } from '../Ticket';
-import type { Ticket } from '../../Api';
-import type { User } from '../../Api';
+import type { Ticket } from '../../api';
+import type { User } from '../../api';
 
 export interface FavoriteEntry {
     id: number;
