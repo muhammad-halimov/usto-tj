@@ -178,11 +178,21 @@ function Profile() {
 
     // Загружаем привязанные OAuth-провайдеры (только для своей страницы)
     useEffect(() => {
-        if (readOnly) return;
+        // `readOnly` — это `!!id` из URL (свой профиль = /profile, без id), а не признак
+        // авторизации. После logout + reload на /profile этот эффект всё равно монтируется
+        // заново с readOnly=false, и без проверки токена стабильно слал запрос без
+        // Authorization → 401 сразу после выхода, даже до того как AbortController выше
+        // успевал что-то отменить (это был не гоночный запрос "в полёте", а совершенно
+        // новый, отправленный уже разлогиненной страницей).
+        if (readOnly || !getAuthToken()) return;
+
+        let controller = new AbortController();
 
         const loadProviders = () => {
+            controller.abort(); // отменяем предыдущий незавершённый запрос, если он ещё летит
+            controller = new AbortController();
             setLinkedProvidersLoading(true);
-            universalApiRequest('/api/profile/oauth/providers', { locale: false })
+            universalApiRequest('/api/profile/oauth/providers', { locale: false, signal: controller.signal })
                 .then(data => setLinkedProviders(Array.isArray(data) ? data : ((data as any).providers ?? [])))
                 .catch(() => {})
                 .finally(() => setLinkedProvidersLoading(false));
@@ -198,8 +208,18 @@ function Profile() {
                 loadProviders();
             }
         };
+        // Обрываем запрос сразу при logout, вместо того чтобы дать ему долететь до
+        // сервера и вернуться 401'ом уже после инвалидации токена — именно этот
+        // «лишний» запрос было видно в devtools сразу после выхода.
+        const onLogout = () => controller.abort();
+
         window.addEventListener('storage', onStorage);
-        return () => window.removeEventListener('storage', onStorage);
+        window.addEventListener('logout', onLogout);
+        return () => {
+            controller.abort();
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener('logout', onLogout);
+        };
     }, [readOnly]);
 
     const handleLinkProvider = (provider: string) => {

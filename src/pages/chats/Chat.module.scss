@@ -1556,11 +1556,50 @@
   flex: 1;
   //overflow: hidden;
   min-height: 0;
-  
+  position: relative; // anchors .scrollToBottomBtn
+
   @media (max-width: 480px) {
     flex: 1 1 auto;
     overflow: hidden;
     -webkit-overflow-scrolling: touch;
+  }
+}
+
+.scrollToBottomBtn {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-stroke, #e0e0e0);
+  border-radius: 50%;
+  background: var(--color-background-primary, #fff);
+  color: var(--color-primary, #3A54DA);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 5;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+
+  svg { width: 20px; height: 20px; }
+
+  &:hover {
+    background: var(--color-background-all, #f2f2f5);
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 480px) {
+    // .chatInput/.replyBar are siblings below .chatContent, not inside it, so
+    // .chatContent's own bottom edge already sits right above the input bar —
+    // only a small gap is needed here, not extra clearance for its height.
+    right: 16px;
+    bottom: 16px;
+    width: 48px;
+    height: 48px;
+
+    svg { width: 24px; height: 24px; }
   }
 }
 

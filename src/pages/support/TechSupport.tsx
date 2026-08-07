@@ -20,7 +20,7 @@ import { Tabs } from '../../shared/ui/Tabs';
 import { TechSupportSortingFilter } from '../../widgets/Sorting/TechSupportCriteriaFilter';
 import TechSupportThread from './thread/TechSupportThread';
 import { IoPencilOutline, IoListOutline } from 'react-icons/io5';
-import { TECH_SUPPORT_STATUSES, type AppealReason, type SupportTicket } from './types';
+import { TECH_SUPPORT_STATUSES, getLastActivityAt, type AppealReason, type SupportTicket } from './types';
 import type { TechSupportSortOrder } from '../../types/common';
 
 type SupportTab = 'create' | 'my';
@@ -173,8 +173,10 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         if (filterPriority) list = list.filter(ticket => String(ticket.priority ?? '') === filterPriority);
 
         return [...list].sort((a, b) => {
-            const aValue = a[sortField];
-            const bValue = b[sortField];
+            // "updatedAt" sorts by last activity (ticket's own updatedAt, or its latest
+            // message if that's more recent) rather than the raw field — see getLastActivityAt.
+            const aValue = sortField === 'updatedAt' ? getLastActivityAt(a) : a.createdAt;
+            const bValue = sortField === 'updatedAt' ? getLastActivityAt(b) : b.createdAt;
             const aTime = aValue ? new Date(aValue).getTime() : 0;
             const bTime = bValue ? new Date(bValue).getTime() : 0;
             return sortOrder === 'newest' ? bTime - aTime : aTime - bTime;
@@ -481,7 +483,10 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                                                 {ticket.createdAt ? getFormattedDate(ticket.createdAt) : '—'}
                                             </div>
                                             <div className={styles.ticketCell} data-label={t('myTickets.table.updated')}>
-                                                {ticket.updatedAt ? getFormattedDate(ticket.updatedAt) : '—'}
+                                                {(() => {
+                                                    const lastActivity = getLastActivityAt(ticket);
+                                                    return lastActivity ? getFormattedDate(lastActivity) : '—';
+                                                })()}
                                             </div>
                                         </div>
                                     ))}

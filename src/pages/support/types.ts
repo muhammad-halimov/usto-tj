@@ -50,3 +50,20 @@ export interface SupportTicket {
 }
 
 export const TECH_SUPPORT_STATUSES: TechSupportStatus[] = ['new', 'renewed', 'in_progress', 'resolved', 'closed'];
+
+/**
+ * A ticket's own `updatedAt` only moves when the TechSupport entity itself changes
+ * (status/priority/title/…) — adding a reply creates a separate `TechSupportMessage`
+ * row and doesn't touch it (see API_REFERENCE.md §11: messages only emit their own
+ * Mercure event, nothing bumps the parent). So "last activity" for display/sort
+ * purposes is whichever is more recent: the ticket's own `updatedAt`, or its latest
+ * message's `createdAt`.
+ */
+export function getLastActivityAt(ticket: SupportTicket): string | undefined {
+    const timestamps = [
+        ticket.updatedAt,
+        ...(ticket.messages ?? []).map(m => m.createdAt),
+    ].filter((d): d is string => !!d);
+    if (timestamps.length === 0) return undefined;
+    return timestamps.reduce((latest, cur) => (new Date(cur) > new Date(latest) ? cur : latest));
+}

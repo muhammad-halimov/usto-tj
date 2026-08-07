@@ -102,6 +102,7 @@
     "selectActiveChat": "Select an active chat to communicate",
     "selectArchivedChat": "Select an archived chat to view",
     "back": "Back",
+    "scrollToBottom": "Scroll to bottom",
     "online": "online",
     "offline": "offline",
     "archiveChat": "Archive chat",

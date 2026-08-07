@@ -121,14 +121,7 @@ function Recommendations({
             const token = getAuthToken();
             const userData = getUserData();
             const currentUserId = userData?.id;
-            
-            // Предотвращаем fetch если роль еще не загружена из localStorage
-            if (token && userRole === null) {
-                console.log('⏳ Recommendations - Waiting for userRole to load...');
-                setIsLoading(false);
-                return;
-            }
-            
+
             console.log('============================================');
             console.log('Recommendations - userRole:', userRole);
             console.log('Recommendations - Current user ID:', currentUserId);
@@ -186,34 +179,16 @@ function Recommendations({
     }, [userRole]);
 
     // Перезагружаем данные при изменении роли или языка
+    // (userRole больше не блокирует загрузку — он нужен только для отображения
+    // на карточках, а не для самого запроса; ожидание userRole могло никогда не
+    // завершиться, и запрос тикетов не уходил вовсе — см. Category.tsx, тот же баг)
     useEffect(() => {
         // Skip fetch if custom data is provided
         if (customData) {
             setIsLoading(false);
             return;
         }
-        
-        const token = getAuthToken();
-        
-        // Загружаем данные если:
-        // 1) userRole !== null (авторизован и роль загружена)
-        // 2) !token (НЕ авторизован, userRole будет null - это нормально)
-        const shouldFetch = userRole !== null || !token;
-        
-        console.log('Recommendations - Check if should fetch:', {
-            userRole,
-            hasToken: !!token,
-            shouldFetch,
-            locale
-        });
-        
-        if (shouldFetch) {
-            console.log('Recommendations - Triggering data reload for role:', userRole);
-            fetchRecentAnnouncements();
-        } else {
-            console.log('⏳ Recommendations - Waiting for userRole to load...');
-            setIsLoading(false);
-        }
+        fetchRecentAnnouncements();
     }, [userRole, locale, fetchRecentAnnouncements, customData]);
 
     const getFullAddress = getTicketFullAddress;

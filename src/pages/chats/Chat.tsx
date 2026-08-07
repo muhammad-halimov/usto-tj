@@ -9,7 +9,7 @@ import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline } from "react-icons/io5";
+import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
@@ -198,6 +198,23 @@ function Chat() {
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
+
+    // Указатель "прокрутить вниз" — показываем, когда пользователь читает историю
+    // выше и не находится у самого низа переписки.
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+    useEffect(() => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        const SCROLL_BOTTOM_THRESHOLD = 150;
+        const handleScroll = () => {
+            const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+            setShowScrollToBottom(distanceFromBottom > SCROLL_BOTTOM_THRESHOLD);
+        };
+        handleScroll();
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleScroll);
+        // .chatMessages mounts/unmounts as chats are selected — re-attach on that change.
+    }, [selectedChat]);
 
     // Мемоизация функций для оптимизации
     const getLastSeenTime = useCallback((user: ApiUser): string => {
@@ -1497,6 +1514,18 @@ function Chat() {
                                     </div>
                                 )}
                             </div>
+
+                            {showScrollToBottom && (
+                                <button
+                                    type="button"
+                                    className={styles.scrollToBottomBtn}
+                                    onClick={() => scrollToBottom()}
+                                    aria-label={t('chat.scrollToBottom')}
+                                    title={t('chat.scrollToBottom')}
+                                >
+                                    <IoChevronDown />
+                                </button>
+                            )}
 
                             {/* Боковая панель с миниатюрами фото */}
                             {chatImages.length > 0 && (

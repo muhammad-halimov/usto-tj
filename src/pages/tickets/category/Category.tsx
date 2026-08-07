@@ -196,34 +196,16 @@ function Category() {
     }, [userRole]);
 
     // Перезагружаем данные при изменении роли или языка
+    // (userRole больше не блокирует загрузку — он нужен только для отображения
+    // на карточках, а не для самого запроса; см. handleReorderServices-подобный
+    // баг: ожидание userRole могло никогда не завершиться и запрос не уходил вовсе)
     useEffect(() => {
         if (skipTicketsFetchRef.current) {
             skipTicketsFetchRef.current = false;
             return;
         }
         if (id) {
-            const token = getAuthToken();
-            
-            // Загружаем данные если:
-            // 1) userRole !== null (пользователь авторизован и роль загружена)
-            // 2) !token (пользователь НЕ авторизован, userRole будет null - это нормально)
-            // НЕ загружаем если: token && userRole === null (авторизован, но роль еще не загрузилась из localStorage)
-            const shouldFetch = userRole !== null || !token;
-            
-            console.log('Category - Check if should fetch:', {
-                id,
-                userRole,
-                hasToken: !!token,
-                shouldFetch,
-                locale
-            });
-            
-            if (shouldFetch) {
-                console.log('Category - Triggering data reload for role:', userRole, 'locale:', locale);
-                fetchTicketsByCategory();
-            } else {
-                console.log('⏳ Category - Waiting for userRole to load from localStorage...');
-            }
+            fetchTicketsByCategory();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page, selectedSubcategory]);
@@ -308,13 +290,6 @@ function Category() {
             if (!id) {
                 console.error('Category - No category ID provided');
                 setTickets([]);
-                return;
-            }
-
-            // Если есть токен, но роль еще не загрузилась - ждем
-            if (token && userRole === null) {
-                console.log('⏳ Category - Waiting for userRole to load...');
-                setIsLoading(false);
                 return;
             }
 

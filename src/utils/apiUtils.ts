@@ -22,6 +22,8 @@ export interface ApiRequestOptions {
     locale?: LocaleType | false;
     /** Pass `true` to send the request with keepalive (e.g. offline/unload beacons). */
     keepalive?: boolean;
+    /** Lets the caller cancel an in-flight request (e.g. on unmount or logout) via AbortController. */
+    signal?: AbortSignal;
 }
 
 /** Appends ?locale=xxx to a URL only when not already present. */
@@ -68,13 +70,19 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
                 ? options.body
                 : options.body ? JSON.stringify(options.body) : undefined,
             ...(options.keepalive !== undefined && { keepalive: options.keepalive }),
+            ...(options.signal && { signal: options.signal }),
         });
     };
 
     let response = await executeRequest();
 
-    // Если 401 и требуется авторизация, пробуем обновить токен
-    if (response.status === 401 && options.requiresAuth !== false) {
+    // Если 401 и требуется авторизация, пробуем обновить токен — но только если токен
+    // всё ещё есть. Его отсутствие означает, что пользователь уже вышел (logout не
+    // отменяет уже отправленные запросы — этот 401 просто "догнал" нас после выхода),
+    // и попытка silent-refresh в этом случае гарантированно бесполезна (refresh-cookie
+    // тоже инвалидирована logout'ом) — именно она и была тем самым "лишним" запросом
+    // на /api/refresh_token, который видно в devtools сразу после выхода.
+    if (response.status === 401 && options.requiresAuth !== false && getAuthToken()) {
         const refreshed = await handleUnauthorized();
         if (refreshed) {
             response = await executeRequest();
