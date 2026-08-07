@@ -39,74 +39,119 @@
   font-size: map.get(vars.$font-sizes, sm);
   padding: 3px map.get(vars.$spacing, 3);
   border-radius: map.get(vars.$border-radius, sm);
-  background: var(--color-background-tag);
-  color: var(--color-secondary-text);
+  background: var(--color-background-all);
+  color: var(--color-text-secondary);
   white-space: nowrap;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
 }
 
 .status_new { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
 .status_renewed { background: rgba(158, 94, 218, 0.12); color: #9E5EDA; }
 .status_in_progress { background: rgba(230, 162, 40, 0.14); color: #B87400; }
 .status_resolved { background: rgba(41, 168, 105, 0.14); color: #1F9D5D; }
-.status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-secondary-text); }
+.status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-text-secondary); }
+
+// Escalating severity: calm green → neutral blue → amber → red.
+.priority_1 { background: rgba(41, 168, 105, 0.12); color: #1F9D5D; }
+.priority_2 { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
+.priority_3 { background: rgba(230, 162, 40, 0.14); color: #B87400; }
+.priority_4 { background: rgba(220, 53, 69, 0.14); color: #DC3545; }
 
 .reasonTag {
   font-size: map.get(vars.$font-sizes, sm);
-  color: var(--color-secondary-text);
+  color: var(--color-text-secondary);
   opacity: 0.85;
 }
 
 .messages {
   display: flex;
   flex-direction: column;
-  gap: map.get(vars.$spacing, 3);
-  max-height: 55vh;
+  gap: map.get(vars.$spacing, 4);
+  max-height: 60vh;
   overflow-y: auto;
   padding-right: map.get(vars.$spacing, 1);
 }
 
+// Full-width reply cards — a ticket thread, not a two-column chat. Every message
+// spans the same width; "mine" vs "support" is a left accent bar + name color,
+// not left/right alignment.
 .message {
+  width: 100%;
+  box-sizing: border-box;
+  padding: map.get(vars.$spacing, 4);
+  border-radius: map.get(vars.$border-radius, base);
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-stroke);
+  border-left: 3px solid var(--color-stroke);
+}
+
+.messageMine {
+  border-left-color: var(--color-primary);
+}
+
+.messageSupport {
+  border-left-color: #1F9D5D;
+}
+
+.messageHeader {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-width: 75%;
+  align-items: center;
+  gap: map.get(vars.$spacing, 2);
+  margin-bottom: map.get(vars.$spacing, 2);
 }
 
-.messageIncoming { align-self: flex-start; align-items: flex-start; }
-.messageOutgoing { align-self: flex-end; align-items: flex-end; }
+.messageAuthorName {
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  color: var(--color-text-black);
+}
 
-.messageAuthor {
+.messageMine .messageAuthorName { color: var(--color-primary); }
+.messageSupport .messageAuthorName { color: #1F9D5D; }
+
+.messageTime {
   font-size: map.get(vars.$font-sizes, xs);
-  color: var(--color-secondary-text);
-  padding: 0 map.get(vars.$spacing, 2);
+  color: var(--color-text-secondary);
+  opacity: 0.75;
 }
 
-.messageBubble {
-  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
-  border-radius: map.get(vars.$border-radius, lg);
-  background: var(--color-background-card);
+.messageBody {
   color: var(--color-text-primary);
   font-size: map.get(vars.$font-sizes, base);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.messageOutgoing .messageBubble {
-  background: var(--color-background-btn);
-  color: var(--color-primary-text-white);
+.messageImages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: map.get(vars.$spacing, 1);
+  margin-top: map.get(vars.$spacing, 3);
 }
 
-.messageTime {
-  font-size: map.get(vars.$font-sizes, xs);
-  color: var(--color-secondary-text);
-  opacity: 0.7;
-  padding: 0 map.get(vars.$spacing, 2);
+.messageImage {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: map.get(vars.$border-radius, base);
+  cursor: pointer;
+  border: 1px solid var(--color-stroke);
+  transition: opacity 0.15s ease;
+
+  &:hover { opacity: 0.85; }
 }
 
 .noMessages {
   text-align: center;
   padding: map.get(vars.$spacing, 6) 0;
-  color: var(--color-secondary-text);
+  color: var(--color-text-secondary);
   font-size: map.get(vars.$font-sizes, sm);
 }
 
@@ -115,16 +160,41 @@
   font-size: map.get(vars.$font-sizes, sm);
 }
 
-.replyBox {
+// ─── Reply composer ──────────────────────────────────────────
+// Mirrors Chat.tsx's `.chatInput` bar (attach icon + single-line input + send) —
+// the photo grid (`Grid`, styled by its own module) only appears once something's
+// attached, same as there, instead of always taking up space.
+.chatInput {
   display: flex;
-  align-items: flex-end;
-  gap: map.get(vars.$spacing, 3);
+  align-items: center;
+  gap: map.get(vars.$spacing, 2);
   padding-top: map.get(vars.$spacing, 4);
   border-top: 1px solid var(--color-stroke);
 }
 
-.replyInput {
+.attachButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+
+  svg { width: 24px; height: 24px; transform: rotate(45deg); }
+
+  &:hover:not(:disabled) { background: var(--color-background-all); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.inputField {
   flex: 1;
+  min-width: 0;
   padding: 12px 16px;
   background-color: var(--color-background-all);
   border: none;
@@ -132,7 +202,6 @@
   font-size: map.get(vars.$font-sizes, base);
   color: var(--color-text-primary);
   font-family: inherit;
-  resize: none;
   box-sizing: border-box;
 
   &::placeholder { color: var(--color-text-placeholder); }
@@ -166,6 +235,6 @@
 }
 
 @media screen and (max-width: map.get(vars.$breakpoints, mobile)) {
-  .messages { max-height: 45vh; }
-  .message { max-width: 90%; }
+  .messages { max-height: 50vh; }
+  .messageImage { width: 72px; height: 72px; }
 }

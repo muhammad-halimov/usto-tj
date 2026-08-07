@@ -412,10 +412,15 @@ export const truncateText = (text: string, maxLength: number = 110): string => {
     return text;
 };
 
-export const textHelper = (text: string): string => {
+/**
+ * Заменяет HTML-сущности (часто попадают в текст из WYSIWYG-редактора админки,
+ * напр. висячий &nbsp; в конце ответа саппорта) на обычные символы и убирает теги.
+ * Не трогает переносы строк — используется и там, где white-space: pre-wrap
+ * должен сохранить форматирование (см. TechSupportThread).
+ */
+export const decodeHtmlEntities = (text: string): string => {
     if (!text) return '';
 
-    // 1. Заменяем HTML-сущности на обычные символы
     let cleaned = text
         .replace(/&nbsp;/g, ' ')          // неразрывный пробел
         .replace(/&amp;/g, '&')           // амперсанд
@@ -428,17 +433,18 @@ export const textHelper = (text: string): string => {
         .replace(/&laquo;/g, '«')         // левая кавычка
         .replace(/&raquo;/g, '»');        // правая кавычка
 
-    // 2. Удаляем все остальные HTML-сущности (общий паттерн)
-    cleaned = cleaned.replace(/&[a-z]+;/g, ' ');
+    // Удаляем все остальные HTML-сущности (общий паттерн) и теги
+    cleaned = cleaned.replace(/&[a-z]+;/g, ' ').replace(/<[^>]*>/g, '');
 
-    // 3. Удаляем HTML-теги (если есть)
-    cleaned = cleaned.replace(/<[^>]*>/g, '');
+    // Убираем пробелы по краям (в т.ч. висячий &nbsp;, превратившийся в trailing space)
+    return cleaned.trim();
+};
 
-    // 4. Убираем лишние пробелы и переносы строк
-    cleaned = cleaned
+export const textHelper = (text: string): string => {
+    if (!text) return '';
+
+    return decodeHtmlEntities(text)
         .replace(/\s+/g, ' ')             // множественные пробелы -> один пробел
         .replace(/\n\s*\n/g, '\n')        // множественные пустые строки -> одна
-        .trim();                          // убираем пробелы в начале и конце
-
-    return cleaned;
+        .trim();
 };

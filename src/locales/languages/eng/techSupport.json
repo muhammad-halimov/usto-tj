@@ -44,7 +44,7 @@
   "thread": {
     "loadError": "Failed to load the request",
     "sendError": "Failed to send the message",
-    "originalRequest": "Original request",
+    "originalRequest": "Description",
     "you": "You",
     "support": "Support",
     "placeholder": "Type a message...",

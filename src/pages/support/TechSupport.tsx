@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import styles from './TechSupport.module.scss';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { getAppealReasons, getMyTechSupports } from '../../utils/dataCacheUtils';
-import { uploadPhotos, formatTicketImageUrl } from '../../utils/imageUtils';
+import { uploadPhotos, formatTechSupportImageUrl } from '../../utils/imageUtils';
 import { isAuthenticated } from '../../utils/authUtils';
 import { textHelper } from '../../utils/textUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
@@ -17,10 +17,18 @@ import Status from '../../shared/ui/Modal/Status';
 import { EmptyState } from '../../widgets/EmptyState';
 import { EditActions } from '../profile/shared/ui/EditActions/EditActions';
 import { Tabs } from '../../shared/ui/Tabs';
+import { useLanguageChange } from '../../hooks';
 import { TechSupportSortingFilter } from '../../widgets/Sorting/TechSupportCriteriaFilter';
 import TechSupportThread from './thread/TechSupportThread';
-import { IoPencilOutline, IoListOutline } from 'react-icons/io5';
-import { TECH_SUPPORT_STATUSES, getLastActivityAt, type AppealReason, type SupportTicket } from './types';
+import { IoPencilOutline, IoListOutline, IoPricetagOutline } from 'react-icons/io5';
+import {
+    TECH_SUPPORT_STATUSES,
+    getLastActivityAt,
+    STATUS_ICONS,
+    PRIORITY_ICONS,
+    type AppealReason,
+    type SupportTicket,
+} from './types';
 import type { TechSupportSortOrder } from '../../types/common';
 
 type SupportTab = 'create' | 'my';
@@ -86,21 +94,38 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         .map(p => p.previewUrl);
     const gallery = usePreview({ images: photoUrls });
 
-    // Load appeal reasons — cached (dataCacheUtils), shared between the form select and the "my tickets" category filter
+    // Load appeal reasons — cached (dataCacheUtils, locale-partitioned internally), shared
+    // between the form select and the "my tickets" category filter. Only `applicableTo=support`
+    // reasons are valid choices when creating a ticket, so the form/filter stay scoped to those.
+    const fetchReasons = useCallback(async () => {
+        try {
+            setLoadingReasons(true);
+            const list = await getAppealReasons(undefined, 'applicableTo=support');
+            setReasons(list);
+        } catch {
+            setErrorMessage(t('loadError'));
+            setShowError(true);
+        } finally {
+            setLoadingReasons(false);
+        }
+    }, [t]);
+
+    // A ticket's own `reason` isn't restricted to `applicableTo=support` server-side (e.g. tickets
+    // created from a report/complaint flow can carry an "overall"-tagged reason) — so the table/
+    // thread's id→title lookup needs the full unfiltered list, separate from the form's scoped one.
+    const [allReasons, setAllReasons] = useState<AppealReason[]>([]);
+    const fetchAllReasons = useCallback(async () => {
+        try {
+            const list = await getAppealReasons();
+            setAllReasons(list);
+        } catch {
+            // Non-critical — table falls back to the ticket's own embedded reason.title.
+        }
+    }, []);
+
     useEffect(() => {
-        const fetchReasons = async () => {
-            try {
-                setLoadingReasons(true);
-                const list = await getAppealReasons(undefined, 'applicableTo=support');
-                setReasons(list);
-            } catch {
-                setErrorMessage(t('loadError'));
-                setShowError(true);
-            } finally {
-                setLoadingReasons(false);
-            }
-        };
         fetchReasons();
+        fetchAllReasons();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchMyTickets = useCallback(async (force = false) => {
@@ -124,6 +149,14 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         fetchMyTickets();
     }, [activeTab, isAuth, fetchMyTickets]);
 
+    // Reason/category titles (like Category/Occupation/etc.) are localized server-side —
+    // they don't update just because i18next's UI strings do, so re-fetch on language switch.
+    useLanguageChange(() => {
+        fetchReasons();
+        fetchAllReasons();
+        if (activeTab === 'my') fetchMyTickets(true);
+    });
+
     const priorityOptions = PRIORITY_KEYS.map(k => ({
         value: k,
         label: t(`priority.${k}`),
@@ -139,6 +172,15 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         { value: '', label: t('myTickets.filters.categoryAll') },
         ...reasons.map(r => ({ value: String(r.id), label: r.title })),
     ], [reasons, t]);
+
+    // `ticket.reason.title` comes embedded in /tech-supports/me and doesn't seem to respect
+    // ?locale= the way a direct GET /api/appeal-reasons?locale= does — so look the title up by
+    // id from the (correctly locale-fetched) `allReasons` list instead, falling back to the
+    // embedded value only when the reason isn't in that list for some reason.
+    const reasonTitleById = useMemo(
+        () => new Map(allReasons.map(r => [r.id, r.title])),
+        [allReasons],
+    );
 
     const statusFilterOptions = useMemo(() => [
         { value: '', label: t('myTickets.filters.statusAll') },
@@ -465,19 +507,37 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                                                 )}
                                             </div>
                                             <div className={styles.ticketCell} data-label={t('myTickets.table.category')}>
-                                                <Marquee text={ticket.reason?.title || '—'} alwaysScroll />
+                                                <div className={styles.cellRow}>
+                                                    <IoPricetagOutline className={styles.cellIcon} />
+                                                    <Marquee
+                                                        text={(ticket.reason?.id != null ? reasonTitleById.get(ticket.reason.id) : undefined) ?? ticket.reason?.title ?? '—'}
+                                                        alwaysScroll
+                                                    />
+                                                </div>
                                             </div>
                                             <div className={styles.ticketCell} data-label={t('myTickets.table.status')}>
-                                                {ticket.status ? (
-                                                    <span className={`${styles.badge} ${styles[`status_${ticket.status}`] ?? ''}`}>
-                                                        {t(`myTickets.statuses.${ticket.status}`, ticket.status)}
-                                                    </span>
-                                                ) : '—'}
+                                                {(() => {
+                                                    const statusKey = ticket.status ? (ticket.status.toLowerCase() as typeof ticket.status) : null;
+                                                    const StatusIcon = statusKey ? STATUS_ICONS[statusKey] : null;
+                                                    return statusKey ? (
+                                                        <span className={`${styles.badge} ${styles.statusBadge} ${styles[`status_${statusKey}`] ?? ''}`}>
+                                                            {StatusIcon && <StatusIcon />}
+                                                            {t(`myTickets.statuses.${statusKey}`, ticket.status ?? '')}
+                                                        </span>
+                                                    ) : '—';
+                                                })()}
                                             </div>
                                             <div className={styles.ticketCell} data-label={t('myTickets.table.priority')}>
-                                                <span className={styles.badge}>
-                                                    {t(`priority.${ticket.priority}`, String(ticket.priority))}
-                                                </span>
+                                                {(() => {
+                                                    const priorityKey = ticket.priority != null ? String(ticket.priority) : null;
+                                                    const PriorityIcon = priorityKey ? PRIORITY_ICONS[priorityKey] : null;
+                                                    return (
+                                                        <span className={`${styles.badge} ${styles.statusBadge} ${priorityKey ? styles[`priority_${priorityKey}`] ?? '' : ''}`}>
+                                                            {PriorityIcon && <PriorityIcon />}
+                                                            {t(`priority.${ticket.priority}`, String(ticket.priority))}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                             <div className={styles.ticketCell} data-label={t('myTickets.table.created')}>
                                                 {ticket.createdAt ? getFormattedDate(ticket.createdAt) : '—'}
@@ -570,7 +630,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                                 <Grid
                                     photos={photos}
                                     onChange={setPhotos}
-                                    getImageUrl={url => formatTicketImageUrl(url)}
+                                    getImageUrl={url => formatTechSupportImageUrl(url)}
                                     onClickPhoto={index => gallery.openGallery(
                                         photos.slice(0, index).filter(p => p.type === 'new').length
                                     )}

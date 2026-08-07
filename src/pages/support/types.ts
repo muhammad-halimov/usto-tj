@@ -4,6 +4,19 @@
  * a dedicated Hydra type for TechSupport beyond what's used here — see API_REFERENCE.md §11.
  */
 
+import type { ComponentType } from 'react';
+import {
+    IoAddCircleOutline,
+    IoRefreshOutline,
+    IoTimeOutline,
+    IoCheckmarkCircleOutline,
+    IoCloseCircleOutline,
+    IoArrowDownCircleOutline,
+    IoRemoveCircleOutline,
+    IoArrowUpCircleOutline,
+    IoAlertCircleOutline,
+} from 'react-icons/io5';
+
 export interface AppealReason {
     id: number;
     title: string;
@@ -50,6 +63,23 @@ export interface SupportTicket {
 }
 
 export const TECH_SUPPORT_STATUSES: TechSupportStatus[] = ['new', 'renewed', 'in_progress', 'resolved', 'closed'];
+
+/** Shared between the tickets table and the thread header so both badge sets stay in sync. */
+export const STATUS_ICONS: Record<TechSupportStatus, ComponentType> = {
+    new: IoAddCircleOutline,
+    renewed: IoRefreshOutline,
+    in_progress: IoTimeOutline,
+    resolved: IoCheckmarkCircleOutline,
+    closed: IoCloseCircleOutline,
+};
+
+// '1'..'4' — see TechSupport.PRIORITIES in API_REFERENCE.md §11.
+export const PRIORITY_ICONS: Record<string, ComponentType> = {
+    '1': IoArrowDownCircleOutline,
+    '2': IoRemoveCircleOutline,
+    '3': IoArrowUpCircleOutline,
+    '4': IoAlertCircleOutline,
+};
 
 /**
  * A ticket's own `updatedAt` only moves when the TechSupport entity itself changes

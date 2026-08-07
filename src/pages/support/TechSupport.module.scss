@@ -348,6 +348,23 @@ $ticketsColumns: minmax(180px, 2.2fr) minmax(110px, 1.3fr) minmax(90px, 1fr) min
   color: var(--color-text-secondary);
 }
 
+// Block-level flex (not inline-flex) so it stretches to the cell's full width — a
+// shrink-to-fit flex container would give Marquee's own flex:1 a near-zero basis to
+// measure against, falsely triggering its overflow-scroll behavior.
+.cellRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cellIcon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-secondary);
+}
+
 .ticketCellTitle {
   display: flex;
   flex-direction: column;
@@ -377,11 +394,29 @@ $ticketsColumns: minmax(180px, 2.2fr) minmax(110px, 1.3fr) minmax(90px, 1fr) min
   white-space: nowrap;
 }
 
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+}
+
 .status_new { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
 .status_renewed { background: rgba(158, 94, 218, 0.12); color: #9E5EDA; }
 .status_in_progress { background: rgba(230, 162, 40, 0.14); color: #B87400; }
 .status_resolved { background: rgba(41, 168, 105, 0.14); color: #1F9D5D; }
 .status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-text-secondary); }
+
+// Escalating severity: calm green → neutral blue → amber → red (mirrors TechSupportThread).
+.priority_1 { background: rgba(41, 168, 105, 0.12); color: #1F9D5D; }
+.priority_2 { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
+.priority_3 { background: rgba(230, 162, 40, 0.14); color: #B87400; }
+.priority_4 { background: rgba(220, 53, 69, 0.14); color: #DC3545; }
 
 @media screen and (max-width: 860px) {
   .ticketsTable {

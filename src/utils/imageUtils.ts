@@ -13,6 +13,12 @@ export const formatTicketImageUrl = (imagePath: string): string => buildImageUrl
 
 export const formatProfileImageUrl = (imagePath: string): string => buildImageUrl(imagePath, 'uploads/users');
 
+/** Screenshots attached directly to a TechSupport ticket (`ticket.images`). */
+export const formatTechSupportImageUrl = (imagePath: string): string => buildImageUrl(imagePath, 'uploads/tech_supports');
+
+/** Screenshots attached to a TechSupportMessage reply (`message.images`) — separate folder from the ticket's own. */
+export const formatTechSupportMessageImageUrl = (imagePath: string): string => buildImageUrl(imagePath, 'uploads/tech_support_messages');
+
 /**
  * Uploads one or more files to `/api/{endpoint}/{id}/upload-images` in a single multipart/form-data POST.
  * Files are sent as `imageFile[]` — the backend handles both single and multiple files.
