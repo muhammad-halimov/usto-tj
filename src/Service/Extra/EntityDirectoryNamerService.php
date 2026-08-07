@@ -24,8 +24,9 @@ readonly class EntityDirectoryNamerService implements DirectoryNamerInterface //
             return match (true) {
                 $object->getGallery()            !== null => 'galleries',
                 $object->getTicket()             !== null => 'tickets',
-                $object->getChatMessage()        !== null => 'chat_messages',
+                $object->getTechSupport()        !== null => 'tech_supports',
                 $object->getTechSupportMessage() !== null => 'tech_support_messages',
+                $object->getChatMessage()        !== null => 'chat_messages',
                 $object->getReview()             !== null => 'reviews',
                 $object->getAppeal()             !== null => 'appeals',
                 default                                   => 'misc',
