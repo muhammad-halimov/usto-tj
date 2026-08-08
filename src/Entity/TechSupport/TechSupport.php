@@ -18,6 +18,7 @@ use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiUserApiTechSupportCon
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiAssignTechSupportController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiPatchTechSupportController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
+use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\ApiPostMarkTechSupportReadController;
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\ApiPostTechSupportController;
 use App\Dto\Image\ImageInput;
 use App\Dto\TechSupport\TechSupportAssignInput;
@@ -117,6 +118,14 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             controller: ApiAssignTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: TechSupportAssignInput::class,
+        ),
+        // Автор / администрант: пометить непрочитанные сообщения тикета прочитанными.
+        // Аналог /chats/{id}/read (см. Chat).
+        new Post(
+            uriTemplate: '/tech-supports/{id}/read',
+            requirements: ['id' => '\d+'],
+            controller: ApiPostMarkTechSupportReadController::class,
+            deserialize: false,
         ),
         // Автор / администрант: загрузить фото напрямую к тикету (multipart/form-data, поле: imageFile[]).
         new Post(

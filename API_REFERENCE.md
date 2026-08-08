@@ -415,6 +415,7 @@ interface BlackList { id: number; type: string; user: User|null; ticket: Ticket|
 | GET | `/api/tech-supports/{id}/subscribe` | Returns Mercure subscriber JWT for this ticket's SSE topic (`tech-support:{id}`). **Only** the ticket's author or its assigned `administrant` can call this — unlike the plain GET above, a generic ROLE_ADMIN without an assignment is rejected (`403 ownership_mismatch`). This is a private 1:1 channel, not an admin monitoring tool. |
 | GET | `/api/tech-supports/inbox-token` | Mercure token covering ALL of the caller's tickets at once (as author or administrant — same scope as `/tech-supports/me`). Empty set → `{ token: null, topics: [] }` |
 | POST | `/api/tech-supports` | body: `TechSupportPostInput`. Works for guests too (no Bearer) — then `guestEmail` is required |
+| POST | `/api/tech-supports/{id}/read` | Marks all unread messages of this ticket as read for the caller (sets `readAt`). "Unread" = `author != caller` and `readAt` still `null`. Author or assigned `administrant` only (`403 ownership_mismatch` otherwise) — same access rule as `/subscribe`. No body, `204 No Content`. |
 | PATCH | `/api/tech-supports/{id}` | body: `TechSupportInput` (status transition) |
 | PATCH | `/api/tech-supports/{id}/assign` | ROLE_ADMIN, body: `TechSupportAssignInput` |
 | POST | `/api/tech-supports/{id}/upload-images` | multipart `imageFile[]` |
@@ -469,8 +470,18 @@ Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tec
 ```ts
 interface TechSupportMessagePostInput  { techSupport?: string /* IRI */; description?: string; }
 interface TechSupportMessagePatchInput { description?: string; }
-interface TechSupportMessage { id: number; author: User|null; techSupport: TechSupport|null; description: string|null; images: MultipleImage[]; createdAt: string; updatedAt: string|null; }
+interface TechSupportMessage {
+  id: number;
+  author: User|null;
+  techSupport: TechSupport|null;
+  description: string|null;
+  readAt: string | null;   // ISO datetime, read-only — set via POST /tech-supports/{id}/read
+  images: MultipleImage[];
+  createdAt: string;
+  updatedAt: string|null;
+}
 ```
+Note: marking read does **not** emit a Mercure event (unlike Chat, where `/chats/{id}/read` triggers an `"updated"` SSE so the sender sees a second checkmark live) — `TechSupportMessageListener` only publishes on message creation. Poll/re-fetch to see updated `readAt`.
 
 ## 12. LEGAL
 

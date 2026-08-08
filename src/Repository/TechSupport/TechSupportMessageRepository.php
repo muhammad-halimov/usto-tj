@@ -2,7 +2,9 @@
 
 namespace App\Repository\TechSupport;
 
+use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -14,6 +16,24 @@ class TechSupportMessageRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, TechSupportMessage::class);
+    }
+
+    /**
+     * Сообщения тикета, ещё не прочитанные $reader-ом: написаны не им самим
+     * и readAt ещё не проставлен. Аналог ChatMessageRepository::findUnreadByRecipient().
+     *
+     * @return TechSupportMessage[]
+     */
+    public function findUnreadByRecipient(TechSupport $techSupport, User $reader): array
+    {
+        return $this->createQueryBuilder('m')
+            ->where('m.techSupport = :techSupport')
+            ->andWhere('m.author != :reader')
+            ->andWhere('m.readAt IS NULL')
+            ->setParameter('techSupport', $techSupport)
+            ->setParameter('reader', $reader)
+            ->getQuery()
+            ->getResult();
     }
 
     //    /**

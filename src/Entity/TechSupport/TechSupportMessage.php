@@ -6,11 +6,11 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
-use ApiPlatform\Metadata\Patch;
+// use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\DELETE\TechSupport\Message\ApiDeleteTechSupportMessageController;
 use App\Controller\Api\CRUD\GET\TechSupport\Message\ApiGetTechSupportMessageController;
-use App\Controller\Api\CRUD\PATCH\TechSupport\Message\ApiPatchTechSupportMessageController;
+// use App\Controller\Api\CRUD\PATCH\TechSupport\Message\ApiPatchTechSupportMessageController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Controller\Api\CRUD\POST\TechSupport\Message\ApiPostTechSupportMessageController;
 use App\Dto\Image\ImageInput;
@@ -21,6 +21,7 @@ use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportMessageRepository;
+use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -35,11 +36,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
             requirements: ['id' => '\d+'],
             controller: ApiGetTechSupportMessageController::class,
         ),
-        new Patch(
-            uriTemplate: '/tech-support-messages/{id}',
-            requirements: ['id' => '\d+'],
-            controller: ApiPatchTechSupportMessageController::class,
-        ),
+        // new Patch(
+        //    uriTemplate: '/tech-support-messages/{id}',
+        //    requirements: ['id' => '\d+'],
+        //    controller: ApiPatchTechSupportMessageController::class,
+        // ),
         new Delete(
             uriTemplate: '/tech-support-messages/{id}',
             requirements: ['id' => '\d+'],
@@ -96,6 +97,14 @@ class TechSupportMessage
         G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?TechSupport $techSupport = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    #[Groups([
+        G::TECH_SUPPORT_MESSAGES,
+        G::TECH_SUPPORT,
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?DateTimeImmutable $readAt = null;
 
     /**
      * @var Collection<int, MultipleImage>
@@ -169,6 +178,18 @@ class TechSupportMessage
                 $image->setTechSupportMessage(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getReadAt(): ?DateTimeImmutable
+    {
+        return $this->readAt;
+    }
+
+    public function setReadAt(?DateTimeImmutable $readAt): static
+    {
+        $this->readAt = $readAt;
 
         return $this;
     }
