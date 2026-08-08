@@ -6,7 +6,8 @@ import styles from './TechSupport.module.scss';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { getAppealReasons, getMyTechSupports } from '../../utils/dataCacheUtils';
 import { uploadPhotos, formatTechSupportImageUrl } from '../../utils/imageUtils';
-import { isAuthenticated } from '../../utils/authUtils';
+import { isAuthenticated, getUserData } from '../../utils/authUtils';
+import { openMercureSource } from '../../utils/mercureUtils';
 import { textHelper } from '../../utils/textUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
 import { Marquee } from '../../shared/ui/Text/Marquee';
@@ -24,10 +25,12 @@ import { IoPencilOutline, IoListOutline, IoPricetagOutline } from 'react-icons/i
 import {
     TECH_SUPPORT_STATUSES,
     getLastActivityAt,
+    getUnreadCount,
     STATUS_ICONS,
     PRIORITY_ICONS,
     type AppealReason,
     type SupportTicket,
+    type TechSupportMessage,
 } from './types';
 import type { TechSupportSortOrder } from '../../types/common';
 
@@ -45,6 +48,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     const { t } = useTranslation('techSupport');
     const navigate = useNavigate();
     const isAuth = isAuthenticated();
+    const currentUserId = getUserData()?.id;
     const formRef = useRef<HTMLFormElement>(null);
 
     const [activeTab, setActiveTab] = useState<SupportTab>('create');
@@ -148,6 +152,76 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         if (activeTab !== 'my' || !isAuth) return;
         fetchMyTickets();
     }, [activeTab, isAuth, fetchMyTickets]);
+
+    // Real-time — one Mercure connection covering every ticket the user is party to
+    // (as author or administrant, §11), so new replies land in `myTickets` instantly:
+    // updates "last activity" sort and feeds the unread bubble, without polling.
+    // Kept alive for as long as the user is authed, independent of which tab is active,
+    // since switching tabs here doesn't unmount this component.
+    const inboxSourceRef = useRef<EventSource | null>(null);
+    const startInboxSSE = useCallback(async () => {
+        inboxSourceRef.current?.close();
+        inboxSourceRef.current = null;
+        try {
+            const { token, topics } = await universalApiRequest('/api/tech-supports/inbox-token', { locale: false }) as { token: string | null; topics: string[] };
+            if (!token || !topics?.length) return;
+
+            const source = openMercureSource(topics, token);
+            inboxSourceRef.current = source;
+            source.onmessage = (event) => {
+                try {
+                    const { type, data }: { type: string; data: TechSupportMessage & { techSupport?: { id: number } } } = JSON.parse(event.data);
+                    if (type !== 'created') return;
+                    const ticketId = data.techSupport?.id;
+                    if (!ticketId) return;
+
+                    setMyTickets(prev => prev.map(ticket => {
+                        if (ticket.id !== ticketId) return ticket;
+                        if ((ticket.messages ?? []).some(m => m.id === data.id)) return ticket;
+                        return { ...ticket, messages: [...(ticket.messages ?? []), data] };
+                    }));
+                } catch {
+                    // ignore malformed events
+                }
+            };
+        } catch {
+            // Real-time is a progressive enhancement — the list still works via manual refresh.
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isAuth) return;
+        startInboxSSE();
+        // Refresh before the hour-long subscriber token expires (same cadence as Chat's inbox SSE).
+        const refreshInterval = setInterval(startInboxSSE, 50 * 60 * 1000);
+        return () => {
+            clearInterval(refreshInterval);
+            inboxSourceRef.current?.close();
+            inboxSourceRef.current = null;
+        };
+    }, [isAuth, startInboxSSE]);
+
+    // TechSupportThread marks a ticket's messages read server-side the moment it's opened,
+    // but marking read doesn't emit a Mercure event (§11) — so mirror that locally here too,
+    // the instant the thread closes (or deep-links straight to a different ticket), instead
+    // of waiting for the next `/tech-supports/me` refetch to notice the bubble should clear.
+    const prevOpenTicketIdRef = useRef<number | null>(null);
+    useEffect(() => {
+        const closedTicketId = prevOpenTicketIdRef.current;
+        if (closedTicketId != null && closedTicketId !== openTicketId) {
+            const readAt = new Date().toISOString();
+            setMyTickets(prev => prev.map(ticket => {
+                if (ticket.id !== closedTicketId) return ticket;
+                return {
+                    ...ticket,
+                    messages: (ticket.messages ?? []).map(m =>
+                        m.author?.id !== currentUserId && !m.readAt ? { ...m, readAt } : m
+                    ),
+                };
+            }));
+        }
+        prevOpenTicketIdRef.current = openTicketId;
+    }, [openTicketId, currentUserId]);
 
     // Reason/category titles (like Category/Occupation/etc.) are localized server-side —
     // they don't update just because i18next's UI strings do, so re-fetch on language switch.
@@ -493,11 +567,19 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                                             }}
                                         >
                                             <div className={styles.ticketCellTitle}>
-                                                <Marquee
-                                                    text={ticket.title || t('myTickets.noTitle')}
-                                                    alwaysScroll
-                                                    className={styles.ticketRowTitle}
-                                                />
+                                                <div className={styles.ticketTitleRow}>
+                                                    {(() => {
+                                                        const unread = getUnreadCount(ticket, currentUserId);
+                                                        return unread > 0 && (
+                                                            <span className={styles.unreadBadge}>{unread > 99 ? '99+' : unread}</span>
+                                                        );
+                                                    })()}
+                                                    <Marquee
+                                                        text={ticket.title || t('myTickets.noTitle')}
+                                                        alwaysScroll
+                                                        className={styles.ticketRowTitle}
+                                                    />
+                                                </div>
                                                 {ticket.description && (
                                                     <Marquee
                                                         text={textHelper(ticket.description)}

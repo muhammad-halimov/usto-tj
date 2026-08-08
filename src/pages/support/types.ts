@@ -37,6 +37,8 @@ export interface TechSupportMessage {
     id: number;
     author: TechSupportAuthor | null;
     description: string | null;
+    /** Set via POST /tech-supports/{id}/read. Marking read doesn't emit a Mercure event — see API_REFERENCE.md §11. */
+    readAt?: string | null;
     images: TechSupportImage[];
     createdAt: string;
     updatedAt?: string | null;
@@ -96,4 +98,15 @@ export function getLastActivityAt(ticket: SupportTicket): string | undefined {
     ].filter((d): d is string => !!d);
     if (timestamps.length === 0) return undefined;
     return timestamps.reduce((latest, cur) => (new Date(cur) > new Date(latest) ? cur : latest));
+}
+
+/**
+ * Count of replies from "the other side" not yet marked read — the title-row bubble on
+ * My Tickets. Server-side truth (`TechSupportMessage.readAt`, set via POST /tech-supports/
+ * {id}/read, API_REFERENCE.md §11) — "unread" mirrors the backend's own definition:
+ * `author != caller && readAt == null`.
+ */
+export function getUnreadCount(ticket: SupportTicket, currentUserId?: number): number {
+    if (!currentUserId) return 0;
+    return (ticket.messages ?? []).filter(m => m.author?.id !== currentUserId && !m.readAt).length;
 }

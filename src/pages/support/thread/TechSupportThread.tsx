@@ -9,6 +9,7 @@ import { getFormattedDate } from '../../../utils/timeUtils';
 import { uploadPhotos, formatTechSupportImageUrl, formatTechSupportMessageImageUrl } from '../../../utils/imageUtils';
 import { decodeHtmlEntities } from '../../../utils/textUtils';
 import { getAppealReasons } from '../../../utils/dataCacheUtils';
+import { openMercureSource } from '../../../utils/mercureUtils';
 import { useLanguageChange } from '../../../hooks';
 import Grid, { type PhotoItem } from '../../../shared/ui/Photo/Grid';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
@@ -56,17 +57,27 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
     const composePreviewUrls = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.previewUrl);
     const composeGallery = usePreview({ images: composePreviewUrls });
 
+    // Marks every unread reply on this ticket as read server-side (§11: `author != caller &&
+    // readAt == null`). Fire-and-forget — a failure here just leaves the tickets-list bubble
+    // stale until the next successful call, nothing in this view depends on the result.
+    const markThreadRead = useCallback(() => {
+        universalApiRequest(`/api/tech-supports/${ticketId}/read`, { method: 'POST', locale: false }).catch(() => {});
+    }, [ticketId]);
+
     const fetchTicket = useCallback(async () => {
         try {
             setError('');
             const data: SupportTicket = await universalApiRequest(`/api/tech-supports/${ticketId}`);
             setTicket(data);
+            // Viewing the thread marks everything currently in it as read — clears the
+            // "new messages" bubble on the tickets list for this ticket.
+            markThreadRead();
         } catch {
             setError(t('thread.loadError'));
         } finally {
             setIsLoading(false);
         }
-    }, [ticketId, t]);
+    }, [ticketId, t, markThreadRead]);
 
     // Unfiltered — a ticket's `reason` isn't restricted to `applicableTo=support` server-side
     // (e.g. tickets created from a report/complaint flow can carry an "overall"-tagged reason),
@@ -95,6 +106,47 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, [ticket?.messages?.length]);
+
+    // Real-time delivery — subscribe to this ticket's private Mercure topic (§11) so
+    // support replies show up instantly instead of waiting for a manual refresh.
+    // Only "created" events are ever published (no edit/delete), so that's all we handle.
+    useEffect(() => {
+        let cancelled = false;
+        let source: EventSource | null = null;
+
+        (async () => {
+            try {
+                const { token } = await universalApiRequest(`/api/tech-supports/${ticketId}/subscribe`, { locale: false }) as { token: string | null };
+                if (cancelled || !token) return;
+
+                source = openMercureSource([`tech-support:${ticketId}`], token);
+                source.onmessage = (event) => {
+                    try {
+                        const { type, data }: { type: string; data: TechSupportMessage } = JSON.parse(event.data);
+                        if (type !== 'created') return;
+
+                        setTicket(prev => {
+                            if (!prev) return prev;
+                            if ((prev.messages ?? []).some(m => m.id === data.id)) return prev;
+                            return { ...prev, messages: [...(prev.messages ?? []), data] };
+                        });
+                        // Thread is open — the incoming message is read the moment it arrives.
+                        // (No-op server-side if it happens to be our own echoed-back message.)
+                        markThreadRead();
+                    } catch {
+                        // ignore malformed events
+                    }
+                };
+            } catch {
+                // Real-time is a progressive enhancement — sending/refetching still works without it.
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+            source?.close();
+        };
+    }, [ticketId, markThreadRead]);
 
     const triggerFileInput = () => fileInputRef.current?.click();
 
