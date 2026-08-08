@@ -14,6 +14,7 @@ import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageUtils';
+import { openMercureSource } from '../../utils/mercureUtils';
 import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../shared/ui/Photo/Grid';
 import { Clear } from '../../shared/ui/Button/Clear/Clear';
@@ -80,7 +81,6 @@ function Chat() {
     /** Always points to the latest processActiveChatMessage to avoid stale closures in inbox SSE. */
     const processActiveChatMessageRef = useRef<((type: string, data: ApiMessage | { id: number; chatId: number }, chatId: number) => void) | null>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
-    const MERCURE_HUB_URL = import.meta.env.VITE_MERCURE_HUB_URL;
 
     const [searchParams] = useSearchParams();
     const chatIdFromUrl = searchParams.get('chatId');
@@ -456,10 +456,7 @@ function Chat() {
             presenceSourceRef.current = null;
         }
 
-        const hubUrl = new URL(MERCURE_HUB_URL);
-        hubUrl.searchParams.append('topic', `user:${interlocutorId}`);
-
-        const es = new EventSource(hubUrl.toString());
+        const es = openMercureSource([`user:${interlocutorId}`]);
         presenceSourceRef.current = es;
 
         es.onmessage = (event) => {
@@ -492,7 +489,7 @@ function Chat() {
         es.onerror = () => {
             // EventSource автоматически переподключается
         };
-    }, [MERCURE_HUB_URL]);
+    }, []);
 
     useEffect(() => { startPresenceSSERef.current = startPresenceSSE; }, [startPresenceSSE]);
 
@@ -507,11 +504,7 @@ function Chat() {
             const { token: mercureToken, topics } = await universalApiRequest('/api/chats/inbox-token', { locale: false }) as { token: string | null; topics: string[] };
             if (!mercureToken || !topics?.length) return;
 
-            const hubUrl = new URL(MERCURE_HUB_URL);
-            topics.forEach(t => hubUrl.searchParams.append('topic', t));
-            hubUrl.searchParams.append('authorization', mercureToken);
-
-            const es = new EventSource(hubUrl.toString());
+            const es = openMercureSource(topics, mercureToken);
             inboxSourceRef.current = es;
 
             es.onmessage = (event) => {
@@ -555,7 +548,7 @@ function Chat() {
             };
             es.onerror = () => { /* EventSource auto-reconnects */ };
         } catch { /* ignore network errors */ }
-    }, [MERCURE_HUB_URL]);
+    }, []);
 
     useEffect(() => { startInboxSSERef.current = startInboxSSE; }, [startInboxSSE]);
 
