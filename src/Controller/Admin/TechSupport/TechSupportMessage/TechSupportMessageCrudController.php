@@ -8,16 +8,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
-use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
 class TechSupportMessageCrudController extends AbstractCrudController
 {
-    use TimestampFieldsTrait;
-
     use AdminActionsTrait;
 
     public static function getEntityFqcn(): string
@@ -36,8 +33,6 @@ class TechSupportMessageCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении тп")
             ->setDefaultSort(['createdAt' => 'DESC']);
     }
-
-
 
     public function configureFields(string $pageName): iterable
     {
@@ -58,6 +53,16 @@ class TechSupportMessageCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
-        yield from $this->timestampFields();
+        yield DateTimeField::new('createdAt', 'Создано')
+            ->setDisabled()
+            ->setColumns(12);
+
+        yield DateTimeField::new('updatedAt', 'Обновлено')
+            ->setDisabled()
+            ->setColumns(12);
+
+        yield DateTimeField::new('readAt', 'Прочитано')
+            ->setDisabled()
+            ->setColumns(12);
     }
 }

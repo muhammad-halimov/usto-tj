@@ -8,15 +8,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
-use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
 class ChatMessageCrudController extends AbstractCrudController
 {
-    use TimestampFieldsTrait;
-
     use AdminActionsTrait;
 
     public static function getEntityFqcn(): string
@@ -59,6 +57,16 @@ class ChatMessageCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
-        yield from $this->timestampFields();
+        yield DateTimeField::new('createdAt', 'Создано')
+            ->setDisabled()
+            ->setColumns(12);
+
+        yield DateTimeField::new('updatedAt', 'Обновлено')
+            ->setDisabled()
+            ->setColumns(12);
+
+        yield DateTimeField::new('readAt', 'Прочитано')
+            ->setDisabled()
+            ->setColumns(12);
     }
 }

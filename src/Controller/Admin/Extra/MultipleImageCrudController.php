@@ -6,15 +6,13 @@ use App\Controller\Admin\Field\VichImageField;
 use App\Entity\Extra\MultipleImage;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use App\Controller\Admin\Traits\TimestampFieldsTrait;
 use App\Controller\Admin\Traits\VichImageHelpTrait;
 
 class MultipleImageCrudController extends AbstractCrudController
 {
     use VichImageHelpTrait;
-
-    use TimestampFieldsTrait;
 
     public static function getEntityFqcn(): string
     {
@@ -37,6 +35,12 @@ class MultipleImageCrudController extends AbstractCrudController
             ->onlyOnForms()
             ->setColumns(12);
 
-        yield from $this->timestampFields();
+        yield DateTimeField::new('createdAt', 'Создано')
+            ->setDisabled()
+            ->setColumns(12);
+
+        yield DateTimeField::new('updatedAt', 'Обновлено')
+            ->setDisabled()
+            ->setColumns(12);
     }
 }
