@@ -120,7 +120,7 @@ interface OAuthProvider {
   providerId: string;
 }
 ```
-`User.ROLES` = `{ ROLE_ADMIN, ROLE_MASTER, ROLE_CLIENT }` (+ implicit `ROLE_USER`).
+`User.ROLES` = `{ ROLE_ADMIN, ROLE_MASTER, ROLE_CLIENT }` (+ implicit `ROLE_USER`). There's also `ROLE_SUPER_ADMIN` (not in this map — assigned outside the normal role-grant flow): it's a superset of `ROLE_ADMIN` — a `ROLE_SUPER_ADMIN` account satisfies every "`ROLE_ADMIN` only" check documented below (`roles` in `GET /users/*` responses will show both, e.g. `["ROLE_SUPER_ADMIN","ROLE_ADMIN","ROLE_USER"]`) and additionally bypasses `active`/`approved` gating entirely.
 `User.GENDERS` = `{ gender_female, gender_male, gender_neutral }`.
 `Phone.CODES`: `+992, +998, +996, +7, +1, +44, +49, +33, +86, +81, +91, +971, +380, +375`.
 
@@ -415,14 +415,14 @@ interface BlackList { id: number; type: string; user: User|null; ticket: Ticket|
 | GET | `/api/tech-supports/{id}/subscribe` | Returns Mercure subscriber JWT for this ticket's SSE topic (`tech-support:{id}`). **Only** the ticket's author or its assigned `administrant` can call this — unlike the plain GET above, a generic ROLE_ADMIN without an assignment is rejected (`403 ownership_mismatch`). This is a private 1:1 channel, not an admin monitoring tool. |
 | GET | `/api/tech-supports/inbox-token` | Mercure token covering ALL of the caller's tickets at once (as author or administrant — same scope as `/tech-supports/me`). Empty set → `{ token: null, topics: [] }` |
 | POST | `/api/tech-supports` | body: `TechSupportPostInput`. Works for guests too (no Bearer) — then `guestEmail` is required |
-| POST | `/api/tech-supports/{id}/read` | Marks all unread messages of this ticket as read for the caller (sets `readAt`). "Unread" = `author != caller` and `readAt` still `null`. Author or assigned `administrant` only (`403 ownership_mismatch` otherwise) — same access rule as `/subscribe`. No body, `204 No Content`. |
+| POST | `/api/tech-supports/{id}/read` | Marks all unread messages of this ticket as read for the caller (sets `readAt`). "Unread" = `author != caller` and `readAt` still `null`. Access: author, assigned `administrant`, **or any `ROLE_ADMIN`** (broader than `/subscribe`, which stays author+assigned-only). `403 ownership_mismatch` otherwise. No body, `204 No Content`. |
 | PATCH | `/api/tech-supports/{id}` | body: `TechSupportInput` (status transition) |
 | PATCH | `/api/tech-supports/{id}/assign` | ROLE_ADMIN, body: `TechSupportAssignInput` |
 | POST | `/api/tech-supports/{id}/upload-images` | multipart `imageFile[]` |
 
 ```ts
 interface TechSupportPostInput { title?: string; reason?: string /* AppealReason IRI */; priority?: string; description?: string; guestEmail?: string; }
-interface TechSupportInput { status: 'new'|'renewed'|'in_progress'|'resolved'|'closed'; }
+interface TechSupportInput { status: 'new'|'renewed'|'in_progress'|'resolved'|'closed'|'banned'; }
 interface TechSupportAssignInput { administrant: string /* User IRI */; }
 
 // Deliberately trimmed shape — only these 6 fields are ever exposed for
@@ -454,8 +454,10 @@ interface TechSupport {
   updatedAt: string | null;
 }
 ```
-`TechSupport.STATUSES`: new, renewed, in_progress, resolved, closed.
+`TechSupport.STATUSES`: new, renewed, in_progress, resolved, closed, **banned**.
 `TechSupport.PRIORITIES`: 1=Низкий, 2=Средний, 3=Высокий, 4=Экстренный.
+
+**`banned`** — terminal status, reachable only by `ROLE_ADMIN` via `PATCH .../{id}` from any non-banned status (including `closed`); nobody (not even admin) can transition out of it through this endpoint. Once banned, the **author loses all interaction**: `POST /tech-support-messages` and `POST /tech-supports/{id}/upload-images` both return `403 access_denied` for the author/guest — only `ROLE_ADMIN` can still post messages or images on a banned ticket.
 
 Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tech-supports/{id}/subscribe` or `/tech-supports/inbox-token`), then open an EventSource against the Mercure hub URL with that JWT, subscribed to topic `tech-support:{id}`. Unlike chat, **only new messages are published** (`{"type":"created","data":{...TechSupportMessage...}}`) — editing/deleting a `TechSupportMessage` does *not* emit a Mercure event; poll the normal GET endpoints for that.
 
