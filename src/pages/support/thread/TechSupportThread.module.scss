@@ -35,6 +35,29 @@
   flex-wrap: wrap;
 }
 
+// Toggles MediaSidebar — only rendered once the thread actually has attachments. Pinned to
+// the right edge of `.threadMeta`, after the status/priority/category badges.
+.mediaToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 6px map.get(vars.$spacing, 3);
+  border-radius: map.get(vars.$border-radius, base);
+  background: var(--color-background-all);
+  color: var(--color-primary);
+  border: none;
+  cursor: pointer;
+  font-size: map.get(vars.$font-sizes, sm);
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover { background: var(--color-stroke); }
+}
+
 .badge {
   font-size: map.get(vars.$font-sizes, sm);
   padding: 3px map.get(vars.$spacing, 3);
@@ -57,6 +80,7 @@
 .status_in_progress { background: rgba(230, 162, 40, 0.14); color: #B87400; }
 .status_resolved { background: rgba(41, 168, 105, 0.14); color: #1F9D5D; }
 .status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-text-secondary); }
+.status_banned { background: rgba(139, 0, 0, 0.16); color: #8B0000; }
 
 // Escalating severity: calm green → neutral blue → amber → red.
 .priority_1 { background: rgba(41, 168, 105, 0.12); color: #1F9D5D; }
@@ -70,13 +94,29 @@
   opacity: 0.85;
 }
 
+// Row: message list + MediaSidebar side-by-side (mirrors Chat's `.chatContent`), when the
+// thread has attachments — MediaSidebar renders nothing (and this stays a plain wrapper)
+// when it doesn't, see MediaSidebar.tsx.
+.threadBody {
+  display: flex;
+  min-height: 0;
+}
+
 .messages {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: map.get(vars.$spacing, 4);
   max-height: 60vh;
   overflow-y: auto;
   padding-right: map.get(vars.$spacing, 1);
+}
+
+// Bounds MediaSidebar to the thread's own message-list height instead of Chat's full-page height.
+.mediaSidebar {
+  max-height: 60vh;
+  border-radius: map.get(vars.$border-radius, base);
 }
 
 // Full-width reply cards — a ticket thread, not a two-column chat. Every message
@@ -158,6 +198,23 @@
 .threadError {
   color: var(--color-error, #e53e3e);
   font-size: map.get(vars.$font-sizes, sm);
+}
+
+// Replaces the composer entirely once the ticket is `banned` (§11) — same alarm tone as
+// `.status_banned` above, just spelled out as a full-width bar instead of a small badge.
+.bannedNotice {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 3);
+  padding: map.get(vars.$spacing, 4);
+  margin-top: map.get(vars.$spacing, 4);
+  border-top: 1px solid var(--color-stroke);
+  border-radius: map.get(vars.$border-radius, base);
+  background: rgba(139, 0, 0, 0.08);
+  color: #8B0000;
+  font-size: map.get(vars.$font-sizes, sm);
+
+  svg { width: 20px; height: 20px; flex-shrink: 0; }
 }
 
 // ─── Reply composer ──────────────────────────────────────────

@@ -437,6 +437,9 @@ $ticketsColumns: minmax(180px, 2.2fr) minmax(110px, 1.3fr) minmax(90px, 1fr) min
 .status_in_progress { background: rgba(230, 162, 40, 0.14); color: #B87400; }
 .status_resolved { background: rgba(41, 168, 105, 0.14); color: #1F9D5D; }
 .status_closed { background: rgba(120, 120, 120, 0.14); color: var(--color-text-secondary); }
+// Terminal/blocked — deliberately alarming and distinct from both `closed` (neutral gray)
+// and `priority_4` (bright red), signalling "no further interaction possible".
+.status_banned { background: rgba(139, 0, 0, 0.16); color: #8B0000; }
 
 // Escalating severity: calm green → neutral blue → amber → red (mirrors TechSupportThread).
 .priority_1 { background: rgba(41, 168, 105, 0.12); color: #1F9D5D; }

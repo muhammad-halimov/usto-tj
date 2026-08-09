@@ -9,8 +9,9 @@ import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
+import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
+import { MediaSidebar } from '../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageUtils';
@@ -1521,52 +1522,15 @@ function Chat() {
                             )}
 
                             {/* Боковая панель с миниатюрами фото */}
-                            {chatImages.length > 0 && (
-                                <>
-                                {isPhotoSidebarOpen && (
-                                    <div
-                                        className={styles.photoSidebarBackdrop}
-                                        onClick={() => setIsPhotoSidebarOpen(false)}
-                                    />
-                                )}
-                                <div className={`${styles.photoSidebar} ${!isPhotoSidebarOpen ? styles.photoSidebarCollapsed : ''} ${isPhotoSidebarOpen ? styles.photoSidebarMobileOpen : ''}`}>
-                                    <div className={styles.photoSidebarHeader}>
-                                        <IoImages />
-                                        <span style={{ flex: 1 }}>{t('chat.photos')} ({chatImages.length})</span>
-                                        <button
-                                            className={styles.photoSidebarGalleryBtn}
-                                            onClick={() => photoGallery.openGallery(0)}
-                                            title="Открыть галерею"
-                                        >⤢</button>
-                                        <Clear
-                                            className={styles.photoSidebarCloseBtn}
-                                            onClick={() => setIsPhotoSidebarOpen(false)}
-                                        />
-                                    </div>
-                                    <div className={styles.photoThumbnails}>
-                                        {chatImages.map((image, index) => (
-                                            <div
-                                                key={image.id}
-                                                className={styles.photoThumbnail}
-                                                onClick={() => photoGallery.openGallery(index)}
-                                            >
-                                                <img
-                                                    src={image.imageUrl}
-                                                    alt={t('chat.thumbnail', { index: index + 1 })}
-                                                    className={styles.thumbnailImage}
-                                                    onError={(e) => {
-                                                        e.currentTarget.src = '/img/icons/misc/fonTest5.png';
-                                                    }}
-                                                />
-                                                <div className={styles.photoThumbnailOverlay}>
-                                                    <IoEye />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                </>
-                            )}
+                            <MediaSidebar
+                                images={chatImages.map(img => ({ id: img.id, url: img.imageUrl }))}
+                                isOpen={isPhotoSidebarOpen}
+                                onClose={() => setIsPhotoSidebarOpen(false)}
+                                onOpenGallery={index => photoGallery.openGallery(index)}
+                                title={`${t('chat.photos')} (${chatImages.length})`}
+                                galleryButtonLabel="Открыть галерею"
+                                thumbnailAlt={index => t('chat.thumbnail', { index: index + 1 })}
+                            />
                         </div>
 
                         {(replyToMessage || editingMessage) && (

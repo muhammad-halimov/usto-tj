@@ -11,6 +11,7 @@ import {
     IoTimeOutline,
     IoCheckmarkCircleOutline,
     IoCloseCircleOutline,
+    IoBanOutline,
     IoArrowDownCircleOutline,
     IoRemoveCircleOutline,
     IoArrowUpCircleOutline,
@@ -44,8 +45,13 @@ export interface TechSupportMessage {
     updatedAt?: string | null;
 }
 
-/** `TechSupport.STATUSES` per API_REFERENCE.md §11. */
-export type TechSupportStatus = 'new' | 'renewed' | 'in_progress' | 'resolved' | 'closed';
+/**
+ * `TechSupport.STATUSES` per API_REFERENCE.md §11. `banned` is terminal and admin-only to
+ * reach — once set, the ticket's author (and any guest) loses write access entirely
+ * (`POST` on messages/images 403s server-side); the frontend mirrors that by making the
+ * thread read-only, see TechSupportThread.
+ */
+export type TechSupportStatus = 'new' | 'renewed' | 'in_progress' | 'resolved' | 'closed' | 'banned';
 
 export interface SupportTicket {
     id: number;
@@ -64,7 +70,7 @@ export interface SupportTicket {
     guestAccessToken?: string;
 }
 
-export const TECH_SUPPORT_STATUSES: TechSupportStatus[] = ['new', 'renewed', 'in_progress', 'resolved', 'closed'];
+export const TECH_SUPPORT_STATUSES: TechSupportStatus[] = ['new', 'renewed', 'in_progress', 'resolved', 'closed', 'banned'];
 
 /** Shared between the tickets table and the thread header so both badge sets stay in sync. */
 export const STATUS_ICONS: Record<TechSupportStatus, ComponentType> = {
@@ -73,6 +79,7 @@ export const STATUS_ICONS: Record<TechSupportStatus, ComponentType> = {
     in_progress: IoTimeOutline,
     resolved: IoCheckmarkCircleOutline,
     closed: IoCloseCircleOutline,
+    banned: IoBanOutline,
 };
 
 // '1'..'4' — see TechSupport.PRIORITIES in API_REFERENCE.md §11.

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IoSend, IoAttach, IoPricetagOutline } from 'react-icons/io5';
+import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { universalApiRequest } from '../../../utils/apiUtils';
 import { getUserData } from '../../../utils/authUtils';
@@ -13,6 +13,7 @@ import { openMercureSource } from '../../../utils/mercureUtils';
 import { useLanguageChange } from '../../../hooks';
 import Grid, { type PhotoItem } from '../../../shared/ui/Photo/Grid';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
+import { MediaSidebar } from '../../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { STATUS_ICONS, PRIORITY_ICONS, type SupportTicket, type TechSupportMessage, type TechSupportStatus } from '../types';
 
@@ -54,6 +55,7 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
     const [message, setMessage] = useState('');
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
     const [isSending, setIsSending] = useState(false);
+    const [isMediaOpen, setIsMediaOpen] = useState(false);
     const composePreviewUrls = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.previewUrl);
     const composeGallery = usePreview({ images: composePreviewUrls });
 
@@ -163,7 +165,7 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
 
     const handleSend = async () => {
         const text = message.trim();
-        if ((!text && photos.length === 0) || isSending) return;
+        if ((!text && photos.length === 0) || isSending || isBanned) return;
         setIsSending(true);
         try {
             const body: Record<string, string> = { techSupport: `/api/tech-supports/${ticketId}` };
@@ -211,6 +213,10 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
     const administrantName = ticket?.administrant
         ? `${ticket.administrant.surname ?? ''} ${ticket.administrant.name ?? ''}`.trim()
         : '';
+    // Terminal status — API_REFERENCE.md §11: author/guest posting is 403'd server-side once
+    // banned, so the composer is replaced with a read-only notice instead of letting the
+    // request fail silently.
+    const isBanned = statusKey === 'banned';
 
     // Current user's own name, for "имя (роль)" labels on your own replies — getUserData()
     // returns the full cached profile, not just the id.
@@ -220,14 +226,16 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
     }, []);
 
     // Flattened list of every already-uploaded image in the thread (original request +
-    // each message — two different upload folders, see imageUtils.ts), so clicking any
-    // sent attachment opens it at the right position.
-    const sentImageUrls = useMemo(() => {
+    // each message — two different upload folders, see imageUtils.ts) — feeds both the
+    // full-screen gallery and the MediaSidebar thumbnail panel, so clicking any sent
+    // attachment (inline or from the sidebar) opens the gallery at the right position.
+    const sentImages = useMemo(() => {
         if (!ticket) return [];
-        const urls: string[] = (ticket.images ?? []).map(img => formatTechSupportImageUrl(img.image));
-        (ticket.messages ?? []).forEach(m => (m.images ?? []).forEach(img => urls.push(formatTechSupportMessageImageUrl(img.image))));
-        return urls;
+        const items: { id: number; url: string }[] = (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image) }));
+        (ticket.messages ?? []).forEach(m => (m.images ?? []).forEach(img => items.push({ id: img.id, url: formatTechSupportMessageImageUrl(img.image) })));
+        return items;
     }, [ticket]);
+    const sentImageUrls = useMemo(() => sentImages.map(img => img.url), [sentImages]);
     const sentGallery = usePreview({ images: sentImageUrls });
     const openSentImage = (url: string) => {
         const index = sentImageUrls.indexOf(url);
@@ -265,6 +273,18 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                             {administrantName && (
                                 <span className={styles.reasonTag}>{t('thread.support')}: {administrantName}</span>
                             )}
+                            {sentImages.length > 0 && (
+                                <button
+                                    type="button"
+                                    className={styles.mediaToggleBtn}
+                                    onClick={() => setIsMediaOpen(prev => !prev)}
+                                    aria-label={`${t('thread.media')} (${sentImages.length})`}
+                                    title={`${t('thread.media')} (${sentImages.length})`}
+                                >
+                                    <IoImages />
+                                    <span>{sentImages.length}</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
@@ -276,6 +296,7 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                 <EmptyState title={error || t('thread.loadError')} onRefresh={fetchTicket} />
             ) : (
                 <>
+                    <div className={styles.threadBody}>
                     <div className={styles.messages}>
                         <div className={styles.message}>
                             <div className={styles.messageHeader}>
@@ -345,59 +366,80 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {error && <div className={styles.threadError}>{error}</div>}
-
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        style={{ display: 'none' }}
-                        onChange={handleFileSelect}
-                        multiple
-                        accept="image/*"
+                    <MediaSidebar
+                        images={sentImages}
+                        isOpen={isMediaOpen}
+                        onClose={() => setIsMediaOpen(false)}
+                        onOpenGallery={index => sentGallery.openGallery(index)}
+                        title={`${t('thread.media')} (${sentImages.length})`}
+                        galleryButtonLabel={t('thread.openGallery')}
+                        thumbnailAlt={index => t('thread.mediaThumbnail', { index: index + 1 })}
+                        className={styles.mediaSidebar}
                     />
-
-                    <div className={styles.chatInput}>
-                        <button
-                            type="button"
-                            className={styles.attachButton}
-                            onClick={triggerFileInput}
-                            disabled={isSending}
-                            aria-label={t('form.photosLabel')}
-                        >
-                            <IoAttach />
-                        </button>
-
-                        <input
-                            type="text"
-                            placeholder={t('thread.placeholder')}
-                            className={styles.inputField}
-                            value={message}
-                            onChange={e => setMessage(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            disabled={isSending}
-                        />
-
-                        <button
-                            type="button"
-                            className={styles.sendBtn}
-                            onClick={handleSend}
-                            disabled={isSending || (!message.trim() && photos.length === 0)}
-                            aria-label={t('thread.send')}
-                        >
-                            <IoSend />
-                        </button>
                     </div>
 
-                    {photos.length > 0 && (
-                        <Grid
-                            photos={photos}
-                            onChange={setPhotos}
-                            getImageUrl={formatTechSupportMessageImageUrl}
-                            onClickPhoto={index => composeGallery.openGallery(index)}
-                            inputId="ts-thread-compose-photos"
-                            photoAlt={t('form.photoAlt')}
-                            disabled={isSending}
-                        />
+                    {error && <div className={styles.threadError}>{error}</div>}
+
+                    {isBanned ? (
+                        <div className={styles.bannedNotice}>
+                            <IoBanOutline />
+                            <span>{t('thread.bannedNotice')}</span>
+                        </div>
+                    ) : (
+                        <>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                style={{ display: 'none' }}
+                                onChange={handleFileSelect}
+                                multiple
+                                accept="image/*"
+                            />
+
+                            <div className={styles.chatInput}>
+                                <button
+                                    type="button"
+                                    className={styles.attachButton}
+                                    onClick={triggerFileInput}
+                                    disabled={isSending}
+                                    aria-label={t('form.photosLabel')}
+                                >
+                                    <IoAttach />
+                                </button>
+
+                                <input
+                                    type="text"
+                                    placeholder={t('thread.placeholder')}
+                                    className={styles.inputField}
+                                    value={message}
+                                    onChange={e => setMessage(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    disabled={isSending}
+                                />
+
+                                <button
+                                    type="button"
+                                    className={styles.sendBtn}
+                                    onClick={handleSend}
+                                    disabled={isSending || (!message.trim() && photos.length === 0)}
+                                    aria-label={t('thread.send')}
+                                >
+                                    <IoSend />
+                                </button>
+                            </div>
+
+                            {photos.length > 0 && (
+                                <Grid
+                                    photos={photos}
+                                    onChange={setPhotos}
+                                    getImageUrl={formatTechSupportMessageImageUrl}
+                                    onClickPhoto={index => composeGallery.openGallery(index)}
+                                    inputId="ts-thread-compose-photos"
+                                    photoAlt={t('form.photoAlt')}
+                                    disabled={isSending}
+                                />
+                            )}
+                        </>
                     )}
                 </>
             )}
