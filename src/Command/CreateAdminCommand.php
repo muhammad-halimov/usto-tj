@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -18,6 +19,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * Запуск:
  *   php bin/console app:create-admin
+ *   php bin/console app:create-admin --super-admin
  */
 #[AsCommand(
     name: 'app:create-admin',
@@ -30,6 +32,16 @@ class CreateAdminCommand extends Command
         private readonly EntityManagerInterface $em,
     ) {
         parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption(
+            'super-admin',
+            null,
+            InputOption::VALUE_NONE,
+            'Создать пользователя с ролью ROLE_SUPER_ADMIN вместо ROLE_ADMIN'
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -63,9 +75,25 @@ class CreateAdminCommand extends Command
             return Command::FAILURE;
         }
 
+        $isSuperAdmin = (bool) $input->getOption('super-admin');
+
+        if (!$isSuperAdmin) {
+            $isSuperAdmin = $io->confirm('Назначить роль ROLE_SUPER_ADMIN вместо ROLE_ADMIN?', false);
+        }
+
+        if ($isSuperAdmin) {
+            $io->warning('Будет создан пользователь с ролью ROLE_SUPER_ADMIN.');
+            if (!$io->confirm('Вы уверены?', false)) {
+                $io->comment('Отменено.');
+                return Command::SUCCESS;
+            }
+        }
+
+        $role = $isSuperAdmin ? 'ROLE_SUPER_ADMIN' : 'ROLE_ADMIN';
+
         $admin = (new User())
             ->setEmail($email)
-            ->setRoles(['ROLE_ADMIN'])
+            ->setRoles([$role])
             ->setPassword($password) // UserListener захэширует при prePersist
             ->setActive(true)
             ->setApproved(true);
@@ -73,7 +101,7 @@ class CreateAdminCommand extends Command
         $this->em->persist($admin);
         $this->em->flush();
 
-        $io->success("Администратор «{$email}» успешно создан.");
+        $io->success("Пользователь «{$email}» с ролью {$role} успешно создан.");
 
         return Command::SUCCESS;
     }

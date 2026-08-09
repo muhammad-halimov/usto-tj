@@ -53,8 +53,17 @@ class ApiPostTechSupportMessageController extends AbstractApiPostController
     protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var TechSupport $entity */
-        if ($entity->getAdministrant() !== $bearer && $entity->getAuthor() !== $bearer)
+        // Любой ROLE_ADMIN (и ROLE_SUPER_ADMIN через User::getRoles()) может
+        // писать в любой тикет, не только назначенный лично на него.
+        $isAdmin = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
+
+        if (!$isAdmin && $entity->getAdministrant() !== $bearer && $entity->getAuthor() !== $bearer)
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+
+        // Заблокированный тикет (TechSupport::STATUS_BANNED): взаимодействовать
+        // может только админ, автор — уже нет.
+        if (!$isAdmin && $entity->getStatus() === TechSupport::STATUS_BANNED)
+            return $this->errorJson(AppMessages::ACCESS_DENIED);
 
         return null;
     }

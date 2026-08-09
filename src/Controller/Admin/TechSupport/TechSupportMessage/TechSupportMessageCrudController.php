@@ -25,7 +25,7 @@ class TechSupportMessageCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_SUPER_ADMIN')
             ->setEntityLabelInPlural('Сообщения ТП')
             ->setEntityLabelInSingular('сообщение тп')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление сообщении тп')

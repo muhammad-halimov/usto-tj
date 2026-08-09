@@ -18,11 +18,11 @@ trait NonAdminUserQueryTrait
 {
     private function nonAdminQb(): \Closure
     {
-        return fn (QueryBuilder $qb) => $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+        return fn (QueryBuilder $qb) => $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_SUPER_ADMIN%'");
     }
 
     private function adminOnlyQb(): \Closure
     {
-        return fn (QueryBuilder $qb) => $qb->andWhere("CAST(entity.roles as text) LIKE '%ROLE_ADMIN%'");
+        return fn (QueryBuilder $qb) => $qb->andWhere("CAST(entity.roles as text) LIKE '%ROLE_SUPER_ADMIN%'");
     }
 }

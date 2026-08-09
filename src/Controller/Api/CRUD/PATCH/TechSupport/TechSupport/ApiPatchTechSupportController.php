@@ -35,7 +35,12 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
     protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
         /** @var TechSupport $entity */
-        if ($entity->getAuthor() !== $bearer && $entity->getAdministrant() !== $bearer)
+        // Любой ROLE_ADMIN может работать с любым тикетом, не только со
+        // "своим" назначенным — тот же паттерн, что в ApiGetTechSupportController.
+        // ROLE_SUPER_ADMIN проходит автоматически (см. User::getRoles()).
+        $isAdmin = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
+
+        if (!$isAdmin && $entity->getAuthor() !== $bearer && $entity->getAdministrant() !== $bearer)
             return $this->errorJson(AppMessages::EXTRA_DENIED);
 
         return null;
@@ -51,19 +56,25 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
      * Переходы:
      *   new         → in_progress (админ берёт в работу)
      *   new         → closed      (админ закрывает без ответа)
+     *   new         → banned      (админ блокирует тикет/автора)
      *   renewed     → in_progress (админ взял повторно открытый тикет)
      *   renewed     → closed      (админ закрывает)
+     *   renewed     → banned      (админ блокирует)
      *   in_progress → resolved    (админ отмечает как решённое)
      *   in_progress → closed      (админ закрывает)
+     *   in_progress → banned      (админ блокирует)
      *   resolved    → renewed     (автор не согласен — переоткрывает тикет)
      *   resolved    → closed      (админ закрывает)
-     *   closed      → (нет, терминальный статус)
+     *   resolved    → banned      (админ блокирует)
+     *   closed      → banned      (админ блокирует уже закрытый тикет)
+     *   banned      → (нет, терминальный статус — даже для админа; заблокировано намеренно)
      */
     private const array TRANSITIONS = [
-        'new'         => ['in_progress' => 'admin', 'closed' => 'admin'],
-        'renewed'     => ['in_progress' => 'admin', 'closed' => 'admin'],
-        'in_progress' => ['resolved'    => 'admin', 'closed' => 'admin'],
-        'resolved'    => ['renewed'     => 'author', 'closed' => 'admin'],
+        'new'         => ['in_progress' => 'admin', 'closed' => 'admin', 'banned' => 'admin'],
+        'renewed'     => ['in_progress' => 'admin', 'closed' => 'admin', 'banned' => 'admin'],
+        'in_progress' => ['resolved'    => 'admin', 'closed' => 'admin', 'banned' => 'admin'],
+        'resolved'    => ['renewed'     => 'author', 'closed' => 'admin', 'banned' => 'admin'],
+        'closed'      => ['banned'      => 'admin'],
     ];
 
     protected function applyChanges(object $entity, User $bearer, object $dto): ?JsonResponse

@@ -1021,6 +1021,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getRoles(): array
     {
         $roles = $this->roles;
+
+        // ROLE_SUPER_ADMIN всемогущ и включает в себя ROLE_ADMIN. role_hierarchy
+        // в security.yaml даёт это для is_granted()/voter-проверок, но много кода
+        // в проекте проверяет роли "напрямую" (in_array/array_intersect по
+        // getRoles() — AccessService, ApiGetTechSupportController,
+        // ApiPatchTechSupportController, TechSupportListener и т.д.), а такие
+        // проверки role_hierarchy не видят. Дополняем здесь — в одном месте,
+        // а не в каждой отдельной проверке по коду.
+        if (in_array('ROLE_SUPER_ADMIN', $roles, true)) {
+            $roles[] = 'ROLE_ADMIN';
+        }
+
         // guarantee every user at least has ROLE_USER
         $roles[] = 'ROLE_USER';
 

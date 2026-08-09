@@ -34,7 +34,7 @@ class TicketApprovalCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_SUPER_ADMIN')
             ->setEntityLabelInPlural('Подтверждение объявлений/услуг')
             ->setEntityLabelInSingular('подтверждение')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление подтверждения')
@@ -88,6 +88,7 @@ class TicketApprovalCrudController extends AbstractCrudController
             ->setEntityId($ticket->getId())
             ->generateUrl();
 
+        /** @noinspection HtmlUnknownTarget */
         return sprintf('<a href="%s" target="_blank">Открыть карточку тикета #%d ↗</a>', $url, $ticket->getId());
     }
 }

@@ -31,7 +31,7 @@ class CityCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_SUPER_ADMIN')
             ->setEntityLabelInPlural('География города')
             ->setEntityLabelInSingular('географию города')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление города')

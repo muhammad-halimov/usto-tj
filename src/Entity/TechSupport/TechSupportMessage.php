@@ -6,11 +6,11 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
-// use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\DELETE\TechSupport\Message\ApiDeleteTechSupportMessageController;
 use App\Controller\Api\CRUD\GET\TechSupport\Message\ApiGetTechSupportMessageController;
-// use App\Controller\Api\CRUD\PATCH\TechSupport\Message\ApiPatchTechSupportMessageController;
+use App\Controller\Api\CRUD\PATCH\TechSupport\Message\ApiPatchTechSupportMessageController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Controller\Api\CRUD\POST\TechSupport\Message\ApiPostTechSupportMessageController;
 use App\Dto\Image\ImageInput;
@@ -36,11 +36,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
             requirements: ['id' => '\d+'],
             controller: ApiGetTechSupportMessageController::class,
         ),
-        // new Patch(
-        //    uriTemplate: '/tech-support-messages/{id}',
-        //    requirements: ['id' => '\d+'],
-        //    controller: ApiPatchTechSupportMessageController::class,
-        // ),
+        new Patch(
+           uriTemplate: '/tech-support-messages/{id}',
+           requirements: ['id' => '\d+'],
+           controller: ApiPatchTechSupportMessageController::class,
+        ),
         new Delete(
             uriTemplate: '/tech-support-messages/{id}',
             requirements: ['id' => '\d+'],

@@ -31,7 +31,7 @@ class CategoryCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_SUPER_ADMIN')
             ->setEntityLabelInPlural('Категории услуг')
             ->setEntityLabelInSingular('категорию услуг')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление категории')

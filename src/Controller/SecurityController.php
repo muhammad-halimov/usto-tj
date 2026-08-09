@@ -6,6 +6,7 @@ use LogicException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
 class SecurityController extends AbstractController
@@ -13,10 +14,18 @@ class SecurityController extends AbstractController
     #[Route(path: '/login', name: 'app_login')]
     public function login(AuthenticationUtils $authenticationUtils): Response
     {
-        if ($this->getUser())
-            return $this->redirectToRoute('admin');
+        $error = $authenticationUtils->getLastAuthenticationError();
 
-        $error        = $authenticationUtils->getLastAuthenticationError();
+        if ($this->getUser()) {
+            if ($this->isGranted('ROLE_SUPER_ADMIN')) {
+                return $this->redirectToRoute('admin');
+            }
+
+            $error = new CustomUserMessageAuthenticationException(
+                'У вас нет доступа к панели администратора'
+            );
+        }
+
         $lastUsername = $authenticationUtils->getLastUsername();
 
         return $this->render('@EasyAdmin/page/login.html.twig', [
@@ -38,7 +47,7 @@ class SecurityController extends AbstractController
 
             'forgot_password_enabled' => false,
 
-            'forgot_password_path' => '#',//$this->generateUrl('app_how_reset'),
+            'forgot_password_path' => '#',
 
             'forgot_password_label' => 'Забыли пароль?',
 

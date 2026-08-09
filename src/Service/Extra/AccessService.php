@@ -55,6 +55,13 @@ readonly class AccessService
         elseif (!$this->security->getUser())
             throw new TokenNotFoundException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
 
+        // ROLE_SUPER_ADMIN всемогущ: проходит любой $grade (включая 'client'/
+        // 'master'-only) и не блокируется active/approved. Единственное, что
+        // выше уже проверено — что это реально аутентифицированный пользователь.
+        if (in_array('ROLE_SUPER_ADMIN', $user->getRoles(), true)) {
+            return true;
+        }
+
         if ($activeAndApproved) {
             if (!$user->getActive())
                 throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);

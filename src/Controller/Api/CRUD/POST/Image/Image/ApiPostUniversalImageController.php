@@ -83,7 +83,7 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
         if ($ownershipCheck !== null)
             return $ownershipCheck;
 
-        $additionalCheck = $this->performAdditionalChecks($entity);
+        $additionalCheck = $this->performAdditionalChecks($entity, $bearerUser);
 
         if ($additionalCheck !== null)
             return $additionalCheck;
@@ -151,14 +151,30 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
     }
 
     /**
-     * Дополнительные проверки после ownership, специфичные для конкретной сущности.
-     * На данный момент — проверка чёрного списка для ChatMessage.
+     * Дополнительные проверки после ownership, специфичные для конкретной сущности:
+     *   - ChatMessage: проверка чёрного списка.
+     *   - TechSupport/TechSupportMessage: заблокированный тикет (STATUS_BANNED)
+     *     доступен для загрузки фото только админу — автор/гость больше не может
+     *     взаимодействовать (см. тот же STATUS_BANNED-паттерн в
+     *     ApiPostTechSupportMessageController).
      */
-    private function performAdditionalChecks(object $entity): ?JsonResponse
+    private function performAdditionalChecks(object $entity, ?User $bearer): ?JsonResponse
     {
         if ($entity instanceof ChatMessage) {
             $chat = $entity->getChat();
             if ($chat) $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
+        }
+
+        $techSupport = match (true) {
+            $entity instanceof TechSupport        => $entity,
+            $entity instanceof TechSupportMessage => $entity->getTechSupport(),
+            default                               => null,
+        };
+
+        if ($techSupport?->getStatus() === TechSupport::STATUS_BANNED
+            && !($bearer && in_array('ROLE_ADMIN', $bearer->getRoles(), true))
+        ) {
+            return $this->errorJson(AppMessages::ACCESS_DENIED);
         }
 
         return null;

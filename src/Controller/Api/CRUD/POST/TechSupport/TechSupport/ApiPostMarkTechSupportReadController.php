@@ -17,9 +17,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
  * "Непрочитанное" = сообщение написано не самим bearer'ом (author != bearer)
  * и readAt === null.
  *
- * Доступ — только автор тикета или назначенный на него администрант (та же
- * логика, что у ApiGetTechSupportSubscribeTokenController): это приватная
- * переписка двух конкретных участников, а не общий инструмент для ROLE_ADMIN.
+ * Доступ: автор тикета, назначенный на него администрант, либо ЛЮБОЙ
+ * ROLE_ADMIN (тот же паттерн, что у ApiGetTechSupportController — в отличие
+ * от /subscribe, который остаётся приватным каналом только автор+администрант).
+ * ROLE_SUPER_ADMIN проходит эту же проверку — ему getRoles() всегда
+ * дополнительно возвращает 'ROLE_ADMIN' (см. User::getRoles()).
  *
  * Как и у чата, загружаем сущности через Unit of Work (а не bulk DQL UPDATE),
  * чтобы каждое сообщение прошло через постUpdate-хуки Doctrine. Сейчас
@@ -44,7 +46,9 @@ class ApiPostMarkTechSupportReadController extends AbstractApiHelperController
         if (!$techSupport)
             return $this->errorJson(AppMessages::TECH_SUPPORT_NOT_FOUND);
 
-        if ($techSupport->getAuthor() !== $bearer && $techSupport->getAdministrant() !== $bearer)
+        $isAdmin = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
+
+        if (!$isAdmin && $techSupport->getAuthor() !== $bearer && $techSupport->getAdministrant() !== $bearer)
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
 
         $unread = $this->techSupportMessageRepository->findUnreadByRecipient($techSupport, $bearer);

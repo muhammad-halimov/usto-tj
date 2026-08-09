@@ -24,7 +24,7 @@ class UnitCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_SUPER_ADMIN')
             ->setEntityLabelInPlural('Единицы измерения')
             ->setEntityLabelInSingular('единицу измерения')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление единицы измерения')

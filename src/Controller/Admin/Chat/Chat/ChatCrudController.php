@@ -27,7 +27,7 @@ class ChatCrudController extends AbstractCrudController
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
-            ->setEntityPermission('ROLE_ADMIN')
+            ->setEntityPermission('ROLE_SUPER_ADMIN')
             ->setEntityLabelInPlural('Чат')
             ->setEntityLabelInSingular('чат')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление чата')

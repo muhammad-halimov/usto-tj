@@ -25,9 +25,9 @@ trait AdminActionsTrait
 
         return parent::configureActions($actions)
             ->setPermissions([
-                Action::NEW    => 'ROLE_ADMIN',
-                Action::DELETE => 'ROLE_ADMIN',
-                Action::EDIT   => 'ROLE_ADMIN',
+                Action::NEW    => 'ROLE_SUPER_ADMIN',
+                Action::DELETE => 'ROLE_SUPER_ADMIN',
+                Action::EDIT   => 'ROLE_SUPER_ADMIN',
             ]);
     }
 }

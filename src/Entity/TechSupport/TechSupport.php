@@ -158,7 +158,16 @@ class TechSupport implements HasImagesInterface
         'В прогрессе' => 'in_progress',
         'Решено' => 'resolved',
         'Закрыто' => 'closed',
+        'Заблокировано' => 'banned',
     ];
+
+    /**
+     * Терминальный статус, назначаемый только админом (см. ApiPatchTechSupportController::TRANSITIONS).
+     * В отличие от 'closed' — автор полностью теряет возможность взаимодействовать
+     * с тикетом (новые сообщения, загрузка фото): см. проверки в
+     * ApiPostTechSupportMessageController и ApiPostUniversalImageController.
+     */
+    public const string STATUS_BANNED = 'banned';
 
     public const array PRIORITIES = [
         'Низкий' => 1,

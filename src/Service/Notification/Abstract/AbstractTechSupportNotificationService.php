@@ -3,6 +3,7 @@
 namespace App\Service\Notification\Abstract;
 
 use App\Entity\TechSupport\TechSupport;
+use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\User;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -13,13 +14,18 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  *   - Генерацию URL тикета в админке
  *   - Извлечение reason / status / priority из TechSupport
  *
- * Конкретные каналы (email, Telegram) реализуют sendTechSupportNotification().
+ * Конкретные каналы (email, Telegram) реализуют sendTechSupportNotification()
+ * (новый тикет) и sendTechSupportMessageNotification() (новое сообщение
+ * в уже существующем тикете) — оба вызываются из соответствующих Doctrine-
+ * листенеров (TechSupportListener / TechSupportMessageListener).
  */
 abstract class AbstractTechSupportNotificationService extends AbstractMailerService
 {
     public function __construct(protected readonly UrlGeneratorInterface $urlGenerator) {}
 
     abstract public function sendTechSupportNotification(User $user, TechSupport $techSupport): mixed;
+
+    abstract public function sendTechSupportMessageNotification(User $user, TechSupportMessage $message): mixed;
 
     protected function techSupportAdminUrl(TechSupport $techSupport): string
     {

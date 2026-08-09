@@ -3,6 +3,7 @@
 namespace App\Service\Notification\Telegram;
 
 use App\Entity\TechSupport\TechSupport;
+use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\User;
 use App\Service\Notification\Abstract\AbstractTechSupportNotificationService;
 
@@ -38,5 +39,27 @@ class NotifyNewTechSupportTelegramBotService extends AbstractTechSupportNotifica
             "🔗 <a href='{$this->techSupportAdminUrl($techSupport)}'>Открыть в админке</a>";
 
         return $this->sendTelegram($telegramId, $message);
+    }
+
+    public function sendTechSupportMessageNotification(User $user, TechSupportMessage $message): bool
+    {
+        $telegramId = $user->getTelegramChatId();
+
+        if (!$telegramId) return false;
+
+        $techSupport = $message->getTechSupport();
+        $desc        = mb_substr($message->getDescription(), 0, 30) . '...';
+        $imgs        = $message->getImages()->count();
+
+        $text =
+            "💬 Новое сообщение в заявке ТП\n\n" .
+            "📌 <b>{$techSupport->getTitle()}</b>\n" .
+            "📊 {$this->status($techSupport)}\n" .
+            "👤 " . ($message->getAuthor()?->getEmail() ?? $techSupport->getGuestEmail() ?? 'Гость') . "\n" .
+            "📝 {$desc}\n" .
+            "🖼 {$imgs} фото\n\n" .
+            "🔗 <a href='{$this->techSupportAdminUrl($techSupport)}'>Открыть в админке</a>";
+
+        return $this->sendTelegram($telegramId, $text);
     }
 }
