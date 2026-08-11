@@ -22,7 +22,7 @@ use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\ApiPostMarkTechSupportR
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\ApiPostTechSupportController;
 use App\Dto\Image\ImageInput;
 use App\Dto\TechSupport\TechSupportAssignInput;
-use App\Dto\TechSupport\TechSupportInput;
+use App\Dto\TechSupport\TechSupportPatchInput;
 use App\Dto\TechSupport\TechSupportPostInput;
 use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
@@ -103,13 +103,14 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: TechSupportPostInput::class,
         ),
-        // Автор / администрант: изменить статус тикета (по правилам машины состояний).
+        // Автор: только смена статуса (по правилам машины состояний).
+        // Админ: то же плюс title/reason/priority/description/images.
         new Patch(
             uriTemplate: '/tech-supports/{id}',
             requirements: ['id' => '\d+'],
             controller: ApiPatchTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
-            input: TechSupportInput::class,
+            input: TechSupportPatchInput::class,
         ),
         // ROLE_ADMIN: назначить администранта на тикет. Тело: { "administrant": <userId> }.
         new Patch(

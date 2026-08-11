@@ -46,6 +46,15 @@ class TicketApproval
             throw new \LogicException('Отмена одобрения запрещена: approved нельзя перевести обратно в false.');
         }
 
+        // Если тикет уже забанен, Ticket::setApproved(true) сам откажется
+        // применить значение (см. Ticket::setBanned/setApproved) — но без
+        // этой проверки approved у самой заявки на подтверждение всё равно
+        // проставился бы в true, создавая рассинхрон с реальным состоянием
+        // тикета (заявка "одобрена", а тикет как был неодобрен, так и остался).
+        if ($approved && $this->ticket?->getBanned()) {
+            return $this;
+        }
+
         $this->approved = $approved;
 
         if ($approved && $this->ticket !== null) {

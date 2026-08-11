@@ -47,12 +47,26 @@ class ApiPatchTechSupportMessageController extends AbstractApiPatchController
     {
         /** @var TechSupportMessage $entity */
         /** @var TechSupportMessagePatchInput $dto */
-        if (!$dto->description) return $this->errorJson(AppMessages::EMPTY_TEXT);
+        $text        = $dto->description;
+        $imagesParam = $dto->images;
 
-        // Обновляем только текст сообщения.
+        if ($text === null && empty($imagesParam))
+            return $this->errorJson(AppMessages::NOTHING_TO_UPDATE);
+
+        // Обновляем текст сообщения.
         // Раньше здесь был баг: вызывался setAuthor($bearer), что перезаписывало
         // оригинального автора сообщения на того, кто его редактирует.
-        $entity->setDescription($dto->description);
+        if ($text !== null) {
+            $entity->setDescription($text);
+        }
+
+        // Тот же механизм синхронизации фоток, что и в PATCH сообщений чата
+        // (ApiPatchChatMessageController) — реордер/удаление по имени файла.
+        if (!empty($imagesParam)) {
+            $this->syncImages($entity, $imagesParam, $bearer);
+        }
+
+        $entity->setUpdatedAt();
 
         return null;
     }

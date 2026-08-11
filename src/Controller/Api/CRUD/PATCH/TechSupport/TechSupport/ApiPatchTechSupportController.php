@@ -4,7 +4,7 @@ namespace App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport;
 
 use App\ApiResource\AppMessages;
 use App\Controller\Api\CRUD\Abstract\AbstractApiPatchController;
-use App\Dto\TechSupport\TechSupportInput;
+use App\Dto\TechSupport\TechSupportPatchInput;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\Trait\Readable\G;
 use App\Entity\User;
@@ -25,7 +25,7 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
 
     protected function getNotFoundError(): string { return AppMessages::TECH_SUPPORT_NOT_FOUND; }
 
-    protected function getInputClass(): string { return TechSupportInput::class; }
+    protected function getInputClass(): string { return TechSupportPatchInput::class; }
 
     protected function getEntityById(int $id): ?object
     {
@@ -77,24 +77,56 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         'closed'      => ['banned'      => 'admin'],
     ];
 
+    /**
+     * Автор тикета может патчить только статус (по правилам TRANSITIONS ниже).
+     * Админ может то же самое, плюс title/reason/priority/description/images —
+     * унаследованные от TechSupportInput поля, общие с POST (см. DTO).
+     */
     protected function applyChanges(object $entity, User $bearer, object $dto): ?JsonResponse
     {
         /** @var TechSupport $entity */
-        /** @var TechSupportInput $dto */
-        $newStatus = $dto->status;
+        /** @var TechSupportPatchInput $dto */
+        $isAdmin = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
 
+        // Статус теперь необязателен в теле запроса — PATCH умеет менять
+        // и другие поля отдельно от смены статуса.
+        if ($dto->status !== null) {
+            if ($error = $this->applyStatusTransition($entity, $bearer, $isAdmin, $dto->status)) {
+                return $error;
+            }
+        }
+
+        if ($isAdmin) {
+            if ($dto->reason !== null && !in_array($dto->reason->getApplicableTo(), ['support', 'overall'], true)) {
+                return $this->errorJson(AppMessages::WRONG_SUPPORT_REASON);
+            }
+
+            if ($dto->title !== null)       $entity->setTitle($dto->title);
+            if ($dto->description !== null) $entity->setDescription($dto->description);
+            if ($dto->priority !== null)    $entity->setPriority($dto->priority);
+            if ($dto->reason !== null)      $entity->setReason($dto->reason);
+
+            if (!empty($dto->images)) {
+                $this->syncImages($entity, $dto->images, $bearer);
+            }
+        }
+
+        return null;
+    }
+
+    private function applyStatusTransition(TechSupport $entity, User $bearer, bool $isAdmin, string $newStatus): ?JsonResponse
+    {
         // Сначала проверяем, что новый статус вообще существует в системе.
-        if (!$newStatus || !in_array($newStatus, array_values(TechSupport::STATUSES), true))
+        if (!in_array($newStatus, array_values(TechSupport::STATUSES), true))
             return $this->errorJson(AppMessages::WRONG_TECH_SUPPORT_STATUS);
 
         // Смотрим, допустимый ли переход из текущего статуса в новый.
-        // Если текущего статуса нет в таблице (например, 'closed') — переходов нет.
+        // Если текущего статуса нет в таблице (например, 'banned') — переходов нет.
         $allowed = self::TRANSITIONS[$entity->getStatus()] ?? [];
 
         if (!isset($allowed[$newStatus]))
             return $this->errorJson(AppMessages::WRONG_TECH_SUPPORT_STATUS);
 
-        $isAdmin  = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
         $isAuthor = $entity->getAuthor() === $bearer;
 
         // Проверяем, есть ли у пользователя право на этот конкретный переход.

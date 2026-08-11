@@ -157,6 +157,8 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
      *     доступен для загрузки фото только админу — автор/гость больше не может
      *     взаимодействовать (см. тот же STATUS_BANNED-паттерн в
      *     ApiPostTechSupportMessageController).
+     *   - Ticket: тот же принцип через Ticket::banned (bool) — единая точка
+     *     блокировки для обоих типов "забаненных" сущностей.
      */
     private function performAdditionalChecks(object $entity, ?User $bearer): ?JsonResponse
     {
@@ -171,9 +173,13 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
             default                               => null,
         };
 
-        if ($techSupport?->getStatus() === TechSupport::STATUS_BANNED
-            && !($bearer && in_array('ROLE_ADMIN', $bearer->getRoles(), true))
-        ) {
+        $isBanned = match (true) {
+            $techSupport !== null     => $techSupport->getStatus() === TechSupport::STATUS_BANNED,
+            $entity instanceof Ticket => $entity->getBanned(),
+            default                   => false,
+        };
+
+        if ($isBanned && !($bearer && in_array('ROLE_ADMIN', $bearer->getRoles(), true))) {
             return $this->errorJson(AppMessages::ACCESS_DENIED);
         }
 

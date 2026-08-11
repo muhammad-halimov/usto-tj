@@ -2,6 +2,8 @@
 
 namespace App\Dto\TechSupport;
 
+use App\Dto\Image\ImageObjectInput;
+
 /**
  * DTO для PATCH /tech-support-messages/{id}.
  *
@@ -12,4 +14,7 @@ namespace App\Dto\TechSupport;
 class TechSupportMessagePatchInput
 {
     public ?string $description = null;
+
+    /** @var ImageObjectInput[] */
+    public ?array $images = null;
 }

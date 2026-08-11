@@ -32,6 +32,7 @@ trait PriorityTrait
         G::CHAT_MESSAGES,
 
         G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
 
         G::CITIES,
         G::DISTRICTS,

@@ -14,6 +14,7 @@ use App\Controller\Api\CRUD\PATCH\TechSupport\Message\ApiPatchTechSupportMessage
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Controller\Api\CRUD\POST\TechSupport\Message\ApiPostTechSupportMessageController;
 use App\Dto\Image\ImageInput;
+use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
@@ -64,7 +65,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
-class TechSupportMessage
+class TechSupportMessage implements HasImagesInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, DescriptionTrait;
 

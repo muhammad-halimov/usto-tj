@@ -134,8 +134,8 @@ Registration body (`POST /api/users`): standard User writable fields — `email`
 | GET | `/api/tickets/{id}` | Public single |
 | GET | `/api/tickets` | Public collection. Filters: `active`,`service`,`negotiableBudget` (bool); `master`,`author` (exists); `category`,`subcategory`,`master`,`author` (exact), `description` (partial); address filter (§6); range filters `budget`,`master.rating`,`author.rating`,`reviewsCount` |
 | POST | `/api/tickets` | body: `TicketInput` |
-| POST | `/api/tickets/{id}/upload-images` | multipart `imageFile[]` |
-| PATCH | `/api/tickets/{id}` | body: `TicketPatchInput` |
+| POST | `/api/tickets/{id}/upload-images` | multipart `imageFile[]`. `403 access_denied` if `banned` |
+| PATCH | `/api/tickets/{id}` | body: `TicketPatchInput`. `403 access_denied` if `banned` — blocks the *entire* request before any field is touched, not just specific fields |
 
 ```ts
 interface TicketInput {
@@ -164,6 +164,7 @@ interface Ticket {
   service: boolean | null;         // true = "service offer", false = "listing/request"
   active: boolean | null;
   approved: boolean;               // read-only, admin-gated visibility
+  banned: boolean;                 // read-only, admin-only (EasyAdmin), see note below
   viewsCount: number;
   responsesCount: number;
   reviewsCount: number;
@@ -180,6 +181,8 @@ interface Ticket {
   updatedAt: string | null;
 }
 ```
+
+`Ticket.banned` — not present in `TicketInput`/`TicketPatchInput` at all (never writable via the API, `#[ApiProperty(writable: false)]`), toggled only from EasyAdmin by ROLE_SUPER_ADMIN. While `true`: `PATCH /tickets/{id}` rejects the whole request (`403 access_denied`) before touching *any* field — including otherwise author-writable ones like `active` — and `POST /tickets/{id}/upload-images` rejects the same way for non-admins. Same enforcement point (`ApiPostUniversalImageController::performAdditionalChecks`) also drives the analogous `TechSupport.STATUS_BANNED` lock. Entity-level invariant (enforced in `Ticket::setBanned/setActive/setApproved`, not just at the controller): setting `banned=true` immediately forces `active=false` and `approved=false` (which also drops the ticket out of public `/tickets` listings, since `approved=false` already gates visibility), and while `banned=true` neither field can be flipped back to `true` through any code path — including the `TicketApproval::setApproved(true)` cascade.
 
 ### Category / Unit / Occupation (catalogue, read-only for frontend)
 ```
@@ -416,13 +419,18 @@ interface BlackList { id: number; type: string; user: User|null; ticket: Ticket|
 | GET | `/api/tech-supports/inbox-token` | Mercure token covering ALL of the caller's tickets at once (as author or administrant — same scope as `/tech-supports/me`). Empty set → `{ token: null, topics: [] }` |
 | POST | `/api/tech-supports` | body: `TechSupportPostInput`. Works for guests too (no Bearer) — then `guestEmail` is required |
 | POST | `/api/tech-supports/{id}/read` | Marks all unread messages of this ticket as read for the caller (sets `readAt`). "Unread" = `author != caller` and `readAt` still `null`. Access: author, assigned `administrant`, **or any `ROLE_ADMIN`** (broader than `/subscribe`, which stays author+assigned-only). `403 ownership_mismatch` otherwise. No body, `204 No Content`. |
-| PATCH | `/api/tech-supports/{id}` | body: `TechSupportInput` (status transition) |
+| PATCH | `/api/tech-supports/{id}` | body: `TechSupportPatchInput`. **Author**: `status` only (state machine below). **Admin**: `status` + `title`/`reason`/`priority`/`description`/`images` — all silently no-op for non-admins (200, field just doesn't change), no error thrown. |
 | PATCH | `/api/tech-supports/{id}/assign` | ROLE_ADMIN, body: `TechSupportAssignInput` |
 | POST | `/api/tech-supports/{id}/upload-images` | multipart `imageFile[]` |
 
 ```ts
-interface TechSupportPostInput { title?: string; reason?: string /* AppealReason IRI */; priority?: string; description?: string; guestEmail?: string; }
-interface TechSupportInput { status: 'new'|'renewed'|'in_progress'|'resolved'|'closed'|'banned'; }
+// Общая база для POST и PATCH — тот же паттерн, что TicketInput → TicketPatchInput.
+interface TechSupportInput { title?: string; reason?: string /* AppealReason IRI */; priority?: string; description?: string; }
+interface TechSupportPostInput extends TechSupportInput { guestEmail?: string; }
+interface TechSupportPatchInput extends TechSupportInput {
+  status?: 'new'|'renewed'|'in_progress'|'resolved'|'closed'|'banned';
+  images?: { image: string }[];   // admin-only; reorder/prune existing MultipleImage refs by filename, same syncImages() mechanism as Chat/Ticket
+}
 interface TechSupportAssignInput { administrant: string /* User IRI */; }
 
 // Deliberately trimmed shape — only these 6 fields are ever exposed for
@@ -471,7 +479,7 @@ Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tec
 
 ```ts
 interface TechSupportMessagePostInput  { techSupport?: string /* IRI */; description?: string; }
-interface TechSupportMessagePatchInput { description?: string; }
+interface TechSupportMessagePatchInput { description?: string; images?: { image: string }[]; }  // images: same syncImages() mechanism as ChatMessagePatchInput — reorder/prune by filename, either field alone is enough (400 nothing_to_update if both omitted)
 interface TechSupportMessage {
   id: number;
   author: User|null;
@@ -517,6 +525,6 @@ interface MultipleImage {
 ```
 Universal image upload pattern — every resource that has images exposes:
 `POST /api/{resource}/{id}/upload-images` — `multipart/form-data`, field `imageFile[]` (multiple files, each ≤10MB, png/jpeg/jpg/webp) → `{ message: string, count: number }`.
-Reordering/removing already-uploaded images on PATCH: pass `images: [{ image: "<filename>" }, ...]` in entity's Patch DTO (Ticket, Review, Chat message, Gallery) — order defines new `priority`; filenames omitted from the array are detached.
+Reordering/removing already-uploaded images on PATCH: pass `images: [{ image: "<filename>" }, ...]` in entity's Patch DTO (Ticket, Review, Chat message, Gallery, Tech support ticket [admin-only], Tech support message) — order defines new `priority`; filenames omitted from the array are detached.
 
 Every entity uses IRIs (`/api/resource/{id}`) for relations in write payloads (standard API Platform / Hydra convention), and returns embedded objects (or IRIs, depending on `normalizationContext`) on read.

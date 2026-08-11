@@ -53,6 +53,13 @@ class ApiPatchTicketController extends AbstractApiHelperController
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
         }
 
+        // Заблокированный тикет: ни одно поле не трогаем, проверка стоит
+        // до чтения любых полей DTO — нельзя обойти, отправив только часть
+        // тела (title/active/budget и т.д. все блокируются одним ранним return).
+        if ($ticket->getBanned()) {
+            return $this->errorJson(AppMessages::ACCESS_DENIED);
+        }
+
         /** @var Category $category */
         $category    = $dto->category    ?? $ticket->getCategory();
         $unit        = $dto->unit        ?? $ticket->getUnit();

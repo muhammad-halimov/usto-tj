@@ -67,6 +67,10 @@ class TicketCrudController extends AbstractCrudController
             ->addCssClass("form-switch")
             ->setColumns(2);
 
+        yield BooleanField::new('banned', 'Заблокировано')
+            ->addCssClass("form-switch")
+            ->setColumns(2);
+
         yield BooleanField::new('negotiableBudget', 'Договорная цена')
             ->addCssClass("form-switch")
             ->setColumns(6);

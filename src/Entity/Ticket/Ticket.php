@@ -223,6 +223,22 @@ class Ticket implements HasImagesInterface
     #[ApiProperty(writable: false)]
     private bool $approved = false;
 
+    /**
+     * Блокировка тикета администратором. Переключается только из EasyAdmin
+     * (writable: false — недостижимо через PATCH DTO ни при каких условиях).
+     * Пока true — автор/мастер не может изменить ни одно поле тикета
+     * (см. ApiPatchTicketController) и не может загружать фото
+     * (см. ApiPostUniversalImageController::performAdditionalChecks) —
+     * тот же паттерн блокировки, что у TechSupport::STATUS_BANNED.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    #[Groups([
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $banned = false;
+
     #[ORM\Column(options: ['default' => 0])]
     #[Groups([
         G::MASTER_TICKETS,
@@ -506,6 +522,12 @@ class Ticket implements HasImagesInterface
 
     public function setActive(?bool $active): Ticket
     {
+        // Пока тикет забанен, реактивировать его в обход бана нельзя —
+        // тот же принцип, что и у approved ниже (см. setApproved/setBanned).
+        if ($this->banned && $active === true) {
+            return $this;
+        }
+
         $this->active = $active;
         return $this;
     }
@@ -731,7 +753,35 @@ class Ticket implements HasImagesInterface
 
     public function setApproved(bool $approved): static
     {
+        // Пока тикет забанен, одобрить его нельзя — в т.ч. через каскад
+        // из TicketApproval::setApproved(true), который вызывает этот же
+        // сеттер. Один choke-point на оба пути записи.
+        if ($this->banned && $approved === true) {
+            return $this;
+        }
+
         $this->approved = $approved;
+        return $this;
+    }
+
+    public function getBanned(): bool
+    {
+        return $this->banned;
+    }
+
+    public function setBanned(bool $banned): static
+    {
+        $this->banned = $banned;
+
+        // При включении бана сразу гасим active/approved — тикет не должен
+        // висеть в БД как "активный"/"одобрённый", будучи забаненным
+        // (и, как следствие, пропадает из публичных /tickets — approved=false
+        // уже гейтит видимость на уровне TicketRepository).
+        if ($banned) {
+            $this->active   = false;
+            $this->approved = false;
+        }
+
         return $this;
     }
 
