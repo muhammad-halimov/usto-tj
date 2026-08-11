@@ -76,6 +76,7 @@ interface User {
   atHome: boolean | null;
   active: boolean;                     // read-only
   approved: boolean;                   // read-only
+  banned: boolean;                     // read-only, admin-only (EasyAdmin), see note below
   lastSeen: string | null;             // ISO datetime, read-only
   isOnline: boolean;                   // computed, read-only (lastSeen within 2 min)
   reviewsCount: number;                // computed, read-only
@@ -125,6 +126,8 @@ interface OAuthProvider {
 `Phone.CODES`: `+992, +998, +996, +7, +1, +44, +49, +33, +86, +81, +91, +971, +380, +375`.
 
 Registration body (`POST /api/users`): standard User writable fields — `email`, `password`, `name`, `surname`, `patronymic?`, `gender?`, `dateOfBirth?`, phones etc. (validation groups `registration`).
+
+`User.banned` — same mechanism as `Ticket.banned` (§4): never writable via the API, toggled only from EasyAdmin by ROLE_SUPER_ADMIN. Setting it forces `active=false`/`approved=false` immediately, and while `true` neither can be set back to `true` through any code path — including self-activation via `POST /confirm-account/` (token) and `POST /confirm-account-tokenless/` (resend). On top of the entity-level guard, `AccessService::check()` now hard-rejects a banned user (`403 access_denied`) on **every** authenticated endpoint that goes through `checkedUser()` — unconditionally, regardless of the `activeAndApproved` flag some endpoints pass `false` for (that flag only relaxes the "email not confirmed yet" gate, not a ban). `ROLE_SUPER_ADMIN` still bypasses everything, same as it already did for active/approved.
 
 ## 4. TICKETS (services/listings)
 

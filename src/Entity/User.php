@@ -598,6 +598,44 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ApiProperty(writable: false)]
     private bool $approved = false;
 
+    /**
+     * Блокировка пользователя администратором. Переключается только из
+     * EasyAdmin (writable: false — недостижимо через API ни при каких
+     * условиях). Пока true — active/approved не могут стать true никаким
+     * путём (см. setActive/setApproved/setBanned ниже), включая
+     * самоактивацию через email/OTP (ApiPostConfirmAccountController,
+     * ApiPostConfirmAccountTokenlessController) — тот же паттерн, что
+     * у Ticket::banned. AccessService::check() дополнительно жёстко
+     * блокирует доступ забаненному пользователю независимо от grade.
+     */
+    #[ORM\Column(type: 'boolean', nullable: false, options: ['default' => false])]
+    #[Groups([
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $banned = false;
+
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     #[Groups([
         G::USER_PUBLIC,
@@ -1626,6 +1664,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setActive(bool $active): static
     {
+        // Пока пользователь забанен, активировать его в обход бана нельзя —
+        // тот же принцип, что и у approved ниже (см. setApproved/setBanned).
+        if ($this->banned && $active === true) {
+            return $this;
+        }
+
         $this->active = $active;
         return $this;
     }
@@ -1637,7 +1681,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setApproved(bool $approved): static
     {
+        // Пока пользователь забанен, подтвердить его нельзя — в т.ч. через
+        // самоактивацию по email/OTP.
+        if ($this->banned && $approved === true) {
+            return $this;
+        }
+
         $this->approved = $approved;
+        return $this;
+    }
+
+    public function getBanned(): bool
+    {
+        return $this->banned;
+    }
+
+    public function setBanned(bool $banned): static
+    {
+        $this->banned = $banned;
+
+        // При включении бана сразу гасим active/approved — пользователь не
+        // должен висеть в БД как "активный"/"подтверждённый", будучи
+        // забаненным (тот же паттерн, что у Ticket::setBanned).
+        if ($banned) {
+            $this->active   = false;
+            $this->approved = false;
+        }
+
         return $this;
     }
 

@@ -1,6 +1,11 @@
 /.DS_Store
 *.DS_Store
+
+.ai
 /.idea
+/.claude/
+/.agents/
+/.continue/
 
 ###> symfony/framework-bundle ###
 /.oauth.credentials.local
@@ -27,6 +32,3 @@
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
-
-.ai
-

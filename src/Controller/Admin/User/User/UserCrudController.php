@@ -167,6 +167,10 @@ class UserCrudController extends AbstractCrudController
             ->addCssClass("form-switch")
             ->setColumns(12);
 
+        yield BooleanField::new('banned', 'Заблокирован')
+            ->addCssClass("form-switch")
+            ->setColumns(12);
+
         yield ChoiceField::new('roles', 'Права')
             ->setRequired(true)
             ->allowMultipleChoices()

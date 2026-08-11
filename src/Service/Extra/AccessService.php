@@ -56,10 +56,20 @@ readonly class AccessService
             throw new TokenNotFoundException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
 
         // ROLE_SUPER_ADMIN всемогущ: проходит любой $grade (включая 'client'/
-        // 'master'-only) и не блокируется active/approved. Единственное, что
-        // выше уже проверено — что это реально аутентифицированный пользователь.
+        // 'master'-only) и не блокируется active/approved/banned. Единственное,
+        // что выше уже проверено — что это реально аутентифицированный пользователь.
         if (in_array('ROLE_SUPER_ADMIN', $user->getRoles(), true)) {
             return true;
+        }
+
+        // Бан — жёсткая блокировка без исключений (кроме ROLE_SUPER_ADMIN выше).
+        // Срабатывает независимо от $activeAndApproved: этот флаг отключается
+        // только для спец-эндпоинтов вроде повторной отправки письма
+        // подтверждения (см. докблок параметра) — то "мягкое" условие про ещё
+        // не подтверждённый email, а не про блокировку. Бан — другое, отключать
+        // его для конкретных эндпоинтов смысла нет.
+        if ($user->getBanned()) {
+            throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
         }
 
         if ($activeAndApproved) {
