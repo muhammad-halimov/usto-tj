@@ -69,6 +69,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
@@ -206,7 +207,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     use UpdatedAtTrait, CreatedAtTrait, SingleImageTrait, DescriptionTrait;
 
+    # ROLE_SUPER_ADMIN всемогущ: наследует ROLE_ADMIN, поэтому любая проверка
+    # is_granted('ROLE_ADMIN') (например security: в #[ApiResource] у User,
+    # Gallery, Review, Appeal, BlackList, Favorite) автоматически пропускает
+    # супер-админа — без дублирования 'ROLE_ADMIN'/'ROLE_SUPER_ADMIN' по всем
+    # местам. Это касается только is_granted()/voter-проверок; "сырые" проверки
+    # вида in_array('ROLE_ADMIN', $user->getRoles()) сюда не попадают — для них
+    # роль дополняется на уровне User::getRoles().
     public const array ROLES = [
+        'Суперадмин' => 'ROLE_SUPER_ADMIN',
         'Администратор' => 'ROLE_ADMIN',
         'Мастер' => 'ROLE_MASTER',
         'Клиент' => 'ROLE_CLIENT',
@@ -1047,6 +1056,31 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->roles = $roles;
 
         return $this;
+    }
+
+    /**
+     * Серверная версия правила из userCrud.js (там — только UX-подсказка,
+     * дизейблит чекбоксы в форме; здесь — реальный запрет, чтобы недопустимое
+     * сочетание нельзя было сохранить в обход формы).
+     *
+     * Разрешено: [CLIENT] [MASTER] [ADMIN] [SUPER_ADMIN] [ADMIN, SUPER_ADMIN].
+     * Запрещено: CLIENT+MASTER вместе, и любое смешивание personal-ролей
+     * (CLIENT/MASTER) с admin-ролями (ADMIN/SUPER_ADMIN).
+     */
+    #[Assert\Callback]
+    public function validateRoleCombination(ExecutionContextInterface $context): void
+    {
+        $personal = array_intersect($this->roles, ['ROLE_CLIENT', 'ROLE_MASTER']);
+        $admin    = array_intersect($this->roles, ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN']);
+
+        if (count($personal) > 1 || (count($personal) >= 1 && count($admin) >= 1)) {
+            $context->buildViolation(
+                'Недопустимое сочетание ролей. Разрешено: одна из CLIENT/MASTER, '
+                . 'либо ADMIN и/или SUPER_ADMIN вместе — но не то и другое сразу.'
+            )
+                ->atPath('roles')
+                ->addViolation();
+        }
     }
 
     /**

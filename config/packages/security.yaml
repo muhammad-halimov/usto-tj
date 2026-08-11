@@ -2,15 +2,6 @@ security:
     # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
-    # ROLE_SUPER_ADMIN всемогущ: наследует ROLE_ADMIN, поэтому любая проверка
-    # is_granted('ROLE_ADMIN') (например security: в #[ApiResource] у User,
-    # Gallery, Review, Appeal, BlackList, Favorite) автоматически пропускает
-    # супер-админа — без дублирования 'ROLE_ADMIN'/'ROLE_SUPER_ADMIN' по всем
-    # местам. Это касается только is_granted()/voter-проверок; "сырые" проверки
-    # вида in_array('ROLE_ADMIN', $user->getRoles()) сюда не попадают — для них
-    # роль дополняется на уровне User::getRoles().
-    role_hierarchy:
-        ROLE_SUPER_ADMIN: ROLE_ADMIN
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
         # used to reload user from session & other features (e.g. switch_user)
