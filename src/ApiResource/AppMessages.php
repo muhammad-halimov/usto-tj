@@ -49,6 +49,7 @@ class AppMessages
     const string MISSING_CHAT                   = 'missing_chat';
     const string CHAT_MESSAGE_NOT_FOUND         = 'chat_message_not_found';
     const string CHAT_REPLY_AUTHOR_MISMATCH     = 'chat_reply_author_mismatch';
+    const string USER_BLOCKED                   = 'user_blocked';
     const string NOTHING_TO_UPDATE              = 'nothing_to_update';
 
     // ── Entities ──────────────────────────────────────────────────────────────
@@ -174,6 +175,7 @@ class AppMessages
         self::MISSING_CHAT                   => ['http' => 400, 'messages' => ['tj' => 'Чат нест',                                                                                  'eng' => 'Missing chat',                                                 'ru' => 'Чат отсутствует']],
         self::CHAT_MESSAGE_NOT_FOUND         => ['http' => 404, 'messages' => ['tj' => 'Паёми чат ёфт нашуд',                                                                      'eng' => 'Chat message not found',                                       'ru' => 'Сообщение чата не найдено']],
         self::CHAT_REPLY_AUTHOR_MISMATCH     => ['http' => 400, 'messages' => ['tj' => 'Эҳтимол муаллифи билет/устод бо муаллифи ҷавоб мувофиқ нест',                             'eng' => "Probably ticket's author/master doesn't match to reply author", 'ru' => 'Автор билета/мастера не совпадает с автором ответа']],
+        self::USER_BLOCKED                   => ['http' => 403, 'messages' => ['tj' => 'Шумо аз ҷониби ин корбар манъ шудаед',                                                    'eng' => 'You have been blocked by this user',                           'ru' => 'Вы заблокированы этим пользователем']],
         self::NOTHING_TO_UPDATE              => ['http' => 400, 'messages' => ['tj' => 'Чизе барои навсозӣ нест',                                                                  'eng' => 'Nothing to update',                                            'ru' => 'Нечего обновлять']],
         // Entities
         self::TICKET_NOT_FOUND               => ['http' => 404, 'messages' => ['tj' => 'Билет ёфт нашуд',                                                                          'eng' => 'Ticket not found',                                             'ru' => 'Билет не найден']],

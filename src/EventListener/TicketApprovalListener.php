@@ -5,11 +5,10 @@ namespace App\EventListener;
 use App\Entity\TechSupport\TicketApproval;
 use App\Service\Extra\AdminLoadBalancerService;
 use App\Service\Notification\Email\NotifyNewTicketApprovalEmailService;
+use App\Service\Notification\NotificationDispatcher;
 use App\Service\Notification\Telegram\NotifyNewTicketApprovalTelegramBotService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
-use Psr\Log\LoggerInterface;
-use Throwable;
 
 /**
  * Обрабатывает бизнес-логику тикетов техподдержки:
@@ -24,8 +23,8 @@ use Throwable;
  *   числом неодобренных заявок (approved = false).
  *   Это простой алгоритм round-robin по нагрузке без внешних очередей.
  *
- * Уведомления (Email/Telegram) отправляются независимо друг от друга —
- * сбой одного канала не должен блокировать другой.
+ * Уведомления: сначала Telegram, email — только если Telegram не прошёл
+ * (см. NotificationDispatcher — общая логика для всех notify-листенеров).
  */
 #[AsEntityListener(event: Events::prePersist, entity: TicketApproval::class)]
 #[AsEntityListener(event: Events::postPersist, entity: TicketApproval::class)]
@@ -35,7 +34,7 @@ readonly class TicketApprovalListener
         private AdminLoadBalancerService                  $adminLoadBalancerService,
         private NotifyNewTicketApprovalEmailService       $emailNotifier,
         private NotifyNewTicketApprovalTelegramBotService $telegramNotifier,
-        private LoggerInterface                            $logger,
+        private NotificationDispatcher                     $dispatcher,
     ){}
 
     /**
@@ -47,32 +46,18 @@ readonly class TicketApprovalListener
     }
 
     /**
-     * После создания объявления/услуги отправляем уведомление на почту и тг админа.
-     * Каналы независимы: падение одного не должно мешать отправке другого.
+     * После создания объявления/услуги отправляем уведомление админу.
      */
     public function postPersist(TicketApproval $ticketApproval): void
     {
         $admin = $ticketApproval->getAdministrant();
         if ($admin === null || !in_array('ROLE_ADMIN', $admin->getRoles())) return;
 
-        try {
-            $this->emailNotifier->sendTicketApprovalNotification($admin, $ticketApproval);
-        } catch (Throwable $e) {
-            $this->logger->error('Не удалось отправить email-уведомление о TicketApproval', [
-                'ticketApprovalId' => $ticketApproval->getId(),
-                'adminId'          => $admin->getId(),
-                'exception'        => $e,
-            ]);
-        }
-
-        try {
-            $this->telegramNotifier->sendTicketApprovalNotification($admin, $ticketApproval);
-        } catch (Throwable $e) {
-            $this->logger->error('Не удалось отправить Telegram-уведомление о TicketApproval', [
-                'ticketApprovalId' => $ticketApproval->getId(),
-                'adminId'          => $admin->getId(),
-                'exception'        => $e,
-            ]);
-        }
+        $this->dispatcher->send(
+            sendTelegram: fn() => $this->telegramNotifier->sendTicketApprovalNotification($admin, $ticketApproval),
+            sendEmail:    fn() => $this->emailNotifier->sendTicketApprovalNotification($admin, $ticketApproval),
+            label:        'TicketApproval',
+            logContext:   ['ticketApprovalId' => $ticketApproval->getId(), 'adminId' => $admin->getId()],
+        );
     }
 }

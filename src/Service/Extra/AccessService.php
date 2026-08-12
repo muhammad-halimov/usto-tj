@@ -3,7 +3,6 @@
 namespace App\Service\Extra;
 
 use App\ApiResource\AppMessages;
-use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\User\BlackListRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -112,35 +111,19 @@ readonly class AccessService
     }
 
     /**
-     * Проверяет черный список в обе стороны.
-     *
-     * Сценарии:
-     *   - $ticket: заблокирован ли тикет для $author
-     *   - $assumedUser: заблокирован ли $assumedUser пользователем $author?  И наоборот?
-     *
-     * Проверка symmetrical: если А заблокировал Б ИЛИ Б заблокировал А —
-     * взаимодействие заблокировано.
+     * Проверяет блокировку в чате: не заблокировал ли $recipient пользователя
+     * $sender. Асимметрично — писать не может ТОЛЬКО заблокированная
+     * сторона ($sender): тот, кто поставил блок ($recipient), сам может
+     * продолжать переписку по своему усмотрению, ограничение накладывается
+     * только на цель блокировки. Раньше проверка была симметричной (любая
+     * блокировка в любую сторону останавливала обоих) — это убрано намеренно.
      */
-    public function checkBlackList(User|null $author, User|null $assumedUser = null, Ticket|null $ticket = null): bool
+    public function checkBlackList(?User $sender, ?User $recipient): bool
     {
-        if ($ticket && $author) {
-            $this->check($author);
+        if (!$sender || !$recipient) return true;
 
-            if ($this->blackListRepository->findDuplicate($author, null, $ticket)) {
-                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
-            }
-        }
-
-        if ($assumedUser) {
-            $this->check($assumedUser);
-
-            if ($this->blackListRepository->findDuplicate($author, $assumedUser)) {
-                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
-            }
-
-            if ($this->blackListRepository->findDuplicate($assumedUser, $author)) {
-                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
-            }
+        if ($this->blackListRepository->findDuplicate($recipient, $sender)) {
+            throw new AccessDeniedHttpException(AppMessages::get(AppMessages::USER_BLOCKED)->message);
         }
 
         return true;

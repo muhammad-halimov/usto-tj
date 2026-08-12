@@ -3,6 +3,7 @@
 namespace App\Service\Notification\Abstract;
 
 use App\Entity\TechSupport\TicketApproval;
+use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -11,6 +12,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  *
  * Инкапсулирует общее:
  *   - Генерацию URL заверения тикета в админке
+ *   - Извлечение category/budget из Ticket (см. reason/status/priority
+ *     в AbstractTechSupportNotificationService — тот же приём)
  *   - Отправка уведомления
  *
  * Конкретные каналы (email, Telegram) реализуют sendTicketApprovalNotification().
@@ -28,5 +31,17 @@ abstract class AbstractTicketApprovalNotificationService extends AbstractMailerS
             ['entityId' => $ticketApproval->getId()],
             UrlGeneratorInterface::ABSOLUTE_URL
         );
+    }
+
+    protected function category(?Ticket $ticket): string
+    {
+        return $ticket?->getCategory()?->getTitle() ?? 'Не указана';
+    }
+
+    protected function budget(?Ticket $ticket): string
+    {
+        if ($ticket?->getNegotiableBudget()) return 'Договорная';
+
+        return $ticket?->getBudget() !== null ? "{$ticket->getBudget()} TJS" : 'Не указан';
     }
 }

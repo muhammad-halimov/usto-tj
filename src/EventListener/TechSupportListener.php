@@ -5,11 +5,10 @@ namespace App\EventListener;
 use App\Entity\TechSupport\TechSupport;
 use App\Service\Extra\AdminLoadBalancerService;
 use App\Service\Notification\Email\NotifyNewTechSupportEmailService;
+use App\Service\Notification\NotificationDispatcher;
 use App\Service\Notification\Telegram\NotifyNewTechSupportTelegramBotService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
-use Psr\Log\LoggerInterface;
-use Throwable;
 
 /**
  * Обрабатывает бизнес-логику тикетов техподдержки:
@@ -24,8 +23,8 @@ use Throwable;
  *   числом активных тикетов (статусы: new / renewed / in_progress).
  *   Это простой алгоритм round-robin по нагрузке без внешних очередей.
  *
- * Уведомления (Email/Telegram) отправляются независимо друг от друга —
- * сбой одного канала не должен блокировать другой.
+ * Уведомления: сначала Telegram, email — только если Telegram не прошёл
+ * (см. NotificationDispatcher — общая логика для всех notify-листенеров).
  */
 #[AsEntityListener(event: Events::prePersist, entity: TechSupport::class)]
 #[AsEntityListener(event: Events::postPersist, entity: TechSupport::class)]
@@ -35,7 +34,7 @@ readonly class TechSupportListener
         private NotifyNewTechSupportTelegramBotService $telegramNotifier,
         private NotifyNewTechSupportEmailService       $emailNotifier,
         private AdminLoadBalancerService               $adminLoadBalancerService,
-        private LoggerInterface                         $logger,
+        private NotificationDispatcher                 $dispatcher,
     ){}
 
     /**
@@ -51,32 +50,18 @@ readonly class TechSupportListener
     }
 
     /**
-     * После создания ТП отправляем уведомление на почту и тг админа.
-     * Каналы независимы: падение одного не должно мешать отправке другого.
+     * После создания ТП отправляем уведомление админу.
      */
     public function postPersist(TechSupport $techSupport): void
     {
         $admin = $techSupport->getAdministrant();
         if ($admin === null || !in_array('ROLE_ADMIN', $admin->getRoles())) return;
 
-        try {
-            $this->telegramNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport);
-        } catch (Throwable $e) {
-            $this->logger->error('Не удалось отправить Telegram-уведомление о TechSupport', [
-                'techSupportId' => $techSupport->getId(),
-                'adminId'       => $admin->getId(),
-                'exception'     => $e,
-            ]);
-        }
-
-        try {
-            $this->emailNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport);
-        } catch (Throwable $e) {
-            $this->logger->error('Не удалось отправить email-уведомление о TechSupport', [
-                'techSupportId' => $techSupport->getId(),
-                'adminId'       => $admin->getId(),
-                'exception'     => $e,
-            ]);
-        }
+        $this->dispatcher->send(
+            sendTelegram: fn() => $this->telegramNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport),
+            sendEmail:    fn() => $this->emailNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport),
+            label:        'TechSupport',
+            logContext:   ['techSupportId' => $techSupport->getId(), 'adminId' => $admin->getId()],
+        );
     }
 }

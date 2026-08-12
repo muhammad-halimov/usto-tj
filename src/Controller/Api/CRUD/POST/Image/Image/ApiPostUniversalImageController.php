@@ -164,7 +164,13 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
     {
         if ($entity instanceof ChatMessage) {
             $chat = $entity->getChat();
-            if ($chat) $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
+
+            // Асимметрично: проверяем именно того, кто грузит фото ($bearer),
+            // а не любую блокировку между сторонами (см. AccessService::checkBlackList).
+            if ($chat) {
+                $recipient = $chat->getAuthor() === $bearer ? $chat->getReplyAuthor() : $chat->getAuthor();
+                $this->accessService->checkBlackList($bearer, $recipient);
+            }
         }
 
         $techSupport = match (true) {

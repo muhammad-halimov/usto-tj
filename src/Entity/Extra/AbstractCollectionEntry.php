@@ -13,8 +13,11 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 /**
- * Shared flat-entry base for BlackList and Favorite.
- * Each row represents exactly ONE blacklisted / favorited item:
+ * Base for Favorite (user OR ticket favorited). BlackList used to share this
+ * base too, but it no longer does — a block is always exactly one user
+ * (chat-only blocking, see BlackList / AccessService::checkBlackList), so it
+ * doesn't need the user-or-ticket duality this class exists for.
+ * Each row represents exactly ONE favorited item:
  *   - a user   → user   is set, ticket is null
  *   - a ticket → ticket is set, user   is null
  */

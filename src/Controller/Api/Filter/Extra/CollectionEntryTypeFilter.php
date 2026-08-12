@@ -8,8 +8,9 @@ use ApiPlatform\Metadata\Operation;
 use Doctrine\ORM\QueryBuilder;
 
 /**
- * Filters BlackList / Favorite entries by type=user|ticket.
- * Used instead of the built-in SearchFilter because both entities extend a MappedSuperclass.
+ * Filters Favorite entries by type=user|ticket.
+ * Used instead of the built-in SearchFilter because Favorite extends a MappedSuperclass.
+ * BlackList no longer uses this filter — a block is always exactly one user, no type to filter by.
  */
 final class CollectionEntryTypeFilter extends AbstractFilter
 {

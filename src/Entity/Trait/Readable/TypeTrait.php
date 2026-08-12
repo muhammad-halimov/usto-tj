@@ -11,7 +11,6 @@ trait TypeTrait
     #[Groups([
         G::LEGALS,
         G::FAVORITES,
-        G::BLACK_LISTS,
 
         G::REVIEWS,
         G::REVIEWS_CLIENT,

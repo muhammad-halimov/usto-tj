@@ -28,7 +28,9 @@ class ApiPatchChatController extends AbstractApiPatchController
     {
         /** @var Chat $entity */
         /** @var ChatPatchInput $dto */
-        $this->accessService->checkBlackList($entity->getAuthor(), $entity->getReplyAuthor());
+        // Переключение active — не отправка сообщения, блокировка на это
+        // не распространяется (см. AccessService::checkBlackList — только
+        // "писать" гейтится, всё остальное доступно).
         $entity->setActive($dto->active);
 
         return null;

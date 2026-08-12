@@ -396,18 +396,28 @@ interface AppealReason {
 | GET | `/api/favorites/me` | filter: `type` (CollectionEntryTypeFilter — likely `?type=user` or `?type=ticket`) |
 | POST | `/api/favorites` | body: `{ user?: IRI, ticket?: IRI }` (exactly one) |
 | DELETE | `/api/favorites/{id}` | owner or admin |
-| GET | `/api/black-lists/me` | same filter |
-| POST | `/api/black-lists` | body: `{ user?: IRI, ticket?: IRI }` |
-| DELETE | `/api/black-lists/{id}` | owner or admin |
+| GET | `/api/black-lists/me` | no filters — every entry is a user-block, nothing else |
+| POST | `/api/black-lists` | body: `{ user: IRI }` — blocks that user in chat |
+| DELETE | `/api/black-lists/{id}` | owner or admin — **unblocks** |
 
-Self-referencing is allowed: a user can favorite/blacklist their own `user` IRI or their own `ticket` IRI — no ownership check blocks it server-side. `409 already_added` means this exact `(owner, target)` pair already exists for the caller, not a permission error.
+Self-referencing is allowed: a user can favorite their own `user` IRI or their own `ticket` IRI — no ownership check blocks it server-side. `409 already_added` means this exact `(owner, target)` pair already exists for the caller, not a permission error.
 
 ```ts
 interface CollectionEntryInput { user?: string; ticket?: string; }  // IRIs, mutually exclusive
 interface Favorite  { id: number; type: string; user: User|null; ticket: Ticket|null; createdAt: string; updatedAt: string|null; }
-interface BlackList { id: number; type: string; user: User|null; ticket: Ticket|null; createdAt: string; updatedAt: string|null; }
+
+interface BlackListInput { user: string; }  // IRI, required — no ticket option anymore
+interface BlackList { id: number; user: User; createdAt: string; updatedAt: string|null; }  // no `type`, no `ticket` — a block is always exactly one user
 ```
 `GET /api/favorites/me` additionally hides entries whose target `ticket` isn't `approved` yet, or whose target `user` isn't `active`+`approved` — filtered at the query level, so pagination/`totalItems` reflect only what's actually visible.
+
+**BlackList semantics (redesigned)** — blocking is chat-only and asymmetric:
+- `POST /black-lists { user: IRI }` blocks that user from messaging you. There's no `ticket` variant anymore (removed).
+- Only the **blocked** user is restricted — the one who created the block can still send messages if they want; the restriction targets the block's target, not both sides (previously it blocked both directions).
+- Restriction covers exactly two things: `POST /chats` (starting a new conversation) and `POST /chat-messages` (sending in an existing one, `403 user_blocked`) — plus attaching photos to your own chat message via `upload-images`. Nothing else is gated: reviews, tickets, favoriting, profile viewing all remain fully available to the blocked user, in both directions.
+- Existing chat history is never touched — messages already sent stay visible and unmodified to both parties; the block only prevents *new* writes from the blocked side.
+- `PATCH /chats/{id}` (toggling `active`) is unaffected by blocking — that's not "writing" in this sense.
+- `DELETE /black-lists/{id}` unblocks immediately.
 
 ## 11. TECH SUPPORT
 
@@ -468,7 +478,9 @@ interface TechSupport {
 `TechSupport.STATUSES`: new, renewed, in_progress, resolved, closed, **banned**.
 `TechSupport.PRIORITIES`: 1=Низкий, 2=Средний, 3=Высокий, 4=Экстренный.
 
-**`banned`** — terminal status, reachable only by `ROLE_ADMIN` via `PATCH .../{id}` from any non-banned status (including `closed`); nobody (not even admin) can transition out of it through this endpoint. Once banned, the **author loses all interaction**: `POST /tech-support-messages` and `POST /tech-supports/{id}/upload-images` both return `403 access_denied` for the author/guest — only `ROLE_ADMIN` can still post messages or images on a banned ticket.
+**Status transitions on `PATCH /tech-supports/{id}`**: `ROLE_ADMIN` (incl. `ROLE_SUPER_ADMIN`) can set `status` to *any* value from *any* current value — no restrictions, including out of `banned` (unban). The **author** can only self-transition `resolved → renewed` or `closed → renewed` (reopen — e.g. the ticket was closed with no response, and the client comes back); every other status change by a non-admin returns `403 extra_denied`.
+
+**`banned`** — reachable only by `ROLE_ADMIN`, from any status (including `closed`). While a ticket is `banned`, the **author loses all interaction**: `POST /tech-support-messages` and `POST /tech-supports/{id}/upload-images` both return `403 access_denied` for the author/guest — only `ROLE_ADMIN` can still post messages or images on a banned ticket. Unlike before, admin CAN move it back out of `banned` via `PATCH .../{id}`.
 
 Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tech-supports/{id}/subscribe` or `/tech-supports/inbox-token`), then open an EventSource against the Mercure hub URL with that JWT, subscribed to topic `tech-support:{id}`. Unlike chat, **only new messages are published** (`{"type":"created","data":{...TechSupportMessage...}}`) — editing/deleting a `TechSupportMessage` does *not* emit a Mercure event; poll the normal GET endpoints for that.
 

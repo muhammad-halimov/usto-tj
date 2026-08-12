@@ -42,7 +42,12 @@ class ApiPostChatMessageController extends AbstractApiPostController
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
 
         $this->accessService->check($chat->getReplyAuthor());
-        $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
+
+        // Асимметрично: проверяем, не заблокировал ли ИМЕННО ПОЛУЧАТЕЛЬ
+        // (второй участник чата) отправителя ($bearer) — а не любую блокировку
+        // между сторонами в любом направлении (см. AccessService::checkBlackList).
+        $recipient = $chat->getAuthor() === $bearer ? $chat->getReplyAuthor() : $chat->getAuthor();
+        $this->accessService->checkBlackList($bearer, $recipient);
 
         $chatMessage = (new ChatMessage())
             ->setDescription($dto->description)

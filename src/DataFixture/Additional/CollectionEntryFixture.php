@@ -47,7 +47,7 @@ class CollectionEntryFixture extends Fixture implements DependentFixtureInterfac
         // ── firdawsi's blacklist ──
         foreach (['bobur', 'jasur'] as $clientRef) {
             $bl = new BlackList();
-            $bl->setOwner($firdawsi)->setType('user');
+            $bl->setOwner($firdawsi);
             $bl->setUser($this->getReference($clientRef, User::class));
             $manager->persist($bl);
         }
@@ -68,7 +68,7 @@ class CollectionEntryFixture extends Fixture implements DependentFixtureInterfac
         // ── rudaki's blacklist ──
         foreach (['nodir', 'alisher'] as $masterRef) {
             $bl = new BlackList();
-            $bl->setOwner($rudaki)->setType('user');
+            $bl->setOwner($rudaki);
             $bl->setUser($this->getReference($masterRef, User::class));
             $manager->persist($bl);
         }

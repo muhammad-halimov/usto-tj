@@ -47,34 +47,26 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
     }
 
     /**
-     * Таблица допустимых переходов статуса (машина состояний).
+     * Таблица переходов, доступных АВТОРУ самостоятельно (без админа).
      *
-     * Формат: [текущий статус => [новый статус => 'кто может перевести']]
-     *   'admin'  — только ROLE_ADMIN
-     *   'author' — только автор тикета (пользователь, который его создал)
+     * Формат: [текущий статус => [список статусов, куда автор может перевести сам]]
      *
-     * Переходы:
-     *   new         → in_progress (админ берёт в работу)
-     *   new         → closed      (админ закрывает без ответа)
-     *   new         → banned      (админ блокирует тикет/автора)
-     *   renewed     → in_progress (админ взял повторно открытый тикет)
-     *   renewed     → closed      (админ закрывает)
-     *   renewed     → banned      (админ блокирует)
-     *   in_progress → resolved    (админ отмечает как решённое)
-     *   in_progress → closed      (админ закрывает)
-     *   in_progress → banned      (админ блокирует)
-     *   resolved    → renewed     (автор не согласен — переоткрывает тикет)
-     *   resolved    → closed      (админ закрывает)
-     *   resolved    → banned      (админ блокирует)
-     *   closed      → banned      (админ блокирует уже закрытый тикет)
-     *   banned      → (нет, терминальный статус — даже для админа; заблокировано намеренно)
+     *   resolved → renewed  (автор не согласен с решением — переоткрывает тикет)
+     *   closed   → renewed  (тикет закрыли из-за отсутствия ответа/нерешённости —
+     *                         автор возвращается и продолжает с тем же тикетом,
+     *                         вместо того чтобы заводить новый с нуля)
+     *
+     * ROLE_ADMIN (включая ROLE_SUPER_ADMIN — см. User::getRoles()) переводит
+     * тикет в ЛЮБОЙ статус из ЛЮБОГО, без ограничений этой таблицы — это
+     * полный оverride для модерации/исправления ошибок, в т.ч. разбан
+     * (banned → что угодно). Раньше banned был терминальным даже для админа;
+     * это ограничение снято намеренно — в остальных местах (сообщения, фото)
+     * админ и так уже обходит блокировку banned, самому статусу тоже незачем
+     * быть исключением.
      */
-    private const array TRANSITIONS = [
-        'new'         => ['in_progress' => 'admin', 'closed' => 'admin', 'banned' => 'admin'],
-        'renewed'     => ['in_progress' => 'admin', 'closed' => 'admin', 'banned' => 'admin'],
-        'in_progress' => ['resolved'    => 'admin', 'closed' => 'admin', 'banned' => 'admin'],
-        'resolved'    => ['renewed'     => 'author', 'closed' => 'admin', 'banned' => 'admin'],
-        'closed'      => ['banned'      => 'admin'],
+    private const array AUTHOR_TRANSITIONS = [
+        'resolved' => ['renewed'],
+        'closed'   => ['renewed'],
     ];
 
     /**
@@ -120,18 +112,19 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         if (!in_array($newStatus, array_values(TechSupport::STATUSES), true))
             return $this->errorJson(AppMessages::WRONG_TECH_SUPPORT_STATUS);
 
-        // Смотрим, допустимый ли переход из текущего статуса в новый.
-        // Если текущего статуса нет в таблице (например, 'banned') — переходов нет.
-        $allowed = self::TRANSITIONS[$entity->getStatus()] ?? [];
+        // Админ — без ограничений, любой статус из любого (см. AUTHOR_TRANSITIONS
+        // выше). Это касается и разбана: banned → что угодно тоже разрешено.
+        if ($isAdmin) {
+            $entity->setStatus($newStatus);
+            return null;
+        }
 
-        if (!isset($allowed[$newStatus]))
-            return $this->errorJson(AppMessages::WRONG_TECH_SUPPORT_STATUS);
-
+        // Автор — только узкий список самостоятельных переходов из AUTHOR_TRANSITIONS.
         $isAuthor = $entity->getAuthor() === $bearer;
+        $allowed  = self::AUTHOR_TRANSITIONS[$entity->getStatus()] ?? [];
 
-        // Проверяем, есть ли у пользователя право на этот конкретный переход.
-        if ($allowed[$newStatus] === 'admin'  && !$isAdmin)  return $this->errorJson(AppMessages::EXTRA_DENIED);
-        if ($allowed[$newStatus] === 'author' && !$isAuthor) return $this->errorJson(AppMessages::EXTRA_DENIED);
+        if (!$isAuthor || !in_array($newStatus, $allowed, true))
+            return $this->errorJson(AppMessages::EXTRA_DENIED);
 
         $entity->setStatus($newStatus);
 
