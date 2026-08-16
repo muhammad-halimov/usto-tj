@@ -31,17 +31,19 @@ abstract class AddressComponent
         // "Call to a member function isEmpty() on null".
         $translations = $this->getTranslations();
 
-        if ($translations->isEmpty()) return "Abstract #$this->id";
-
         $titles = [];
 
-        foreach ($translations as $translation) {
-            $title = $translation->getTitle();
+        if (!$translations->isEmpty()) {
+            foreach ($translations as $translation) {
+                $title = $translation->getTitle();
 
-            if ($title !== null && $title !== '') $titles[] = $title;
+                if ($title !== null && $title !== '') $titles[] = $title;
+            }
         }
 
-        return !empty($titles) ? implode(', ', $titles) : "Abstract #$this->id";
+        $label = !empty($titles) ? ' ' . implode(', ', $titles) : '';
+
+        return "#$this->id{$label}";
     }
 
     public function __construct()

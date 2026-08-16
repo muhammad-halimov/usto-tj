@@ -154,7 +154,7 @@ abstract class Appeal implements HasImagesInterface
 
     public function __toString(): string
     {
-        return $this->title ?? "Appeal #$this->id";
+        return "#$this->id" . ($this->title ? " $this->title" : '');
     }
 
     public function getId(): ?int

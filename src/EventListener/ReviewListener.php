@@ -2,11 +2,15 @@
 
 namespace App\EventListener;
 
+use App\Entity\Extra\EntityRevision;
 use App\Entity\Review\Review;
+use App\Entity\User;
 use App\Repository\Review\ReviewRepository;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
+use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * Пересчитывает средний рейтинг пользователя при любом изменении его отзывов.
@@ -24,6 +28,7 @@ use Doctrine\ORM\Events;
  *   независимо от того, откуда пришло изменение.
  */
 #[AsEntityListener(event: Events::postPersist, entity: Review::class)]
+#[AsEntityListener(event: Events::preUpdate, entity: Review::class)]
 #[AsEntityListener(event: Events::postUpdate, entity: Review::class)]
 #[AsEntityListener(event: Events::preRemove, entity: Review::class)]
 #[AsEntityListener(event: Events::postRemove, entity: Review::class)]
@@ -32,10 +37,42 @@ class ReviewListener
     // Хранит клон отзыва между preRemove и postRemove (см. объяснение выше)
     private ?Review $removedReview = null;
 
+    /**
+     * @var array<int, array<string, array{old: mixed, new: mixed}>> Отзывы (по
+     * spl_object_id) → старые значения редактируемых полей, для записи
+     * EntityRevision в postUpdate (audit trail, тот же приём, что в
+     * TicketListener/ChatMessageListener — changeset доступен только в
+     * preUpdate, персистить новую сущность внутри preUpdate нельзя).
+     */
+    private array $pendingRevision = [];
+
     public function __construct(
         private readonly ReviewRepository       $reviewRepository,
-        private readonly EntityManagerInterface $entityManager
+        private readonly EntityManagerInterface $entityManager,
+        private readonly Security               $security,
     ){}
+
+    /**
+     * Редактируются description и rating (см. ApiPatchReviewController) —
+     * версионируем оба, фото логируются отдельно (см. syncImages() в
+     * AbstractApiHelperController).
+     */
+    public function preUpdate(Review $review, PreUpdateEventArgs $event): void
+    {
+        $snapshot = [];
+        foreach (['description', 'rating'] as $field) {
+            if ($event->hasChangedField($field)) {
+                $snapshot[$field] = [
+                    'old' => $event->getOldValue($field),
+                    'new' => $event->getNewValue($field),
+                ];
+            }
+        }
+
+        if ($snapshot) {
+            $this->pendingRevision[spl_object_id($review)] = $snapshot;
+        }
+    }
 
     /**
      * После создания отзыва пересчитываем рейтинг
@@ -52,6 +89,28 @@ class ReviewListener
     public function postUpdate(Review $review): void
     {
         $this->recalculateUserRating($review);
+
+        $key = spl_object_id($review);
+        if (!isset($this->pendingRevision[$key])) return;
+
+        $snapshot = $this->pendingRevision[$key];
+        unset($this->pendingRevision[$key]);
+
+        $revision = (new EntityRevision())
+            ->setEntityType('review')
+            ->setEntityId($review->getId())
+            ->setParentId($review->getTicket()?->getId())
+            ->setEntity('Ticket')
+            ->setAction(EntityRevision::ACTION_UPDATED)
+            ->setSnapshot($snapshot)
+            ->setActor($this->currentUser());
+
+        // Свой явный flush обязателен: recalculateUserRating() выше флашит
+        // только УСЛОВНО (при пустом рейтинге просто return без flush) и в
+        // любом случае persist() ниже вызван уже после её собственного
+        // flush — не попал бы в него, даже если бы он случился.
+        $this->entityManager->persist($revision);
+        $this->entityManager->flush();
     }
 
     /**
@@ -144,5 +203,13 @@ class ReviewListener
         $ticket->setReviewsCount(max(0, $ticket->getReviewsCount() + $delta));
         $this->entityManager->persist($ticket);
         $this->entityManager->flush();
+    }
+
+    private function currentUser(): ?User
+    {
+        /** @var User|null $user */
+        $user = $this->security->getUser();
+
+        return $user;
     }
 }

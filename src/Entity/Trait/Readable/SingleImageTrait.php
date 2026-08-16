@@ -29,7 +29,7 @@ trait SingleImageTrait
 
     public function __toString(): string
     {
-        return $this->image ?? '';
+        return "#$this->id" . ($this->image ? " $this->image" : '');
     }
 
     /**

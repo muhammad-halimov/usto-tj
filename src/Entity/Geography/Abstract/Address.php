@@ -43,7 +43,9 @@ class Address
         if ($this->community)  $parts[] = (string) $this->community;
         if ($this->village)    $parts[] = (string) $this->village;
 
-        return !empty($parts) ? implode(', ', $parts) : 'Адрес #' . ($this->id ?? 'новый');
+        $label = !empty($parts) ? implode(', ', $parts) : 'Адрес';
+
+        return '#' . ($this->id ?? 'новый') . " $label";
     }
 
     public function __toArray(): array

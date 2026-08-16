@@ -23,9 +23,9 @@ class Education
     public function __toString(): string
     {
         if ($this->beginning && $this->ending)
-            return "$this->title, $this->beginning - $this->ending";
+            return "#$this->id $this->title, $this->beginning - $this->ending";
 
-        return $this->title ?? "Education #$this->id";
+        return "#$this->id" . ($this->title ? " $this->title" : '');
     }
 
     #[ORM\Id]

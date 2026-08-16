@@ -20,7 +20,7 @@ class AppealReview extends Appeal
     {
         $title = $this->getTitle();
         $id    = $this->getId();
-        return $title ? "Жалоба на отзыв #$id: $title" : "Жалоба на отзыв #$id";
+        return "#$id Жалоба на отзыв" . ($title ? ": $title" : '');
     }
 
     #[ORM\ManyToOne(inversedBy: 'appealReviews')]

@@ -3,6 +3,9 @@
 namespace App\Entity\Extra;
 
 use ApiPlatform\Metadata\ApiProperty;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use App\Controller\Api\CRUD\DELETE\Extra\MultipleImage\ApiDeleteMultipleImageController;
 use App\Entity\Appeal\Appeal\Appeal;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
@@ -26,10 +29,26 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
  * галереи, тикеты, чаты, обращения, отзывы, техподдержка.
  *
  * Связи опциональны — заполняется только та, к которой относится изображение.
+ *
+ * Единственная API-операция — Delete, и только для ROLE_ADMIN/ROLE_SUPER_ADMIN
+ * (см. ApiDeleteMultipleImageController::getUserGrade()): позволяет админу
+ * убрать фото у ЛЮБОЙ сущности напрямую по ID фото, не редактируя саму
+ * сущность через её собственный PATCH (тот способ доступен только автору/
+ * участнику, см. syncImages()). Get/Post/Patch намеренно не заведены —
+ * загрузка/просмотр фото всегда идёт через владельца (upload-images, PATCH).
  */
 #[ORM\Entity]
 #[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
+#[ApiResource(
+    operations: [
+        new Delete(
+            uriTemplate: '/multiple-images/{id}',
+            requirements: ['id' => '\d+'],
+            controller: ApiDeleteMultipleImageController::class,
+        ),
+    ],
+)]
 class MultipleImage
 {
     use SingleImageTrait, CreatedAtTrait, UpdatedAtTrait, PriorityTrait;

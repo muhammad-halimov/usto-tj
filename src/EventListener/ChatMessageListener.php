@@ -3,9 +3,14 @@
 namespace App\EventListener;
 
 use App\Entity\Chat\ChatMessage;
+use App\Entity\Extra\EntityRevision;
+use App\Entity\User;
 use App\Service\Extra\MercurePublisher;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
+use Doctrine\ORM\Event\PreUpdateEventArgs;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * MERCURE — что это такое (простыми словами):
@@ -35,6 +40,7 @@ use Doctrine\ORM\Events;
  */
 
 #[AsEntityListener(event: Events::postPersist, entity: ChatMessage::class)]
+#[AsEntityListener(event: Events::preUpdate, entity: ChatMessage::class)]
 #[AsEntityListener(event: Events::postUpdate, entity: ChatMessage::class)]
 #[AsEntityListener(event: Events::preRemove, entity: ChatMessage::class)]
 #[AsEntityListener(event: Events::postRemove, entity: ChatMessage::class)]
@@ -47,7 +53,34 @@ class ChatMessageListener
      */
     private ?array $removedData = null;
 
-    public function __construct(private readonly MercurePublisher $publisher) {}
+    /**
+     * @var array<int, array{old: ?string, new: ?string}> Сообщения (по spl_object_id) → было/стало,
+     * для записи EntityRevision в postUpdate (audit trail, см. TicketListener
+     * — тот же приём: changeset доступен только в preUpdate, но персистить
+     * новую сущность внутри preUpdate нельзя, только в postUpdate).
+     */
+    private array $pendingRevision = [];
+
+    public function __construct(
+        private readonly MercurePublisher       $publisher,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly Security               $security,
+    ) {}
+
+    /**
+     * Редактируется только description (см. ApiPatchChatMessageController) —
+     * версионируем только его, фото логируются отдельно (см. syncImages()
+     * в AbstractApiHelperController).
+     */
+    public function preUpdate(ChatMessage $message, PreUpdateEventArgs $event): void
+    {
+        if ($event->hasChangedField('description')) {
+            $this->pendingRevision[spl_object_id($message)] = [
+                'old' => $event->getOldValue('description'),
+                'new' => $event->getNewValue('description'),
+            ];
+        }
+    }
 
     /** Вызывается после сохранения нового сообщения в БД */
     public function postPersist(ChatMessage $message): void
@@ -59,6 +92,30 @@ class ChatMessageListener
     public function postUpdate(ChatMessage $message): void
     {
         $this->publish('updated', $message);
+
+        $key = spl_object_id($message);
+        if (!isset($this->pendingRevision[$key])) return;
+
+        $descriptionDiff = $this->pendingRevision[$key];
+        unset($this->pendingRevision[$key]);
+
+        $revision = (new EntityRevision())
+            ->setEntityType('chat_message')
+            ->setEntityId($message->getId())
+            // Родитель — сам Chat (ID диалога), а не его Ticket: сообщение
+            // формально вложено в Chat, Ticket — не прямая связь ChatMessage
+            // (см. коммент на EntityRevision::$parentId).
+            ->setParentId($message->getChat()?->getId())
+            ->setEntity('Chat')
+            ->setAction(EntityRevision::ACTION_UPDATED)
+            ->setSnapshot(['description' => $descriptionDiff])
+            ->setActor($this->currentUser());
+
+        // persist+flush здесь безопасны: postUpdate вызывается уже после
+        // записи изменений ChatMessage в БД, текущий flush завершён
+        // (тот же приём, что в TicketListener).
+        $this->entityManager->persist($revision);
+        $this->entityManager->flush();
     }
 
     /**
@@ -108,5 +165,13 @@ class ChatMessageListener
     private function topic(int $chatId): string
     {
         return "chat:{$chatId}";
+    }
+
+    private function currentUser(): ?User
+    {
+        /** @var User|null $user */
+        $user = $this->security->getUser();
+
+        return $user;
     }
 }

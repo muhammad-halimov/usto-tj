@@ -73,7 +73,7 @@ class TicketCrudController extends AbstractCrudController
 
         yield BooleanField::new('negotiableBudget', 'Договорная цена')
             ->addCssClass("form-switch")
-            ->setColumns(6);
+            ->setColumns(4);
 
         yield AssociationField::new('author', 'Клиент')
             ->setQueryBuilder($this->nonAdminQb())

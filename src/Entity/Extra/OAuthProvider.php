@@ -20,11 +20,11 @@ class OAuthProvider
 
     public function __toString(): string
     {
-        if ($this->provider !== '') return $this->provider;
+        if ($this->provider !== '') return "#$this->id $this->provider";
 
         return $this->providerId !== ''
-            ? "OAuth provider ID {$this->providerId}"
-            : 'Новый OAuth provider';
+            ? "#$this->id OAuth provider ID {$this->providerId}"
+            : "#$this->id Новый OAuth provider";
     }
 
     #[ORM\Id]

@@ -231,9 +231,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $roles = implode(',', $this->roles);
 
-        if($this->name && $this->surname) return "ID #$this->id, $this->name $this->surname, ({$this->getEmail()}), [$roles]";
+        if($this->name && $this->surname) return "#$this->id, $this->name $this->surname, ({$this->getEmail()}), [$roles]";
 
-        return $this->getEmail() ?? "";
+        return "#$this->id" . ($this->getEmail() ? ", {$this->getEmail()}" : '');
     }
 
     public function __construct()

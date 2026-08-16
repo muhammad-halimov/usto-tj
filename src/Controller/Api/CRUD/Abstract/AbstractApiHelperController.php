@@ -4,9 +4,11 @@ namespace App\Controller\Api\CRUD\Abstract;
 
 use App\ApiResource\AppMessages;
 use App\Entity\Contract\HasImagesInterface;
+use App\Entity\Extra\EntityRevision;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\User;
 use App\Service\Extra\AccessService;
+use App\Service\Extra\EntityDirectoryNamerService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Exception\ORMException;
 use Doctrine\ORM\OptimisticLockException;
@@ -17,6 +19,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Contracts\Service\Attribute\Required;
+use Vich\UploaderBundle\Mapping\PropertyMapping;
 
 /**
  * Базовый контроллер для всех API-эндпоинтов.
@@ -44,11 +47,12 @@ use Symfony\Contracts\Service\Attribute\Required;
  */
 abstract class AbstractApiHelperController extends AbstractController
 {
-    protected Security               $security;
-    protected AccessService          $accessService;
-    protected EntityManagerInterface $entityManager;
-    protected RequestStack           $requestStack;
-    protected SerializerInterface    $serializer;
+    protected Security                  $security;
+    protected AccessService             $accessService;
+    protected EntityManagerInterface    $entityManager;
+    protected RequestStack              $requestStack;
+    protected SerializerInterface       $serializer;
+    protected EntityDirectoryNamerService $directoryNamer;
 
     /**
      * Setter-injection базовых зависимостей.
@@ -57,17 +61,19 @@ abstract class AbstractApiHelperController extends AbstractController
      */
     #[Required]
     public function setBaseDependencies(
-        Security               $security,
-        AccessService          $accessService,
-        EntityManagerInterface $entityManager,
-        RequestStack           $requestStack,
-        SerializerInterface    $serializer
+        Security                  $security,
+        AccessService             $accessService,
+        EntityManagerInterface    $entityManager,
+        RequestStack              $requestStack,
+        SerializerInterface       $serializer,
+        EntityDirectoryNamerService $directoryNamer,
     ): void {
-        $this->security      = $security;
-        $this->accessService = $accessService;
-        $this->entityManager = $entityManager;
-        $this->requestStack  = $requestStack;
-        $this->serializer    = $serializer;
+        $this->security       = $security;
+        $this->accessService  = $accessService;
+        $this->entityManager  = $entityManager;
+        $this->requestStack   = $requestStack;
+        $this->serializer     = $serializer;
+        $this->directoryNamer = $directoryNamer;
     }
 
     /**
@@ -286,11 +292,35 @@ abstract class AbstractApiHelperController extends AbstractController
             $imagesParam
         ));
 
+        // Собираем все удаляемые за этот вызов фото в один массив — если PATCH
+        // убирает несколько фото сразу, это ОДНА запись EntityRevision со
+        // списком, а не по записи на каждое (см. logImagesDeletion()).
+        // Логируем ДО removeImage(): она обнуляет обратную связь на самом
+        // MultipleImage (см. Ticket::removeImage() — $image->setTicket(null)
+        // и аналоги), а buildImagePath() внутри logImagesDeletion() как раз
+        // читает эту связь, чтобы определить папку — после removeImage() она
+        // уже пуста, путь ушёл бы в "misc" вместо настоящей директории.
+        $removedImages = [];
         foreach ($entity->getImages()->toArray() as $existing) {
             if (!in_array($existing->getImage(), $incomingNames, true)) {
-                $entity->removeImage($existing);
-                $this->entityManager->remove($existing);
+                $removedImages[] = $existing;
             }
+        }
+        $this->logImagesDeletion($removedImages, $entity, $bearer);
+
+        foreach ($removedImages as $existing) {
+            // НЕ $entity->removeImage($existing) — тот домен-метод ещё и
+            // обнуляет обратную связь ($existing->setTicket(null) и т.п.),
+            // а VichUploaderBundle сам читает её в СВОЁМ preRemove-листенере,
+            // чтобы понять, из какой папки физически удалить файл (та же
+            // EntityDirectoryNamerService, что и у buildImagePath() выше).
+            // Обнули её раньше времени — Vich так же попадёт на "misc" и
+            // ничего не удалит с диска, файл осиротеет. Просто убираем
+            // элемент из коллекции (нужно только чтобы дальнейшие циклы
+            // ниже — existingByName/добавление новых — не видели удаляемое
+            // фото), связь остаётся нетронутой до самого DELETE в БД.
+            $entity->getImages()->removeElement($existing);
+            $this->entityManager->remove($existing);
         }
 
         $existingByName = [];
@@ -315,5 +345,81 @@ abstract class AbstractApiHelperController extends AbstractController
                 $this->entityManager->persist($newImage);
             }
         }
+    }
+
+    /**
+     * Lог удаления фото (audit trail, см. EntityRevision) — единая точка
+     * для ВСЕХ сущностей с изображениями: как для syncImages() (удаление —
+     * побочный эффект PATCH владельца, возможно сразу нескольких фото), так
+     * и для ApiDeleteMultipleImageController (прямое админское удаление
+     * одного фото — вызывается с массивом из одного элемента). Один
+     * EntityRevision на весь $images — если удалили 3 фото за один запрос,
+     * это одна запись со списком из 3, а не 3 отдельные записи. Фото не
+     * редактируется, только удаляется, поэтому action всегда ACTION_DELETED,
+     * а не снимок "было/стало" как у текстовых сущностей.
+     *
+     * protected (не private): нужен из ApiDeleteMultipleImageController,
+     * который лежит в другом неймспейсе.
+     *
+     * @param MultipleImage[] $images
+     */
+    protected function logImagesDeletion(array $images, HasImagesInterface $parent, User $bearer): void
+    {
+        if (!$images) return;
+
+        $parentId = method_exists($parent, 'getId') ? $parent->getId() : null;
+
+        $revision = (new EntityRevision())
+            ->setEntityType('multiple_image')
+            // Единого ID на несколько удалённых фото не бывает — берём
+            // первое, полный список (с полными путями) — в $snapshot ниже.
+            ->setEntityId($images[0]->getId())
+            ->setParentId($parentId)
+            ->setEntity((new \ReflectionClass($parent))->getShortName())
+            ->setAction(EntityRevision::ACTION_DELETED)
+            ->setSnapshot([
+                'images' => array_map(
+                    fn(MultipleImage $image) => ['image' => $this->buildImagePath($image, $parent)],
+                    $images
+                ),
+            ])
+            ->setActor($bearer);
+
+        $this->entityManager->persist($revision);
+    }
+
+    /**
+     * Определяет, какой сущности принадлежит фото — у MultipleImage связи с
+     * владельцами опциональны и взаимоисключающи (заполнена ровно одна, см.
+     * докблок класса), поэтому просто берём первую непустую. Нужен
+     * ApiDeleteMultipleImageController — там, в отличие от syncImages(),
+     * владелец заранее неизвестен (удаляют по ID самого фото, а не через
+     * PATCH владельца).
+     */
+    protected function resolveImageParent(MultipleImage $image): ?HasImagesInterface
+    {
+        return $image->getTicket()
+            ?? $image->getReview()
+            ?? $image->getChatMessage()
+            ?? $image->getTechSupportMessage()
+            ?? $image->getTechSupport()
+            ?? $image->getGallery()
+            ?? $image->getAppeal();
+    }
+
+    /**
+     * Полный путь до файла фото (не просто имя) — тот же
+     * uri_prefix/директория, что реально отдаёт Vich (см.
+     * config/packages/vich_uploader.yaml и EntityDirectoryNamerService,
+     * которую переиспользуем напрямую, а не дублируем её match(...) здесь
+     * третий раз). PropertyMapping тут — формальность: сигнатура
+     * DirectoryNamerInterface требует его, но сама реализация
+     * directoryName() его не читает, поэтому значения полей не важны.
+     */
+    private function buildImagePath(MultipleImage $image, HasImagesInterface $parent): string
+    {
+        $directory = $this->directoryNamer->directoryName($image, new PropertyMapping('imageFile', 'image'));
+
+        return "/uploads/{$directory}/{$image->getImage()}";
     }
 }

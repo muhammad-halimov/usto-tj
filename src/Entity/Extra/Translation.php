@@ -26,7 +26,7 @@ class Translation
 
     public function __toString(): string
     {
-        return $this->title ?? "Translation #$this->id";
+        return "#$this->id" . ($this->title ? " $this->title" : '');
     }
 
     public function __toArray(): array

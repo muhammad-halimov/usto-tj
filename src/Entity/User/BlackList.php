@@ -64,7 +64,7 @@ class BlackList
 
     public function __toString(): string
     {
-        return "BlackList #{$this->id}";
+        return "#{$this->id} BlackList";
     }
 
     #[ORM\Id]

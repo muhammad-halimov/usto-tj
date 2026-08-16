@@ -85,7 +85,7 @@ class Gallery implements HasImagesInterface
 
     public function __toString(): string
     {
-        return "Gallery #$this->id";
+        return "#$this->id Gallery";
     }
 
     #[ORM\Id]

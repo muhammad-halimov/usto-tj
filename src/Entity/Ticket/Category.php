@@ -53,17 +53,19 @@ class Category
 
     public function __toString(): string
     {
-        if ($this->translations->isEmpty()) return "Category #$this->id";
-
         $titles = [];
 
-        foreach ($this->translations as $translation) {
-            $title = $translation->getTitle();
+        if (!$this->translations->isEmpty()) {
+            foreach ($this->translations as $translation) {
+                $title = $translation->getTitle();
 
-            if ($title !== null && $title !== '') $titles[] = $title;
+                if ($title !== null && $title !== '') $titles[] = $title;
+            }
         }
 
-        return !empty($titles) ? implode(', ', $titles) : "Category #$this->id";
+        $label = !empty($titles) ? ' ' . implode(', ', $titles) : '';
+
+        return "#$this->id{$label}";
     }
 
     public function __construct()

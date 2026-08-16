@@ -49,7 +49,7 @@ class Legal
 
     public function __toString(): string
     {
-        return $this->title ?? "Legal #{$this->id}";
+        return "#{$this->id}" . ($this->title ? " $this->title" : '');
     }
 
     public const array TYPES = [

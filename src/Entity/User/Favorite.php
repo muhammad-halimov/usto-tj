@@ -49,6 +49,6 @@ class Favorite extends AbstractCollectionEntry
 {
     public function __toString(): string
     {
-        return "Favorite #{$this->id}";
+        return "#{$this->id} Favorite";
     }
 }

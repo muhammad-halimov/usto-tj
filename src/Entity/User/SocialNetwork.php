@@ -19,7 +19,7 @@ class SocialNetwork
 
     public function __toString(): string
     {
-        return $this->network ?? "Social Network #$this->id";
+        return "#$this->id" . ($this->network ? " $this->network" : '');
     }
 
     const array NETWORKS = [

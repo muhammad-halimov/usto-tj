@@ -58,7 +58,7 @@ class AppealReason
     public function __toString(): string
     {
         if ($this->translations->isEmpty()) {
-            return $this->code ?? "AppealReason #$this->id";
+            return "#$this->id" . ($this->code ? " $this->code" : '');
         }
 
         $titles = [];
@@ -69,7 +69,9 @@ class AppealReason
             }
         }
 
-        return !empty($titles) ? implode(', ', $titles) : ($this->code ?? "AppealReason #$this->id");
+        $label = !empty($titles) ? implode(', ', $titles) : $this->code;
+
+        return "#$this->id" . ($label ? " $label" : '');
     }
 
     #[ORM\Id]

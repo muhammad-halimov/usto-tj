@@ -108,7 +108,7 @@ class Chat
 
     public function __toString(): string
     {
-        return "Chat #$this->id";
+        return "#$this->id Chat";
     }
 
     #[ORM\Id]

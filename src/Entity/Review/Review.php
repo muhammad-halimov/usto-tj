@@ -124,7 +124,7 @@ class Review implements HasImagesInterface
     public function __toString(): string
     {
         $desc = $this->description ? mb_strimwidth(strip_tags($this->description), 0, 50, '…') : null;
-        return $desc ?? "Review #{$this->id}";
+        return "#{$this->id}" . ($desc ? " $desc" : '');
     }
 
     public const array TYPES = [

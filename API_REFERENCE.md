@@ -185,6 +185,8 @@ interface Ticket {
 }
 ```
 
+`Ticket.approved` is also reset to `false` automatically whenever a content-affecting field changes (`title`, `description`, `notice`, `budget`, `negotiableBudget`, `service`, `active`, `priority`, `category`, `subcategory`, `unit`) — same field list `TicketListener` already used for the admin re-review notification. A previously-approved ticket drops out of public `/tickets` listings again until an admin re-approves. See §15 for the audit trail this now writes.
+
 `Ticket.banned` — not present in `TicketInput`/`TicketPatchInput` at all (never writable via the API, `#[ApiProperty(writable: false)]`), toggled only from EasyAdmin by ROLE_SUPER_ADMIN. While `true`: `PATCH /tickets/{id}` rejects the whole request (`403 access_denied`) before touching *any* field — including otherwise author-writable ones like `active` — and `POST /tickets/{id}/upload-images` rejects the same way for non-admins. Same enforcement point (`ApiPostUniversalImageController::performAdditionalChecks`) also drives the analogous `TechSupport.STATUS_BANNED` lock. Entity-level invariant (enforced in `Ticket::setBanned/setActive/setApproved`, not just at the controller): setting `banned=true` immediately forces `active=false` and `approved=false` (which also drops the ticket out of public `/tickets` listings, since `approved=false` already gates visibility), and while `banned=true` neither field can be flipped back to `true` through any code path — including the `TicketApproval::setApproved(true)` cascade.
 
 ### Category / Unit / Occupation (catalogue, read-only for frontend)
@@ -543,5 +545,50 @@ interface MultipleImage {
 Universal image upload pattern — every resource that has images exposes:
 `POST /api/{resource}/{id}/upload-images` — `multipart/form-data`, field `imageFile[]` (multiple files, each ≤10MB, png/jpeg/jpg/webp) → `{ message: string, count: number }`.
 Reordering/removing already-uploaded images on PATCH: pass `images: [{ image: "<filename>" }, ...]` in entity's Patch DTO (Ticket, Review, Chat message, Gallery, Tech support ticket [admin-only], Tech support message) — order defines new `priority`; filenames omitted from the array are detached.
+
+Admin photo moderation — `DELETE /api/multiple-images/{id}` — **ROLE_ADMIN/ROLE_SUPER_ADMIN only**, no ownership check at all (unlike the PATCH-based removal above, which only the entity's own author/participant can do). Deletes by the photo's own id regardless of which entity owns it — a client-side "which resource is this on" lookup isn't needed. Logs the same `EntityRevision` (`entityType: "multiple_image"`, `action: "deleted"`) as PATCH-triggered removal, so moderation deletions show up in the same audit trail either way.
+
+## 15. AUDIT TRAIL (entity revisions)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/entity-revisions` | **ROLE_ADMIN only**. Filters: `entityType`, `entityId`, `parentId`, `entity`, `action` (all exact) |
+| GET | `/api/entity-revisions/{id}` | **ROLE_ADMIN only** |
+
+No `POST`/`PATCH`/`DELETE` — rows are written only by server-side listeners, never through the API, and physically cannot be modified/removed via it (`405` on both).
+
+```ts
+interface EntityRevision {
+  id: number;
+  entityType: string;              // e.g. "ticket"
+  entityId: number;
+  parentId: number | null;         // id of the entity this one nests under — see below; null if there isn't one
+  entity: string | null;           // short class name of whatever parentId refers to — see below
+  action: 'updated' | 'deleted';
+  snapshot: Record<string, unknown>;  // shape depends on entityType/action — see per-entity notes below
+  actor: User | null;              // who made the change; null if the account was since deleted
+  reason: string | null;           // optional, mostly for moderator deletions
+  expiresAt: string | null;        // when this row becomes eligible for deletion; null = kept forever
+  createdAt: string;
+}
+```
+
+**`parentId`**: the id of whatever directly owns `entityId` (the immediate FK, not the topmost ancestor) — lets you find every revision nested under one object even when they span different `entityType`s. Per `entityType`: `ticket` → always `null` (root of the hierarchy); `chat_message` → the id of its `Chat` (`ChatMessage.chat`, not the chat's `Ticket`); `tech_support_message` → the id of its `TechSupport`; `review` → the id of its `Ticket`; `multiple_image` → the id of whichever entity owned the deleted photo.
+
+**`entity`**: the short class name of whatever `parentId` points to (`"Ticket"`, `"Chat"`, `"TechSupport"`, `"Review"`, `"ChatMessage"`, `"TechSupportMessage"`, `"Gallery"`, `"Appeal"`) — or, for `entityType: "ticket"` (no parent), the class name of the row itself (`"Ticket"`). Lets you filter/group without having to know which `entityType`s nest under which parent. Admin-panel translation table: `EntityRevision::ENTITIES` (`App\Entity\Extra\EntityRevision`).
+
+**Retention**: every revision defaults to `expiresAt = createdAt + 14 days`. A writer can pass `null` instead to keep a specific row forever — nothing currently does, but the field/mechanism supports it. Expiry is not automatic/DB-enforced — actual deletion only happens when `php bin/console app:prune-entity-revisions` runs (cron, not wired up by default in this repo). `expiresAt` is read-only from the API regardless (no write operations on this resource at all).
+
+`entityType` values currently written, and what triggers each. For `action: "updated"`, `snapshot[field]` is always `{ old: <previous value>, new: <value after the edit> }` — both sides included, not just the previous one:
+
+- **`ticket`** — on every `PATCH /tickets/{id}` that changes at least one of `title`/`description`/`notice`/`budget`/`negotiableBudget`/`service`/`active`/`priority`/`category`/`subcategory`/`unit`. `snapshot` contains only the fields that actually changed (association fields like `category`/`subcategory`/`unit` are stored as their id, not the embedded object, on both `old` and `new`). Same trigger also resets `Ticket.approved` to `false` — see §4.
+- **`chat_message`** — on `PATCH /chat-messages/{id}` that changes `description`. `{ action: "updated", snapshot: { description: { old: "...", new: "..." } } }`.
+- **`tech_support_message`** — on `PATCH /tech-support-messages/{id}` that changes `description`. Same shape as `chat_message`.
+- **`review`** — on `PATCH /reviews/{id}` that changes `description` and/or `rating`. `snapshot` contains only whichever of the two actually changed, each as an `{ old, new }` pair.
+- **`multiple_image`** — not an old/new edit-snapshot like the above (deleted photos have no "new" value); `{ action: "deleted" }` whenever one or more existing photos are dropped from any entity's `images` array on PATCH (Ticket/Review/Chat message/Tech support/Tech support message/Gallery/Appeal — anything with `HasImagesInterface`, all funnel through the same `syncImages()` helper), or via `DELETE /api/multiple-images/{id}` (admin moderation, see above). **One row per batch, not per photo** — if a single PATCH drops 3 photos at once, that's one `EntityRevision` listing all 3, not three separate rows. `entityId` is the *first* deleted photo's own id (there's no single id once it's a batch — the full list is in `snapshot`). `snapshot: { images: [{ image: "<full path, e.g. /uploads/tickets/abc123.png>" }, ...] }` — full path (`uri_prefix` + directory + filename, matching what `EntityDirectoryNamerService` actually resolves it to), not just the bare filename.
+
+`reason` is writable from the admin panel only (not set by any listener, not writable via this API at all) — a free-text note an admin can attach after the fact, e.g. to explain a moderator-triggered deletion.
+
+Note: for `chat_message`/`tech_support_message`/`review`, editing is currently allowed by *any* party of the parent relationship (both chat participants, or either review side), not strictly the original message/review author — see the ownership checks on the respective `PATCH` endpoints. `actor` on the revision reflects whoever actually made the request, which may not be the original author.
 
 Every entity uses IRIs (`/api/resource/{id}`) for relations in write payloads (standard API Platform / Hydra convention), and returns embedded objects (or IRIs, depending on `normalizationContext`) on read.

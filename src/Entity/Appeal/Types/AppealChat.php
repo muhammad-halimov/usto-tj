@@ -20,7 +20,7 @@ class AppealChat extends Appeal
     {
         $title = $this->getTitle();
         $id    = $this->getId();
-        return $title ? "Жалоба на чат #$id: $title" : "Жалоба на чат #$id";
+        return "#$id Жалоба на чат" . ($title ? ": $title" : '');
     }
 
     #[ORM\ManyToOne(inversedBy: 'appealChats')]

@@ -9,6 +9,7 @@ use App\Controller\Admin\Appeal\AppealTypes\AppealReviewCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealTicketCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealUserCrudController;
 use App\Controller\Admin\Chat\Chat\ChatCrudController;
+use App\Controller\Admin\Extra\EntityRevisionCrudController;
 use App\Controller\Admin\Gallery\GalleryCrudController;
 use App\Controller\Admin\Geography\City\CityCrudController;
 use App\Controller\Admin\Geography\District\DistrictCrudController;
@@ -66,6 +67,7 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::subMenu('Тех. поддержка', 'fas fa-headset')->setSubItems([
             MenuItem::linkTo(TechSupportCrudController::class, 'Тех. поддержка', 'fas fa-headset'),
             MenuItem::linkTo(TicketApprovalCrudController::class, 'Подтверждение объявлений/услуг', 'fas fa-check-double'),
+            MenuItem::linkTo(EntityRevisionCrudController::class, 'Аудит изменений', 'fas fa-clock-rotate-left'),
         ]);
         yield MenuItem::subMenu('Жалобы', 'fas fa-triangle-exclamation')->setSubItems([
             MenuItem::linkTo(AppealCrudController::class, 'Все жалобы', 'fas fa-list'),
@@ -75,7 +77,6 @@ class DashboardController extends AbstractDashboardController
             MenuItem::linkTo(AppealUserCrudController::class, 'На пользователя', 'fas fa-user-xmark'),
             MenuItem::linkTo(AppealReasonCrudController::class, 'Причины жалоб', 'fas fa-tags'),
         ]);
-
         yield MenuItem::section('Доп. настройки');
         yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([
             MenuItem::linkTo(CityCrudController::class, 'Город', 'fas fa-city'),

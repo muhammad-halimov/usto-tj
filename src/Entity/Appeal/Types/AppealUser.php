@@ -19,6 +19,6 @@ class AppealUser extends Appeal
     {
         $title = $this->getTitle();
         $id    = $this->getId();
-        return $title ? "Жалоба на пользователя #$id: $title" : "Жалоба на пользователя #$id";
+        return "#$id Жалоба на пользователя" . ($title ? ": $title" : '');
     }
 }

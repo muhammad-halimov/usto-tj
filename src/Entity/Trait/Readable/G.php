@@ -42,6 +42,8 @@ final class G
     const string LEGALS      = 'legals:read';
     const string FAVORITES   = 'favorites:read';
     const string BLACK_LISTS = 'blackLists:read';
+
+    const string ENTITY_REVISIONS = 'entityRevisions:read';
     const string GALLERIES   = 'galleries:read';
 
     // ─── Ticket contexts ───────────────────────────────────────────────────

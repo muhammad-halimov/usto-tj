@@ -103,17 +103,17 @@ class Ticket implements HasImagesInterface
 
     public function __toString(): string
     {
-        $label = $this->title ?? "Ticket #$this->id";
+        $label = $this->title ?? 'Ticket';
         $counterpart = $this->author ?? $this->master;
 
-        if (!$counterpart) return "$label - ID #$this->id";
+        if (!$counterpart) return "#$this->id $label";
 
         $roles = array_values(array_diff($counterpart->getRoles(), ['ROLE_USER']));
         $role = $roles[0] ?? 'ROLE_USER';
 
         $fullName = trim(($counterpart->getName() ?? '') . ' ' . ($counterpart->getSurname() ?? ''));
 
-        return "$label - ID #$this->id, ID #{$counterpart->getId()} $fullName, ({$counterpart->getEmail()}), [$role]";
+        return "#$this->id $label - ID #{$counterpart->getId()} $fullName, ({$counterpart->getEmail()}), [$role]";
     }
 
     public function __construct()

@@ -19,6 +19,6 @@ class AppealTicket extends Appeal
     {
         $title = $this->getTitle();
         $id    = $this->getId();
-        return $title ? "Жалоба на услугу/объявление #$id: $title" : "Жалоба на услугу/объявление #$id";
+        return "#$id Жалоба на услугу/объявление" . ($title ? ": $title" : '');
     }
 }
