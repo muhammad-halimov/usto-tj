@@ -31,10 +31,10 @@ use Doctrine\ORM\Events;
 readonly class TechSupportMessageListener
 {
     public function __construct(
-        private MercurePublisher                      $publisher,
         private NotifyNewTechSupportTelegramBotService $telegramNotifier,
         private NotifyNewTechSupportEmailService       $emailNotifier,
-        private NotificationDispatcher                  $dispatcher,
+        private NotificationDispatcher                 $dispatcher,
+        private MercurePublisher                       $publisher,
     ) {}
 
     public function postPersist(TechSupportMessage $message): void

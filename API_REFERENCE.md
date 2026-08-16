@@ -482,7 +482,9 @@ interface TechSupport {
 
 **`banned`** — reachable only by `ROLE_ADMIN`, from any status (including `closed`). While a ticket is `banned`, the **author loses all interaction**: `POST /tech-support-messages` and `POST /tech-supports/{id}/upload-images` both return `403 access_denied` for the author/guest — only `ROLE_ADMIN` can still post messages or images on a banned ticket. Unlike before, admin CAN move it back out of `banned` via `PATCH .../{id}`.
 
-Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tech-supports/{id}/subscribe` or `/tech-supports/inbox-token`), then open an EventSource against the Mercure hub URL with that JWT, subscribed to topic `tech-support:{id}`. Unlike chat, **only new messages are published** (`{"type":"created","data":{...TechSupportMessage...}}`) — editing/deleting a `TechSupportMessage` does *not* emit a Mercure event; poll the normal GET endpoints for that.
+Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tech-supports/{id}/subscribe` or `/tech-supports/inbox-token`), then open an EventSource against the Mercure hub URL with that JWT, subscribed to topic `tech-support:{id}`. Two event types on this topic:
+- `{"type":"created","data":{...TechSupportMessage...}}` — new message posted. Editing/deleting a `TechSupportMessage` does *not* emit an event; poll GET for that.
+- `{"type":"updated","data":{...TechSupport...}}` — status changed via `PATCH /tech-supports/{id}` (by either admin or author's self-transitions). Only fires on an actual status change, not on other field edits (title/description/priority/reason/images PATCHed alone do *not* emit an event). `data` shape matches the normal `TechSupport` GET response.
 
 | Method | Path | Notes |
 |---|---|---|

@@ -10,13 +10,21 @@ use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use App\Service\Extra\LocalizationService;
+use App\Service\Extra\MercurePublisher;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ApiPatchTechSupportController extends AbstractApiPatchController
 {
+    // Проставляется в applyStatusTransition() при успешной смене статуса,
+    // читается в afterFetch() (после flush) — публикуем в Mercure только
+    // когда статус реально поменялся, а не на любой PATCH (title/description
+    // и т.п. правки полей не транслируются, только смена статуса).
+    private bool $statusChanged = false;
+
     public function __construct(
         private readonly TechSupportRepository $techSupportRepository,
-        private readonly LocalizationService $localizationService,
+        private readonly LocalizationService   $localizationService,
+        private readonly MercurePublisher      $publisher,
     ) {}
 
     protected function setSerializationGroups(): array { return G::OPS_TECH_SUPPORT_POST; }
@@ -116,6 +124,7 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         // выше). Это касается и разбана: banned → что угодно тоже разрешено.
         if ($isAdmin) {
             $entity->setStatus($newStatus);
+            $this->statusChanged = true;
             return null;
         }
 
@@ -127,6 +136,7 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
             return $this->errorJson(AppMessages::EXTRA_DENIED);
 
         $entity->setStatus($newStatus);
+        $this->statusChanged = true;
 
         return null;
     }
@@ -137,5 +147,13 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
         if ($entity->getAdministrant()) $this->localizationService->localizeUser($entity->getAdministrant(), $this->getLocale());
         if ($entity->getReason()) $this->localizationService->localizeEntityFull($entity->getReason(), $this->getLocale());
+
+        // Инстантное обновление статуса в чате ТП — тот же топик и тот же
+        // MercurePublisher, что уже используется для новых сообщений
+        // (см. TechSupportMessageListener), просто другой type события.
+        // Фронту не нужно ничего переподключать — тот же подписанный SSE-канал.
+        if ($this->statusChanged) {
+            $this->publisher->publish("tech-support:{$entity->getId()}", 'updated', $entity, G::OPS_TECH_SUPPORT);
+        }
     }
 }
