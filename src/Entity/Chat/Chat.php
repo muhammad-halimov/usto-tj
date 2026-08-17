@@ -202,6 +202,27 @@ class Chat
     private Collection $messages;
 
     /**
+     * Превью последнего сообщения — для списка чатов (инбокса), чтобы фронту
+     * не нужно было отдельным запросом на КАЖДЫЙ чат ходить за
+     * GET /chats/{id}/messages ради одного превью. НЕ ORM-поле — транзиентное,
+     * заполняется контроллером (см. ApiGetMyChatsController/ApiGetChatController)
+     * через setLastMessage() из ChatMessageRepository::findLastMessage() —
+     * один узкий (LIMIT 1) запрос на чат, а не загрузка Chat::$messages целиком.
+     */
+    #[Groups([G::CHATS])]
+    #[ApiProperty(writable: false)]
+    private ?ChatMessage $lastMessage = null;
+
+    /**
+     * Бейдж непрочитанных — та же логика: транзиентное поле, заполняется
+     * контроллером через ChatMessageRepository::countUnread() (COUNT, а не
+     * загрузка самих сообщений).
+     */
+    #[Groups([G::CHATS])]
+    #[ApiProperty(writable: false)]
+    private int $unreadCount = 0;
+
+    /**
      * @var Collection<int, AppealChat>
      */
     #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'chat', cascade: ['all'])]
@@ -370,6 +391,28 @@ class Chat
     public function setHiddenByReplyAuthor(bool $hiddenByReplyAuthor): static
     {
         $this->hiddenByReplyAuthor = $hiddenByReplyAuthor;
+        return $this;
+    }
+
+    public function getLastMessage(): ?ChatMessage
+    {
+        return $this->lastMessage;
+    }
+
+    public function setLastMessage(?ChatMessage $lastMessage): static
+    {
+        $this->lastMessage = $lastMessage;
+        return $this;
+    }
+
+    public function getUnreadCount(): int
+    {
+        return $this->unreadCount;
+    }
+
+    public function setUnreadCount(int $unreadCount): static
+    {
+        $this->unreadCount = $unreadCount;
         return $this;
     }
 

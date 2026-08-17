@@ -209,7 +209,7 @@ interface Occupation { id: number; title: string; description: string|null; imag
 | GET | `/api/chats/{id}/subscribe` | Returns Mercure subscriber JWT for this chat's SSE topic (`chat:{id}`) |
 | GET | `/api/chats/{id}/messages` | Paginated, newest first. Query: `?page=` `?itemsPerPage=` (default 25, max 50) |
 | GET | `/api/chats/inbox-token` | Mercure token covering ALL of the caller's chats (global unread badge) |
-| GET | `/api/chats/me` | Query: `?ticket=<id>` `?active=true|false` |
+| GET | `/api/chats/me` | Query: `?ticket=<id>` `?active=true|false`. Sorted by most-recent-activity first (last message time, or the chat's own `createdAt` if it has no messages yet) |
 | POST | `/api/chats` | body: `ChatPostInput` |
 | POST | `/api/chats/{id}/read` | marks messages read, no body |
 | PATCH | `/api/chats/{id}` | body: `ChatPatchInput` |
@@ -237,6 +237,8 @@ interface Chat {
   ticket: Ticket | null;
   images: MultipleImage[];    // computed: aggregated from all messages, newest first, read-only
   // NOTE: no `messages` field — was a single unbounded array, now GET /chats/{id}/messages instead
+  lastMessage: ChatMessage | null;  // computed, read-only — for inbox previews without a second request per chat
+  unreadCount: number;              // computed, read-only — messages from the OTHER participant with readAt still null
   mercureTopic: string;       // "chat:{id}" — subscribe via Mercure hub using the token from /subscribe
   createdAt: string;
   updatedAt: string | null;

@@ -3,6 +3,7 @@
 namespace App\Repository\Chat;
 
 use App\Entity\Chat\Chat;
+use App\Entity\Chat\ChatMessage;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -28,6 +29,17 @@ class ChatRepository extends ServiceEntityRepository
     {
         $qb = $this
             ->createQueryBuilder('c')
+            // Сортировка по последней активности (новые сверху) — раньше это
+            // считал фронт сам, беря последний элемент Chat.messages (поле
+            // убрали, см. Chat::$messages) — теперь считаем на бэке. LEFT JOIN
+            // + MAX(...), а не коррелированный подзапрос внутри COALESCE —
+            // DQL не разрешает подзапрос аргументом COALESCE ("Expected
+            // Literal, got SELECT"), а через агрегат по JOIN — стандартно.
+            // COALESCE на случай чата совсем без сообщений (только что
+            // создан) — тогда сортируем по времени создания самого чата.
+            ->leftJoin(ChatMessage::class, 'm', 'WITH', 'm.chat = c')
+            ->addSelect('COALESCE(MAX(m.createdAt), c.createdAt) AS HIDDEN lastActivity')
+            ->groupBy('c.id')
             ->where('c.author = :user OR c.replyAuthor = :user')
             // "Удалить чат для меня" (см. Chat::$hiddenByAuthor/$hiddenByReplyAuthor,
             // ApiDeleteChatController) — не показываем в /chats/me чат, который
@@ -41,7 +53,8 @@ class ChatRepository extends ServiceEntityRepository
             // через пайплайн API Platform, где extensions вообще участвуют
             // (тот же случай, что и с /tickets/me — см. докблок ApprovedTicketExtension).
             ->andWhere('NOT (c.author = :user AND c.hiddenByAuthor = true) AND NOT (c.replyAuthor = :user AND c.hiddenByReplyAuthor = true)')
-            ->setParameter('user', $user);
+            ->setParameter('user', $user)
+            ->orderBy('lastActivity', 'DESC');
 
         if ($ticketId !== null) {
             $qb->andWhere('IDENTITY(c.ticket) = :ticketId')
