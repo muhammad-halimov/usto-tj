@@ -45,7 +45,15 @@ class ChatCrudController extends AbstractCrudController
 
         yield BooleanField::new('active', 'Актуально')
             ->addCssClass("form-switch")
-            ->setColumns(12);
+            ->setColumns(1);
+
+        yield BooleanField::new('hiddenByAuthor', 'Сокрыто автором')
+            ->addCssClass("form-switch")
+            ->setColumns(1);
+
+        yield BooleanField::new('hiddenByReplyAuthor', 'Сокрыто ответчиком')
+            ->addCssClass("form-switch")
+            ->setColumns(10);
 
         yield AssociationField::new('author', 'Автор')
             ->setRequired(true)

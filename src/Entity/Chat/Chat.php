@@ -13,6 +13,7 @@ use ApiPlatform\OpenApi\Model\Operation as OpenApiOperation;
 use ApiPlatform\OpenApi\Model\Parameter as OpenApiParameter;
 use App\Controller\Api\CRUD\DELETE\Chat\Chat\ApiDeleteChatController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatController;
+use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatMessagesController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatSubscribeTokenController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetInboxTokenController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetMyChatsController;
@@ -71,6 +72,16 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                 ],
             ),
             normalizationContext: ['groups' => G::OPS_CHATS],
+        ),
+        // Постраничный список сообщений чата — раньше отдавались одним
+        // неограниченным массивом прямо в Chat.messages (см. докблок
+        // ApiGetChatMessagesController). Возвращает ChatMessage, поэтому
+        // normalizationContext — группы ChatMessage (OPS_CHAT_MSGS), а не Chat.
+        new GetCollection(
+            uriTemplate: '/chats/{id}/messages',
+            requirements: ['id' => '\d+'],
+            controller: ApiGetChatMessagesController::class,
+            normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
         ),
         new Post(
             uriTemplate: '/chats',
@@ -134,16 +145,20 @@ class Chat
      * скрыть чат из своего собственного списка, не трогая видимость у
      * второй стороны. Когда ОБА флага (hiddenByAuthor и hiddenByReplyAuthor)
      * становятся true — чат реально удаляется (см. ApiDeleteChatController).
-     * writable: false — выставляется только через DELETE /api/chats/{id},
-     * не через обычный PATCH.
+     *
+     * Без #[Groups] намеренно — служебное поле только для
+     * ChatRepository::findUserChats()/ApiDeleteChatController, наружу через
+     * API не отдаётся: скрывшему чат нет смысла его показывать (он и так не
+     * увидит чат в /chats/me), а показывать второй стороне, что собеседник
+     * скрыл переписку у себя — лишняя утечка чужого намерения.
+     * ApiProperty(writable: false) — доп. подстраховка от записи через
+     * PATCH, хотя ChatPatchInput этих полей и так не содержит.
      */
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
-    #[Groups([G::CHATS])]
     #[ApiProperty(writable: false)]
     private bool $hiddenByAuthor = false;
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
-    #[Groups([G::CHATS])]
     #[ApiProperty(writable: false)]
     private bool $hiddenByReplyAuthor = false;
 
@@ -174,11 +189,15 @@ class Chat
 
     /**
      * @var Collection<int, ChatMessage>
+     *
+     * Больше не сериализуется (см. GET /chats/{id}/messages,
+     * ApiGetChatMessagesController) — неограниченный массив всех сообщений
+     * чата прямо в ответе GET /chats/{id} не масштабировался на длинной
+     * переписке. Сама ORM-связь и cascade остаются как есть, нужны
+     * addMessage()/removeMessage() и внутренней агрегации в getImages() ниже.
      */
     #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'chat', cascade: ['all'])]
-    #[Groups([
-        G::CHATS,
-    ])]
+    #[Ignore]
     #[ApiProperty(writable: false)]
     private Collection $messages;
 

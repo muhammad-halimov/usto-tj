@@ -7,6 +7,7 @@ use App\Entity\Chat\ChatMessage;
 use App\Entity\User;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -38,5 +39,18 @@ class ChatMessageRepository extends ServiceEntityRepository
             ->setParameter('reader', $reader)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Сообщения чата, новые сначала — под пагинацию в
+     * ApiGetChatMessagesController (см. AbstractApiGetCollectionController,
+     * пагинация там накладывается снаружи через Doctrine Paginator).
+     */
+    public function findByChat(Chat $chat): QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->where('m.chat = :chat')
+            ->setParameter('chat', $chat)
+            ->orderBy('m.createdAt', 'DESC');
     }
 }

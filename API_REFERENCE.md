@@ -207,6 +207,7 @@ interface Occupation { id: number; title: string; description: string|null; imag
 |---|---|---|
 | GET | `/api/chats/{id}` | |
 | GET | `/api/chats/{id}/subscribe` | Returns Mercure subscriber JWT for this chat's SSE topic (`chat:{id}`) |
+| GET | `/api/chats/{id}/messages` | Paginated, newest first. Query: `?page=` `?itemsPerPage=` (default 25, max 50) |
 | GET | `/api/chats/inbox-token` | Mercure token covering ALL of the caller's chats (global unread badge) |
 | GET | `/api/chats/me` | Query: `?ticket=<id>` `?active=true|false` |
 | POST | `/api/chats` | body: `ChatPostInput` |
@@ -234,11 +235,9 @@ interface Chat {
   author: User | null;        // read-only (set from bearer on creation)
   replyAuthor: User | null;
   ticket: Ticket | null;
-  messages: ChatMessage[];    // read-only
   images: MultipleImage[];    // computed: aggregated from all messages, newest first, read-only
+  // NOTE: no `messages` field — was a single unbounded array, now GET /chats/{id}/messages instead
   mercureTopic: string;       // "chat:{id}" — subscribe via Mercure hub using the token from /subscribe
-  hiddenByAuthor: boolean;      // read-only, see "Delete for me" below
-  hiddenByReplyAuthor: boolean; // read-only, see "Delete for me" below
   createdAt: string;
   updatedAt: string | null;
 }
@@ -257,7 +256,9 @@ interface ChatMessage {
 ```
 Real-time: Mercure. Fetch a subscribe token (`/chats/{id}/subscribe` or `/chats/inbox-token`), then open an EventSource against the Mercure hub URL with that JWT, subscribed to topic `chat:{id}` (per-chat) — hub URL is not part of this API's JSON, get it from app config/`.well-known/mercure` discovery.
 
-**"Delete for me"** (`DELETE /api/chats/{id}`): not a hard delete for either party by itself. It sets the caller's own `hiddenByAuthor`/`hiddenByReplyAuthor` flag (whichever one matches which side of the chat they're on) and always returns `204`. A chat hidden by the caller stops showing up in **that caller's own** `GET /api/chats/me` — the other participant still sees it normally, and `GET /api/chats/{id}` by direct id still works for both sides regardless of either flag (hiding only affects the list, not direct access). Once **both** flags are `true` (both sides called `DELETE`), the chat — and its messages/photos — are actually deleted, in that same request that flips the second flag. Calling `DELETE` again after already hiding it is a no-op (still `204`).
+**"Delete for me"** (`DELETE /api/chats/{id}`): not a hard delete for either party by itself. It sets a per-participant hidden flag (internal only — not part of the `Chat` shape above, not exposed via the API at all: no reason to tell the caller a chat they hid is hidden, and no reason to tell the other participant their counterpart hid it) and always returns `204`. A chat hidden by the caller stops showing up in **that caller's own** `GET /api/chats/me` — the other participant still sees it normally, and `GET /api/chats/{id}` by direct id still works for both sides regardless of either flag (hiding only affects the list, not direct access). Once **both** sides have called `DELETE`, the chat — and its messages/photos — are actually deleted, in that same request that flips the second flag. Calling `DELETE` again after already hiding it is a no-op (still `204`).
+
+Hiding isn't permanent by itself: `POST /chat-messages` on that chat resets **both** hidden flags back to `false`, regardless of which side sends it or which side hid it — a chat with new activity un-hides for everyone rather than staying hidden forever with no way back.
 
 ## 6. GEOGRAPHY
 

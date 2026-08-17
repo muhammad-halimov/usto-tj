@@ -59,6 +59,14 @@ class ApiPostChatMessageController extends AbstractApiPostController
 
         $chat->addMessage($chatMessage);
 
+        // Новое сообщение "возвращает" чат в /chats/me обеим сторонам, даже
+        // если одна (или обе) до этого скрыли его через "Удалить чат для
+        // меня" (см. Chat::$hiddenByAuthor/$hiddenByReplyAuthor,
+        // ApiDeleteChatController) — иначе скрытый чат оставался бы скрытым
+        // навсегда, даже когда в нём появляется новая непрочитанная переписка.
+        $chat->setHiddenByAuthor(false);
+        $chat->setHiddenByReplyAuthor(false);
+
         $this->flush();
 
         return $chatMessage;
