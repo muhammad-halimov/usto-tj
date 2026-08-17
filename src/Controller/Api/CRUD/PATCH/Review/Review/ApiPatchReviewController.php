@@ -10,6 +10,7 @@ use App\Entity\Review\Review;
 use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use App\Service\Extra\LocalizationService;
+use DateTimeImmutable;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ApiPatchReviewController extends AbstractApiPatchController
@@ -27,6 +28,13 @@ class ApiPatchReviewController extends AbstractApiPatchController
         /** @var Review $entity */
         if ($bearer !== $entity->getClient() && $bearer !== $entity->getMaster())
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+
+        // Отзыв можно редактировать только в течение 24 часов после создания —
+        // дальше он считается "устоявшимся" (на него уже могли ссылаться в
+        // рейтинге/споре), поэтому правка закрывается насовсем, не только
+        // владением проверяем.
+        if ($entity->getCreatedAt() < new DateTimeImmutable('-24 hours'))
+            return $this->errorJson(AppMessages::REVIEW_EDIT_WINDOW_EXPIRED);
 
         return null;
     }

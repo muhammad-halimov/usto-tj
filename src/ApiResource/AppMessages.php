@@ -106,6 +106,7 @@ class AppMessages
     const string REVIEW_NOT_CLIENT              = 'review_not_client';
     const string REVIEW_MASTER_ROLE_MISMATCH    = 'review_master_role_mismatch';
     const string REVIEW_MASTER_SERVICE_MISMATCH = 'review_master_service_mismatch';
+    const string REVIEW_EDIT_WINDOW_EXPIRED     = 'review_edit_window_expired';
 
     // ── Role ──────────────────────────────────────────────────────────────────
     const string ROLE_ALREADY_ADMIN             = 'role_already_admin';
@@ -227,6 +228,7 @@ class AppMessages
         self::REVIEW_NOT_CLIENT              => ['http' => 403, 'messages' => ['tj' => 'Шумо бидуни муштарӣ будан наметавонед баррасии устод гузоред',                             'eng' => "You can't post a master review while not being a client",       'ru' => 'Нельзя оставить отзыв мастеру, не будучи клиентом']],
         self::REVIEW_MASTER_ROLE_MISMATCH    => ['http' => 403, 'messages' => ['tj' => 'Нақши устод мувофиқ нест',                                                                 'eng' => "Master's role doesn't match",                                  'ru' => 'Роль мастера не совпадает']],
         self::REVIEW_MASTER_SERVICE_MISMATCH => ['http' => 404, 'messages' => ['tj' => 'Хизмати устод мувофиқ нест',                                                               'eng' => "Master's service doesn't match",                               'ru' => 'Услуга мастера не совпадает']],
+        self::REVIEW_EDIT_WINDOW_EXPIRED     => ['http' => 403, 'messages' => ['tj' => 'Мӯҳлати таҳрири баррасӣ гузаштааст',                                                        'eng' => 'Review can no longer be edited — the 24-hour edit window has expired', 'ru' => 'Отзыв больше нельзя редактировать — истёк 24-часовой период редактирования']],
         // Role
         self::ROLE_ALREADY_ADMIN             => ['http' => 403, 'messages' => ['tj' => 'Шумо администратор ҳастед',                                                                'eng' => "You're admin",                                                 'ru' => 'Вы администратор']],
         self::ROLE_ALREADY_MASTER            => ['http' => 403, 'messages' => ['tj' => 'Шумо устод ҳастед',                                                                        'eng' => "You're master",                                                'ru' => 'Вы мастер']],
