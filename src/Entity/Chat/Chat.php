@@ -129,6 +129,24 @@ class Chat
     ])]
     private ?bool $active = null;
 
+    /**
+     * "Удалить чат для меня" (см. ApiDeleteChatController) — участник может
+     * скрыть чат из своего собственного списка, не трогая видимость у
+     * второй стороны. Когда ОБА флага (hiddenByAuthor и hiddenByReplyAuthor)
+     * становятся true — чат реально удаляется (см. ApiDeleteChatController).
+     * writable: false — выставляется только через DELETE /api/chats/{id},
+     * не через обычный PATCH.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    #[Groups([G::CHATS])]
+    #[ApiProperty(writable: false)]
+    private bool $hiddenByAuthor = false;
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    #[Groups([G::CHATS])]
+    #[ApiProperty(writable: false)]
+    private bool $hiddenByReplyAuthor = false;
+
     #[ORM\ManyToOne(inversedBy: 'messageAuthor')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
@@ -311,6 +329,28 @@ class Chat
     public function setActive(?bool $active): static
     {
         $this->active = $active;
+        return $this;
+    }
+
+    public function getHiddenByAuthor(): bool
+    {
+        return $this->hiddenByAuthor;
+    }
+
+    public function setHiddenByAuthor(bool $hiddenByAuthor): static
+    {
+        $this->hiddenByAuthor = $hiddenByAuthor;
+        return $this;
+    }
+
+    public function getHiddenByReplyAuthor(): bool
+    {
+        return $this->hiddenByReplyAuthor;
+    }
+
+    public function setHiddenByReplyAuthor(bool $hiddenByReplyAuthor): static
+    {
+        $this->hiddenByReplyAuthor = $hiddenByReplyAuthor;
         return $this;
     }
 

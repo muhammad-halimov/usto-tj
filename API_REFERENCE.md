@@ -212,7 +212,7 @@ interface Occupation { id: number; title: string; description: string|null; imag
 | POST | `/api/chats` | body: `ChatPostInput` |
 | POST | `/api/chats/{id}/read` | marks messages read, no body |
 | PATCH | `/api/chats/{id}` | body: `ChatPatchInput` |
-| DELETE | `/api/chats/{id}` | |
+| DELETE | `/api/chats/{id}` | "Delete for me" — see below, not a hard delete |
 
 | Method | Path | Notes |
 |---|---|---|
@@ -237,6 +237,8 @@ interface Chat {
   messages: ChatMessage[];    // read-only
   images: MultipleImage[];    // computed: aggregated from all messages, newest first, read-only
   mercureTopic: string;       // "chat:{id}" — subscribe via Mercure hub using the token from /subscribe
+  hiddenByAuthor: boolean;      // read-only, see "Delete for me" below
+  hiddenByReplyAuthor: boolean; // read-only, see "Delete for me" below
   createdAt: string;
   updatedAt: string | null;
 }
@@ -254,6 +256,8 @@ interface ChatMessage {
 }
 ```
 Real-time: Mercure. Fetch a subscribe token (`/chats/{id}/subscribe` or `/chats/inbox-token`), then open an EventSource against the Mercure hub URL with that JWT, subscribed to topic `chat:{id}` (per-chat) — hub URL is not part of this API's JSON, get it from app config/`.well-known/mercure` discovery.
+
+**"Delete for me"** (`DELETE /api/chats/{id}`): not a hard delete for either party by itself. It sets the caller's own `hiddenByAuthor`/`hiddenByReplyAuthor` flag (whichever one matches which side of the chat they're on) and always returns `204`. A chat hidden by the caller stops showing up in **that caller's own** `GET /api/chats/me` — the other participant still sees it normally, and `GET /api/chats/{id}` by direct id still works for both sides regardless of either flag (hiding only affects the list, not direct access). Once **both** flags are `true` (both sides called `DELETE`), the chat — and its messages/photos — are actually deleted, in that same request that flips the second flag. Calling `DELETE` again after already hiding it is a no-op (still `204`).
 
 ## 6. GEOGRAPHY
 
@@ -496,6 +500,8 @@ Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tec
 | DELETE | `/api/tech-support-messages/{id}` | |
 | POST | `/api/tech-support-messages/{id}/upload-images` | multipart `imageFile[]` |
 
+Photo-only messages (no text): send `description: ""` on `POST /tech-support-messages`, then attach the photo via the separate `upload-images` call — same two-step pattern as `ChatMessage`. Only an actually-*missing* `description` (`null`/omitted) is rejected (`400 empty_text`); an empty string passes through.
+
 ```ts
 interface TechSupportMessagePostInput  { techSupport?: string /* IRI */; description?: string; }
 interface TechSupportMessagePatchInput { description?: string; images?: { image: string }[]; }  // images: same syncImages() mechanism as ChatMessagePatchInput — reorder/prune by filename, either field alone is enough (400 nothing_to_update if both omitted)
@@ -567,6 +573,10 @@ interface EntityRevision {
   action: 'updated' | 'deleted';
   snapshot: Record<string, unknown>;  // shape depends on entityType/action — see per-entity notes below
   actor: User | null;              // who made the change; null if the account was since deleted
+  actorLabel: string | null;       // actor's email, snapshotted at write time — survives account deletion (actor doesn't: FK is ON DELETE SET NULL)
+  actorId: number | null;          // actor's id, same snapshot (plain column, no FK — survives deletion same as actorLabel)
+  actorName: string | null;        // actor's first name, same snapshot
+  actorSurname: string | null;     // actor's last name, same snapshot
   reason: string | null;           // optional, mostly for moderator deletions
   expiresAt: string | null;        // when this row becomes eligible for deletion; null = kept forever
   createdAt: string;

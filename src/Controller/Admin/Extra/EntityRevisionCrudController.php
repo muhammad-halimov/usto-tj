@@ -14,6 +14,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
@@ -109,6 +110,32 @@ class EntityRevisionCrudController extends AbstractCrudController
 
         yield AssociationField::new('actor', 'Кто изменил')
             ->setDisabled()
+            ->setColumns(2);
+
+        // Снимок данных автора на момент записи — переживает удаление
+        // аккаунта (см. EntityRevision::$actorLabel/$actorId/$actorName/
+        // $actorSurname), поэтому видны даже когда "Кто изменил" выше уже
+        // пуст. setHelp — только на первом, чтобы не повторять одно и то же
+        // 4 раза подряд.
+        yield TextField::new('actorLabel', 'Email автора (на момент правки)')
+            ->setDisabled()
+            ->setHelp('Снимок на момент записи, заполняется автоматически. Переживает удаление аккаунта — единственный способ узнать автора, если его уже нет в системе.')
+            ->hideOnIndex()
+            ->setColumns(3);
+
+        yield IntegerField::new('actorId', 'ID автора (на момент правки)')
+            ->setDisabled()
+            ->hideOnIndex()
+            ->setColumns(1);
+
+        yield TextField::new('actorName', 'Имя автора (на момент правки)')
+            ->setDisabled()
+            ->hideOnIndex()
+            ->setColumns(2);
+
+        yield TextField::new('actorSurname', 'Фамилия автора (на момент правки)')
+            ->setDisabled()
+            ->hideOnIndex()
             ->setColumns(2);
 
         // Биндим на виртуальный геттер snapshotSummary, а не на реальное поле

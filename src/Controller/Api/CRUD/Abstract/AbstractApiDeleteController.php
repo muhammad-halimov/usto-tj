@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\CRUD\Abstract;
 
+use App\ApiResource\AppMessages;
 use Doctrine\ORM\Exception\ORMException;
 use Doctrine\ORM\OptimisticLockException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -28,7 +29,10 @@ abstract class AbstractApiDeleteController extends AbstractApiHelperController
         $bearer = $this->checkedUser($this->getUserGrade());
         $entity = $this->getEntityById($id);
 
-        if (!$entity) return $this->errorJson($this->getNotFoundError());
+        // AppMessages::RESOURCE_NOT_FOUND напрямую, а не через унаследованный
+        // getNotFoundError() — ни один DELETE-контроллер его не переопределяет,
+        // явная ссылка здесь понятнее косвенной.
+        if (!$entity) return $this->errorJson(AppMessages::RESOURCE_NOT_FOUND);
 
         if ($error = $this->checkOwnership($entity, $bearer)) return $error;
 

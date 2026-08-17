@@ -210,12 +210,47 @@ class EntityRevision
     #[Groups([G::ENTITY_REVISIONS])]
     private array $snapshot = [];
 
-    /** Кто внёс изменение/удаление. */
+    /**
+     * Кто внёс изменение/удаление. onDelete: SET NULL — при удалении
+     * пользователя сама запись аудита не пропадает, теряется только эта
+     * связь (см. $actorLabel — денормализованный снимок email на такой
+     * случай, обычная строковая колонка, ни от какого FK не зависит и
+     * этим каскадом не затрагивается).
+     */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[ApiProperty(writable: false)]
     #[Groups([G::ENTITY_REVISIONS])]
     private ?User $actor = null;
+
+    /**
+     * Снимок данных автора на момент записи ($actorLabel — email,
+     * $actorId/$actorName/$actorSurname — остальное) — заполняется
+     * автоматически в setActor(), писателям (листенерам) ничего отдельно
+     * делать не нужно. В отличие от $actor (FK, живая связь) переживает
+     * удаление аккаунта: когда $actor станет null через onDelete SET NULL,
+     * эти поля останутся как были — единственный способ узнать, кто сделал
+     * правку/удаление, если автора уже нет в системе. $actorId — обычная
+     * колонка без FK (умышленно: FK со SET NULL стёр бы его вместе с
+     * $actor), поэтому переживает удаление точно так же.
+     */
+    #[ORM\Column(nullable: true)]
+    #[Groups([G::ENTITY_REVISIONS])]
+    private ?string $actorLabel = null;
+
+    // name задано явно: без него Doctrine дала бы ту же колонку actor_id,
+    // что уже занята FK-полем $actor выше (обе — camelCase actorId).
+    #[ORM\Column(name: 'actor_id_snapshot', nullable: true)]
+    #[Groups([G::ENTITY_REVISIONS])]
+    private ?int $actorId = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Groups([G::ENTITY_REVISIONS])]
+    private ?string $actorName = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Groups([G::ENTITY_REVISIONS])]
+    private ?string $actorSurname = null;
 
     /** Опциональная причина — в основном для модераторских удалений. */
     #[ORM\Column(type: 'text', nullable: true)]
@@ -306,10 +341,45 @@ class EntityRevision
         return $this->actor;
     }
 
+    /**
+     * Заодно снимает email/id/имя/фамилию автора — единожды здесь, а не в
+     * каждом писателе (TicketListener/ChatMessageListener/…). Снимок
+     * делается ТОЛЬКО при передаче реального User — setActor(null) его не
+     * трогает, чтобы явный вызов с null (если такой понадобится) не стирал
+     * то, что уже записано.
+     */
     public function setActor(?User $actor): static
     {
         $this->actor = $actor;
+
+        if ($actor !== null) {
+            $this->actorLabel   = $actor->getEmail();
+            $this->actorId      = $actor->getId();
+            $this->actorName    = $actor->getName();
+            $this->actorSurname = $actor->getSurname();
+        }
+
         return $this;
+    }
+
+    public function getActorLabel(): ?string
+    {
+        return $this->actorLabel;
+    }
+
+    public function getActorId(): ?int
+    {
+        return $this->actorId;
+    }
+
+    public function getActorName(): ?string
+    {
+        return $this->actorName;
+    }
+
+    public function getActorSurname(): ?string
+    {
+        return $this->actorSurname;
     }
 
     public function getReason(): ?string

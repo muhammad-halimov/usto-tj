@@ -53,7 +53,7 @@ class TechSupportMessageListener
         private readonly NotificationDispatcher                 $dispatcher,
         private readonly MercurePublisher                       $publisher,
         private readonly EntityManagerInterface                 $entityManager,
-        private readonly Security                                $security,
+        private readonly Security                               $security,
     ) {}
 
     public function postPersist(TechSupportMessage $message): void

@@ -29,6 +29,18 @@ class ChatRepository extends ServiceEntityRepository
         $qb = $this
             ->createQueryBuilder('c')
             ->where('c.author = :user OR c.replyAuthor = :user')
+            // "Удалить чат для меня" (см. Chat::$hiddenByAuthor/$hiddenByReplyAuthor,
+            // ApiDeleteChatController) — не показываем в /chats/me чат, который
+            // ИМЕННО ЭТОТ пользователь скрыл для себя, независимо от того, видит
+            // ли его вторая сторона. GET /chats/{id} по прямому ID не трогаем —
+            // "скрыть для себя" убирает только из списка, не запрещает открыть.
+            //
+            // Это не QueryCollectionExtensionInterface (как ApprovedTicketExtension
+            // для тикетов), потому что /chats/me — кастомный контроллер
+            // (ApiGetMyChatsController), обращается сюда напрямую и не проходит
+            // через пайплайн API Platform, где extensions вообще участвуют
+            // (тот же случай, что и с /tickets/me — см. докблок ApprovedTicketExtension).
+            ->andWhere('NOT (c.author = :user AND c.hiddenByAuthor = true) AND NOT (c.replyAuthor = :user AND c.hiddenByReplyAuthor = true)')
             ->setParameter('user', $user);
 
         if ($ticketId !== null) {

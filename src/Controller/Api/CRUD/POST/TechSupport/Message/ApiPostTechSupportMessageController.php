@@ -29,7 +29,11 @@ class ApiPostTechSupportMessageController extends AbstractApiPostController
     protected function handle(?User $bearer, object $dto): object
     {
         /** @var TechSupportMessagePostInput $dto */
-        if (!$dto->description) return $this->errorJson(AppMessages::EMPTY_TEXT);
+        // === null (не !$dto->description) — как в ApiPostChatMessageController:
+        // фото прикрепляется ПОСЛЕ создания через отдельный upload-images,
+        // поэтому description: "" (пустая строка, просто фото без текста)
+        // обязан проходить, отсекаем только реально отсутствующее поле.
+        if ($dto->description === null) return $this->errorJson(AppMessages::EMPTY_TEXT);
         if (!$dto->techSupport) return $this->errorJson(AppMessages::MISSING_REQUIRED_FIELDS);
 
         $techSupport = $dto->techSupport;
