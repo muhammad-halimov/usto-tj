@@ -29,8 +29,7 @@ class ApiPostChatMessageController extends AbstractApiPostController
     protected function handle(?User $bearer, object $dto): object
     {
         /** @var ChatMessagePostInput $dto */
-        if (!$dto->chat || $dto->description === null)
-            return $this->errorJson(AppMessages::MISSING_REQUIRED_FIELDS);
+        if (!$dto->chat) return $this->errorJson(AppMessages::MISSING_REQUIRED_FIELDS);
 
         $chat    = $dto->chat;
         $replyTo = $dto->replyTo;
@@ -49,8 +48,12 @@ class ApiPostChatMessageController extends AbstractApiPostController
         $recipient = $chat->getAuthor() === $bearer ? $chat->getReplyAuthor() : $chat->getAuthor();
         $this->accessService->checkBlackList($bearer, $recipient);
 
+        // Фото прикрепляется ПОСЛЕ создания через отдельный upload-images,
+        // поэтому текст не обязателен — просто фото без текста должно быть
+        // можно отправить. description не передан/null — то же самое, что
+        // "" (клиент может прислать любое из двух).
         $chatMessage = (new ChatMessage())
-            ->setDescription($dto->description)
+            ->setDescription($dto->description ?? '')
             ->setChat($chat)
             ->setReplyTo($replyTo)
             ->setAuthor($bearer);

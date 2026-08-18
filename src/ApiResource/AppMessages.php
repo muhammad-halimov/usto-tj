@@ -98,7 +98,6 @@ class AppMessages
     const string INVALID_RATING                 = 'invalid_rating';
     const string EXTRA_DENIED                   = 'extra_denied';
     const string GALLERY_EXISTS_PATCH_INSTEAD   = 'gallery_exists_patch_instead';
-    const string EMPTY_TEXT                     = 'empty_text';
     const string CLIENT_PARAM_REQUIRED          = 'client_param_required';
     const string MASTER_PARAM_REQUIRED          = 'master_param_required';
     const string PROVINCE_REQUIRED              = 'province_required';
@@ -228,7 +227,6 @@ class AppMessages
         self::INVALID_RATING                 => ['http' => 400, 'messages' => ['tj' => 'Рейтинг бояд аз 1 то 5 бошад',                                                             'eng' => 'Rating must be between 1 and 5',                               'ru' => 'Рейтинг должен быть от 1 до 5']],
         self::EXTRA_DENIED                   => ['http' => 403, 'messages' => ['tj' => 'Дастрасӣ маҳдуд аст',                                                                      'eng' => 'Extra denied',                                                 'ru' => 'Доступ ограничен']],
         self::GALLERY_EXISTS_PATCH_INSTEAD   => ['http' => 400, 'messages' => ['tj' => 'Ин корбар галерея дорад, ба ҷои он patch истифода баред',                                  'eng' => 'This user has gallery, patch instead',                          'ru' => 'У этого пользователя есть галерея, используйте patch']],
-        self::EMPTY_TEXT                     => ['http' => 400, 'messages' => ['tj' => 'Матн холӣ аст',                                                                             'eng' => 'Empty text',                                                   'ru' => 'Пустой текст']],
         self::CLIENT_PARAM_REQUIRED          => ['http' => 400, 'messages' => ['tj' => 'Параметри муштарӣ зарур аст',                                                              'eng' => 'Client parameter is required',                                 'ru' => 'Параметр клиента обязателен']],
         self::MASTER_PARAM_REQUIRED          => ['http' => 400, 'messages' => ['tj' => 'Параметри устод зарур аст',                                                                'eng' => 'Master parameter is required',                                 'ru' => 'Параметр мастера обязателен']],
         self::PROVINCE_REQUIRED              => ['http' => 400, 'messages' => ['tj' => 'Вилоят зарур аст',                                                                         'eng' => 'Province is required',                                         'ru' => 'Регион обязателен']],
