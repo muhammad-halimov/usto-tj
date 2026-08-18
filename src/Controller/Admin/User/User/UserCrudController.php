@@ -184,6 +184,11 @@ class UserCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setColumns(12);
 
+        yield BooleanField::new('cookiesAgreed', 'Согласие на cookie')
+            ->addCssClass("form-switch")
+            ->hideOnIndex()
+            ->setColumns(12);
+
         yield EmailField::new('email', 'Эл. почта')
             ->setColumns(4)
             ->setRequired(true);

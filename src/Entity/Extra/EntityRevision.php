@@ -83,6 +83,7 @@ class EntityRevision
         'Сообщение техподдержки' => 'tech_support_message',
         'Отзыв'                  => 'review',
         'Фото'                   => 'multiple_image',
+        'Пользователь'           => 'user',
     ];
 
     /**
@@ -106,6 +107,7 @@ class EntityRevision
         'Review'              => 'Отзыв',
         'Gallery'             => 'Галерея',
         'Appeal'              => 'Жалоба',
+        'User'                => 'Пользователь',
     ];
 
     /**
@@ -132,6 +134,7 @@ class EntityRevision
         'subcategory'      => 'Подкатегория',
         'unit'             => 'Единицы',
         'rating'           => 'Рейтинг',
+        'cookiesAgreed'    => 'Согласие на cookie',
     ];
 
     /** По умолчанию хранится 14 дней — см. $expiresAt и app:prune-entity-revisions. */

@@ -146,7 +146,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
                 G::PHONES_WRITE,
                 G::CLIENTS,
                 G::MASTERS,
-                G::USER_PUBLIC
+                G::USER_PUBLIC,
+                // Только ради cookiesAgreed — единственное сейчас поле с
+                // группой USERS_ME без writable: false (см. User::$cookiesAgreed).
+                G::USERS_ME,
             ]],
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -939,6 +942,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $oauthProviders;
 
     /**
+     * Согласие на использование cookie. Только G::USERS_ME (не USER_PUBLIC/
+     * MASTERS/CLIENTS) — приватный флаг самого пользователя, посторонним
+     * видеть его в чужом профиле незачем. Пишется владельцем через
+     * PATCH /users/{id} (см. denormalizationContext операции Patch выше —
+     * G::USERS_ME добавлена туда же ради этого поля). Версионируется —
+     * см. UserRevisionListener/EntityRevision.
+     */
+    #[ORM\Column(type: 'boolean', nullable: false, options: ['default' => false])]
+    #[Groups([
+        G::USERS_ME
+    ])]
+    private bool $cookiesAgreed = false;
+
+    /**
      * @var Collection<int, TicketApproval>
      */
     #[ORM\OneToMany(targetEntity: TicketApproval::class, mappedBy: 'administrant')]
@@ -1048,6 +1065,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setAtHome(?bool $atHome): static
     {
         $this->atHome = $atHome;
+
+        return $this;
+    }
+
+    public function isCookiesAgreed(): bool
+    {
+        return $this->cookiesAgreed;
+    }
+
+    public function setCookiesAgreed(bool $cookiesAgreed): static
+    {
+        $this->cookiesAgreed = $cookiesAgreed;
 
         return $this;
     }

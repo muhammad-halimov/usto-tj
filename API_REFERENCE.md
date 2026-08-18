@@ -87,6 +87,7 @@ interface User {
   addresses: Address[];
   phones: Phone[];                     // read groups: phonesRead; write groups: phonesWrite
   oauthProviders: OAuthProvider[];     // only on /users/me
+  cookiesAgreed: boolean;              // only on /users/me, owner-writable via PATCH /users/{id}, versioned (EntityRevision)
   createdAt: string;
   updatedAt: string | null;
 }
