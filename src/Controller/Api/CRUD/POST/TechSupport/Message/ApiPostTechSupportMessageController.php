@@ -18,6 +18,14 @@ class ApiPostTechSupportMessageController extends AbstractApiPostController
 
     protected function getInputClass(): string { return TechSupportMessagePostInput::class; }
 
+    // По умолчанию (унаследованный) grade — 'double' (только CLIENT/MASTER),
+    // а checkOwnership() ниже явно рассчитан на то, что писать может ЛЮБОЙ
+    // ROLE_ADMIN, не только назначенный администрант — без этого override
+    // обычный (не супер-) админ получал 403 раньше, чем доходило до
+    // checkOwnership() вообще: 'triple' = ADMIN/CLIENT/MASTER, ровно то,
+    // что checkOwnership() ожидает.
+    protected function getUserGrade(): string { return 'triple'; }
+
     protected function setSerializationGroups(): array { return G::OPS_TECH_MSGS; }
 
     protected function afterFetch(object|array $entity, ?User $user): void

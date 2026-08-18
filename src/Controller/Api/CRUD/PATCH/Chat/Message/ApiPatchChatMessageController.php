@@ -5,7 +5,6 @@ namespace App\Controller\Api\CRUD\PATCH\Chat\Message;
 use App\ApiResource\AppMessages;
 use App\Controller\Api\CRUD\Abstract\AbstractApiPatchController;
 use App\Dto\Chat\ChatMessagePatchInput;
-use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Trait\Readable\G;
 use App\Entity\User;
@@ -14,8 +13,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ApiPatchChatMessageController extends AbstractApiPatchController
 {
-    private ?Chat $chat = null;
-
     public function __construct(private readonly LocalizationService $localizationService) {}
 
     protected function getNotFoundError(): string { return AppMessages::CHAT_MESSAGE_NOT_FOUND; }
@@ -32,19 +29,34 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
 
     protected function getEntityById(int $id): ?object
     {
-        /** @var ChatMessagePatchInput $dto */
-        $dto        = $this->inputDto;
-        $this->chat = $dto->chat;
-
         return $this->entityManager->find(ChatMessage::class, $id);
     }
 
     protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
     {
-        if (!$this->chat) return $this->errorJson(AppMessages::CHAT_NOT_FOUND);
+        /** @var ChatMessage $entity */
+        // Раньше здесь был баг: чат для ownership-проверки брался из
+        // $dto->chat (тела запроса), а не из реальной связи сообщения —
+        // тот же класс уязвимости, что уже был пофикшен в
+        // ApiPatchTechSupportMessageController. Пользователь мог прислать
+        // ЛЮБОЙ чат, где он участник, и пройти проверку для сообщения,
+        // которое на самом деле принадлежит совсем другому чату.
+        $chat = $entity->getChat();
 
-        if ($this->chat->getAuthor() !== $bearer && $this->chat->getReplyAuthor() !== $bearer)
+        if (!$chat) return $this->errorJson(AppMessages::CHAT_NOT_FOUND);
+
+        if ($chat->getAuthor() !== $bearer && $chat->getReplyAuthor() !== $bearer)
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+
+        // Удалённое (мягко, см. AbstractApiHelperController::softDeleteMessage)
+        // сообщение больше не редактируется.
+        if ($entity->isDeletedByAuthor())
+            return $this->errorJson(AppMessages::MESSAGE_ALREADY_DELETED);
+
+        // 15 минут с момента отправки — так же у TechSupportMessage, короче,
+        // чем у Review (см. AbstractApiHelperController::MESSAGE_EDIT_WINDOW).
+        if ($this->isPastEditWindow($entity->getCreatedAt(), self::MESSAGE_EDIT_WINDOW))
+            return $this->errorJson(AppMessages::EDIT_WINDOW_EXPIRED);
 
         return null;
     }
@@ -60,7 +72,14 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
             return $this->errorJson(AppMessages::NOTHING_TO_UPDATE);
 
         if ($text !== null) {
+            // Не даём стереть текст и вписать полностью другой в рамках
+            // "правки" — иначе лимит на редактирование выше ничего не значил
+            // бы (можно было бы просто переписать сообщение с нуля).
+            if ($this->isEditTooDifferent($entity->getDescription(), $text))
+                return $this->errorJson(AppMessages::EDIT_TOO_DIFFERENT);
+
             $entity->setDescription($text);
+            $entity->setEdited(true);
         }
 
         if (!empty($imagesParam)) {

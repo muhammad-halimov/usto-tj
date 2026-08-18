@@ -43,7 +43,7 @@ class TicketApproval
     public function setApproved(bool $approved): static
     {
         if ($this->approved === true && $approved === false) {
-            throw new \LogicException('Отмена одобрения запрещена: approved нельзя перевести обратно в false.');
+            throw new \LogicException('Revoking approval is not allowed: approved cannot be reverted back to false.');
         }
 
         // Если тикет уже забанен, Ticket::setApproved(true) сам откажется

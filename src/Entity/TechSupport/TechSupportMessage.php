@@ -14,7 +14,7 @@ use App\Controller\Api\CRUD\PATCH\TechSupport\Message\ApiPatchTechSupportMessage
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Controller\Api\CRUD\POST\TechSupport\Message\ApiPostTechSupportMessageController;
 use App\Dto\Image\ImageInput;
-use App\Entity\Contract\HasImagesInterface;
+use App\Entity\Contract\EditableMessageInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
@@ -65,7 +65,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
-class TechSupportMessage implements HasImagesInterface
+class TechSupportMessage implements EditableMessageInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, DescriptionTrait;
 
@@ -106,6 +106,35 @@ class TechSupportMessage implements HasImagesInterface
     ])]
     #[ApiProperty(writable: false)]
     private ?DateTimeImmutable $readAt = null;
+
+    /**
+     * "Помечать сообщение как изменено" — выставляется автоматически при
+     * первой правке текста (см. ApiPatchTechSupportMessageController) и
+     * остаётся true навсегда, даже если текст правили несколько раз.
+     * Сама история правок — в EntityRevision (audit trail), это поле —
+     * только видимый пользователю/оператору признак "уже редактировалось".
+     */
+    #[ORM\Column(options: ['default' => false])]
+    #[Groups([
+        G::TECH_SUPPORT_MESSAGES,
+        G::TECH_SUPPORT,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $edited = false;
+
+    /**
+     * Мягкое удаление автором (см. DELETED_PLACEHOLDER,
+     * ApiDeleteTechSupportMessageController) — отдельно от $edited: это не
+     * "правка", а замена содержимого на плейсхолдер, физическая строка в
+     * БД остаётся (audit trail).
+     */
+    #[ORM\Column(options: ['default' => false])]
+    #[Groups([
+        G::TECH_SUPPORT_MESSAGES,
+        G::TECH_SUPPORT,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $deletedByAuthor = false;
 
     /**
      * @var Collection<int, MultipleImage>
@@ -191,6 +220,30 @@ class TechSupportMessage implements HasImagesInterface
     public function setReadAt(?DateTimeImmutable $readAt): static
     {
         $this->readAt = $readAt;
+
+        return $this;
+    }
+
+    public function isEdited(): bool
+    {
+        return $this->edited;
+    }
+
+    public function setEdited(bool $edited): static
+    {
+        $this->edited = $edited;
+
+        return $this;
+    }
+
+    public function isDeletedByAuthor(): bool
+    {
+        return $this->deletedByAuthor;
+    }
+
+    public function setDeletedByAuthor(bool $deletedByAuthor): static
+    {
+        $this->deletedByAuthor = $deletedByAuthor;
 
         return $this;
     }

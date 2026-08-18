@@ -220,8 +220,10 @@ interface Occupation { id: number; title: string; description: string|null; imag
 | GET | `/api/chat-messages/{id}` | |
 | POST | `/api/chat-messages` | body: `ChatMessagePostInput` |
 | POST | `/api/chat-messages/{id}/upload-images` | multipart `imageFile[]` |
-| PATCH | `/api/chat-messages/{id}` | body: `ChatMessagePatchInput` |
-| DELETE | `/api/chat-messages/{id}` | |
+| PATCH | `/api/chat-messages/{id}` | body: `ChatMessagePatchInput`. `chat` is accepted in the body but no longer used for the ownership check (that reads the message's real `chat` now) — kept for backwards compat, has no effect |
+| DELETE | `/api/chat-messages/{id}` | **Soft delete** — see below, not a hard delete |
+
+**Edit/delete restrictions on `ChatMessage`** — identical mechanism to `TechSupportMessage` below (shared code, `AbstractApiHelperController`), minus the "operator reacted" lock (chat has no operator/appellant distinction, both sides are peers). See the `TechSupportMessage` section for the full breakdown of `edit_window_expired` / `edit_too_different` / `message_already_deleted` and how soft delete works — same codes, same `edited`/`deletedByAuthor` fields, same rules, just without `tech_support_message_edit_locked`.
 
 ```ts
 interface ChatPostInput  { replyAuthor?: string /* User IRI */; ticket?: string /* Ticket IRI */; }
@@ -251,6 +253,8 @@ interface ChatMessage {
   replyTo: ChatMessage | null;
   readAt: string | null;      // read-only
   description: string | null;
+  edited: boolean;            // read-only — true once PATCHed at least once, stays true forever after
+  deletedByAuthor: boolean;   // read-only — true after a soft delete; description is then the localized placeholder — see §11 TECH SUPPORT
   images: MultipleImage[];
   createdAt: string;
   updatedAt: string | null;
@@ -322,8 +326,10 @@ interface Gallery { id: number; user: User; images: MultipleImage[]; createdAt: 
 | GET | `/api/reviews` | Filters: `ticket.service`(bool); `ticket`,`master`,`client`,`images`(exists); `type`,`master`,`client`,`ticket`,`ticket.title`(exact/partial); `rating`(range) |
 | POST | `/api/reviews/{id}/upload-images` | multipart `imageFile[]` |
 | POST | `/api/reviews` | body: `ReviewPostInput` |
-| PATCH | `/api/reviews/{id}` | body: `ReviewPatchInput` |
+| PATCH | `/api/reviews/{id}` | body: `ReviewPatchInput`. See edit restrictions below |
 | DELETE | `/api/reviews/{id}` | owner-side only (client reviewing master or vice-versa) |
+
+**Edit restrictions on `PATCH /reviews/{id}`** — same shared mechanism as `ChatMessage`/`TechSupportMessage` (see §11 TECH SUPPORT for the full breakdown): `edit_window_expired` (`403`, 24h from `createdAt`) and `edit_too_different` (`400`, `description` must stay ≥50% similar to the original — omit the field entirely to leave it untouched, that's exempt). No soft delete / `edited` flag / operator-lock for `Review` — those are message-specific, not part of this.
 
 ```ts
 interface ReviewPostInput  { type?: 'client'|'master'; rating: number; ticket?: string /* IRI */; description?: string; master?: string /* IRI */; client?: string /* IRI */; }
@@ -499,8 +505,8 @@ Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tec
 |---|---|---|
 | GET | `/api/tech-support-messages/{id}` | |
 | POST | `/api/tech-support-messages` | body: `TechSupportMessagePostInput` |
-| PATCH | `/api/tech-support-messages/{id}` | body: `TechSupportMessagePatchInput` |
-| DELETE | `/api/tech-support-messages/{id}` | |
+| PATCH | `/api/tech-support-messages/{id}` | body: `TechSupportMessagePatchInput`. See edit restrictions below |
+| DELETE | `/api/tech-support-messages/{id}` | **Soft delete** — see below, not a hard delete |
 | POST | `/api/tech-support-messages/{id}/upload-images` | multipart `imageFile[]` |
 
 Photo-only messages (no text): send `description: ""` on `POST /tech-support-messages`, then attach the photo via the separate `upload-images` call — same two-step pattern as `ChatMessage`. Only an actually-*missing* `description` (`null`/omitted) is rejected (`400 empty_text`); an empty string passes through.
@@ -514,12 +520,23 @@ interface TechSupportMessage {
   techSupport: TechSupport|null;
   description: string|null;
   readAt: string | null;   // ISO datetime, read-only — set via POST /tech-supports/{id}/read
+  edited: boolean;         // read-only — true once the text has been PATCHed at least once, stays true forever after
+  deletedByAuthor: boolean; // read-only — true after a soft delete; description is then the localized placeholder (below)
   images: MultipleImage[];
   createdAt: string;
   updatedAt: string|null;
 }
 ```
 Note: marking read does **not** emit a Mercure event (unlike Chat, where `/chats/{id}/read` triggers an `"updated"` SSE so the sender sees a second checkmark live) — `TechSupportMessageListener` only publishes on message creation. Poll/re-fetch to see updated `readAt`.
+
+**Edit/delete restrictions — shared across `Review`, `ChatMessage`, `TechSupportMessage`.** One mechanism (`AbstractApiHelperController::isPastEditWindow()`/`isEditTooDifferent()`), same error codes everywhere, not three separate implementations — only the window *length* differs:
+- **Edit window** (`edit_window_expired`, `403`) — from the message/review's `createdAt`. Applies to *any* editor. **15 minutes** for `ChatMessage`/`TechSupportMessage` (`AbstractApiHelperController::MESSAGE_EDIT_WINDOW`) — a chat/ticket reply is corrected right away or not at all. **24 hours** for `Review` (default of `isPastEditWindow()`) — a review is expected to be revisited/refined over a longer span.
+- **No full rewrites** (`edit_too_different`, `400`) — new text must be at least 50% similar to the old one (PHP `similar_text()`); clearing to `""` (text removed, photo kept, where applicable) is exempt. Blocks turning a PATCH into a de-facto delete-and-replace — same threshold, same helper, for all three entities.
+- **Already deleted** (`message_already_deleted`, `410`) — `ChatMessage`/`TechSupportMessage` only (`Review` has no soft delete) — a softly-deleted message can't be edited at all.
+
+**TechSupportMessage-only, on top of the above**: **locked once the operator reacted** (`tech_support_message_edit_locked`, `403`) — only gates the *appellant* editing (the ticket's own `author`); the administrant editing their own messages isn't subject to this. "Reacted" = the message's `readAt` is set, OR the administrant has sent at least one later message in the same ticket (no `replyTo` concept here unlike `ChatMessage`, so "responded" means "posted anything afterward"). `ChatMessage`/`Review` have no operator concept, so no equivalent lock.
+
+**Soft delete on `DELETE /tech-support-messages/{id}` and `DELETE /chat-messages/{id}`**: author OR any `ROLE_ADMIN` (moderation — same "any admin, not just the assigned one" principle already used for posting into a ticket). Not subject to any of the edit restrictions above — deletion is for removing accidentally-shared sensitive content, not "editing", so it stays available at any time. Sets `description` to a localized placeholder (tj/eng/ru, resolved from `?locale=` the same way as `AppMessages` error text — see `AbstractApiHelperController::DELETED_MESSAGE_PLACEHOLDER`), `deletedByAuthor: true`, and removes all attached photos (logged in the audit trail same as any other photo removal). The row itself is never physically deleted — the description change flows through the same update path as a normal edit, so it's captured in the audit trail automatically. Calling `DELETE` again on an already-deleted message is a no-op (`204`). `Review` has no delete endpoint covered by this — unaffected.
 
 ## 12. LEGAL
 

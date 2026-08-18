@@ -3,12 +3,14 @@
 namespace App\Controller\Api\CRUD\Abstract;
 
 use App\ApiResource\AppMessages;
+use App\Entity\Contract\EditableMessageInterface;
 use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\EntityRevision;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\User;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\EntityDirectoryNamerService;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Exception\ORMException;
 use Doctrine\ORM\OptimisticLockException;
@@ -274,6 +276,89 @@ abstract class AbstractApiHelperController extends AbstractController
         $this->entityManager->flush();
 
         return $this->json(null, 204);
+    }
+
+    /**
+     * Грубая эвристика "это правка или фактически переписывание текста
+     * заново" — используется PATCH-контроллерами Review/ChatMessage/
+     * TechSupportMessage, чтобы отличить реальную правку (опечатка,
+     * уточнение) от полной замены текста на другой, что обесценивало бы
+     * лимит на редактирование ниже — иначе можно было бы просто стереть
+     * старое содержимое и вписать что угодно новое в рамках "правки".
+     *
+     * similar_text() — совпадение в процентах между $old и $new. Ниже
+     * порога — считаем "слишком другое", вызывающий код должен отклонить
+     * (AppMessages::EDIT_TOO_DIFFERENT). $new === '' (например, стирают
+     * текст, оставляя только фото) — НЕ считается "слишком другим": это не
+     * переписывание, а прицельное удаление текста.
+     */
+    protected function isEditTooDifferent(?string $old, string $new, float $minSimilarityPercent = 50.0): bool
+    {
+        if ($old === null || $old === '' || $new === '') return false;
+
+        similar_text($old, $new, $percent);
+
+        return $percent < $minSimilarityPercent;
+    }
+
+    /**
+     * "Старше $window с создания" — один и тот же хелпер для Review/
+     * ChatMessage/TechSupportMessage, раньше был скопирован в каждый
+     * PATCH-контроллер по отдельности (`new DateTimeImmutable('-24 hours')`
+     * инлайном/своей константой в каждом) — теперь одно место. У Review
+     * и у "сообщений" разная ДЛИНА окна (см. MESSAGE_EDIT_WINDOW ниже), но
+     * это разные значения одного и того же параметра, а не разная логика.
+     */
+    protected function isPastEditWindow(DateTimeImmutable $createdAt, string $window = '-24 hours'): bool
+    {
+        return $createdAt < new DateTimeImmutable($window);
+    }
+
+    /**
+     * Окно редактирования ChatMessage/TechSupportMessage — короче, чем у
+     * Review (24ч, дефолт isPastEditWindow() выше): переписка — это быстрый
+     * обмен репликами, опечатку правят сразу же, а не через полдня. Общее
+     * для обоих, чтобы не разъезжались по разным контроллерам.
+     */
+    protected const string MESSAGE_EDIT_WINDOW = '-15 minutes';
+
+    /**
+     * Мягкое удаление сообщения (ChatMessage, TechSupportMessage) —
+     * description заменяется на переведённый плейсхолдер (текст берётся из
+     * AppMessages::MESSAGE_DELETED_PLACEHOLDER — один реестр статических
+     * текстов на всё приложение, не отдельная константа тут), ставится
+     * $deletedByAuthor, фото убираются (с логом в audit trail, как любое
+     * другое удаление фото). Физически строка в БД не пропадает —
+     * дальнейшая правка description проходит через тот же preUpdate/
+     * postUpdate у соответствующего листенера, что и обычный PATCH, поэтому
+     * сама подмена автоматически попадает в EntityRevision без отдельного
+     * лога здесь.
+     *
+     * Локаль под плейсхолдер — СВОЯ (дефолт 'eng'), не через общий дефолт
+     * AppMessages ('tj', см. AppErrorLocaleListener): тот годится для текста
+     * ОТВЕТА, но не для того, что навсегда пишется в БД — если язык явно не
+     * запрошен ?locale=, в базу не должен молча лечь язык, который никто не
+     * выбирал.
+     *
+     * Идемпотентно: повторный вызов на уже удалённом сообщении — no-op
+     * (проверка живёт здесь, а не в каждом вызывающем контроллере).
+     */
+    protected function softDeleteMessage(EditableMessageInterface $message, User $bearer): void
+    {
+        if ($message->isDeletedByAuthor()) return;
+
+        foreach ($message->getImages()->toArray() as $image) {
+            $this->logImagesDeletion([$image], $message, $bearer);
+            $message->getImages()->removeElement($image);
+            $this->entityManager->remove($image);
+        }
+
+        $locale = $this->requestStack->getCurrentRequest()?->query->get('locale');
+        $locale = in_array($locale, ['tj', 'eng', 'ru'], true) ? $locale : 'eng';
+
+        $message->setDescription(AppMessages::get(AppMessages::MESSAGE_DELETED_PLACEHOLDER, $locale)->message);
+        $message->setDeletedByAuthor(true);
+        $message->setUpdatedAt();
     }
 
     /**

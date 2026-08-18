@@ -36,6 +36,34 @@ class TechSupportMessageRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * "Оператор ответил на [это] сообщение" — приблизительно, раз у
+     * TechSupportMessage нет своего replyTo (в отличие от ChatMessage):
+     * считаем, что администрант отреагировал, если после $message успел
+     * написать в тот же тикет хотя бы одно своё сообщение. Используется
+     * ApiPatchTechSupportMessageController — "правка до реакции оператора"
+     * (см. checkOwnership()).
+     */
+    public function existsAdministrantMessageAfter(TechSupportMessage $message): bool
+    {
+        $techSupport  = $message->getTechSupport();
+        $administrant = $techSupport?->getAdministrant();
+
+        if (!$administrant) return false;
+
+        return $this->createQueryBuilder('m')
+            ->select('1')
+            ->where('m.techSupport = :techSupport')
+            ->andWhere('m.author = :administrant')
+            ->andWhere('m.createdAt > :after')
+            ->setParameter('techSupport', $techSupport)
+            ->setParameter('administrant', $administrant)
+            ->setParameter('after', $message->getCreatedAt())
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult() !== null;
+    }
+
     //    /**
     //     * @return TechSupportMessage[] Returns an array of TechSupportMessage objects
     //     */

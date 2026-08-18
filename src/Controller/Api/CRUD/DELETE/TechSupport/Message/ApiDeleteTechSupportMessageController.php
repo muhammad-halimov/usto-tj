@@ -3,23 +3,42 @@
 namespace App\Controller\Api\CRUD\DELETE\TechSupport\Message;
 
 use App\ApiResource\AppMessages;
-use App\Controller\Api\CRUD\Abstract\AbstractApiDeleteController;
+use App\Controller\Api\CRUD\Abstract\AbstractApiHelperController;
 use App\Entity\TechSupport\TechSupportMessage;
-use App\Entity\User;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class ApiDeleteTechSupportMessageController extends AbstractApiDeleteController
+/**
+ * DELETE /api/tech-support-messages/{id} — мягкое удаление, не физическое.
+ *
+ * Отдельно от PATCH (свободная правка текста) — сценарий тут другой: убрать
+ * случайно введённые чувствительные данные, а не поправить формулировку.
+ * Поэтому не подчиняется ограничениям на редактирование (24ч/реакция
+ * оператора) — чувствительные данные должно быть можно убрать в любой
+ * момент. Сама механика — общая для ChatMessage/TechSupportMessage, см.
+ * AbstractApiHelperController::softDeleteMessage().
+ *
+ * Автор ИЛИ любой ROLE_ADMIN (модерация) — тот же принцип, что уже
+ * используется в ApiPostTechSupportMessageController.checkOwnership()
+ * ("любой ROLE_ADMIN может писать в любой тикет, не только назначенный
+ * лично на него"). Не требуется быть именно назначенным администрантом.
+ */
+class ApiDeleteTechSupportMessageController extends AbstractApiHelperController
 {
-    protected function getEntityClass(): string
+    public function __invoke(int $id): JsonResponse
     {
-        return TechSupportMessage::class;
-    }
+        $bearer = $this->checkedUser();
 
-    protected function checkOwnership(object $entity, ?User $bearer): ?JsonResponse
-    {
-        /** @var TechSupportMessage $entity */
-        if ($entity->getAuthor() !== $bearer) return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+        /** @var ?TechSupportMessage $message */
+        $message = $this->entityManager->find(TechSupportMessage::class, $id);
+        if (!$message) return $this->errorJson(AppMessages::RESOURCE_NOT_FOUND);
 
-        return null;
+        $isAdmin = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
+        if (!$isAdmin && $message->getAuthor() !== $bearer)
+            return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+
+        $this->softDeleteMessage($message, $bearer);
+        $this->flush();
+
+        return $this->json(null, 204);
     }
 }

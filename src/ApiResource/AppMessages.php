@@ -42,6 +42,21 @@ class AppMessages
     const string OWNERSHIP_MISMATCH             = 'ownership_mismatch';
     const string AUTH_REQUIRED_FOR_CHAT_APPEALS = 'auth_required_for_chat_appeals';
 
+    // ── Message editing (Review, ChatMessage, TechSupportMessage — общие правила) ──
+    // Один набор кодов на все три сущности вместо копии на каждую — сама
+    // проверка (AbstractApiHelperController::isPastEditWindow/isEditTooDifferent/
+    // softDeleteMessage) тоже общая, см. там.
+    const string EDIT_WINDOW_EXPIRED            = 'edit_window_expired';
+    const string EDIT_TOO_DIFFERENT             = 'edit_too_different';
+    const string MESSAGE_ALREADY_DELETED        = 'message_already_deleted';
+    // Уникально для TechSupportMessage — у Review/ChatMessage нет роли "оператор".
+    const string TECH_SUPPORT_MESSAGE_EDIT_LOCKED = 'tech_support_message_edit_locked';
+    // Не ошибка — текст, который реально ложится в description при мягком
+    // удалении (см. AbstractApiHelperController::softDeleteMessage()). Лежит
+    // здесь же, а не отдельной константой в контроллере — один реестр
+    // статических текстов на всё приложение, а не два.
+    const string MESSAGE_DELETED_PLACEHOLDER    = 'message_deleted_placeholder';
+
     // ── Chat & Messaging ──────────────────────────────────────────────────────
     const string CHAT_NOT_FOUND                 = 'chat_not_found';
     const string CHAT_ALREADY_EXISTS            = 'chat_already_exists';
@@ -106,7 +121,6 @@ class AppMessages
     const string REVIEW_NOT_CLIENT              = 'review_not_client';
     const string REVIEW_MASTER_ROLE_MISMATCH    = 'review_master_role_mismatch';
     const string REVIEW_MASTER_SERVICE_MISMATCH = 'review_master_service_mismatch';
-    const string REVIEW_EDIT_WINDOW_EXPIRED     = 'review_edit_window_expired';
 
     // ── Role ──────────────────────────────────────────────────────────────────
     const string ROLE_ALREADY_ADMIN             = 'role_already_admin';
@@ -178,6 +192,13 @@ class AppMessages
         self::CHAT_REPLY_AUTHOR_MISMATCH     => ['http' => 400, 'messages' => ['tj' => 'Эҳтимол муаллифи билет/устод бо муаллифи ҷавоб мувофиқ нест',                             'eng' => "Probably ticket's author/master doesn't match to reply author", 'ru' => 'Автор билета/мастера не совпадает с автором ответа']],
         self::USER_BLOCKED                   => ['http' => 403, 'messages' => ['tj' => 'Шумо аз ҷониби ин корбар манъ шудаед',                                                    'eng' => 'You have been blocked by this user',                           'ru' => 'Вы заблокированы этим пользователем']],
         self::NOTHING_TO_UPDATE              => ['http' => 400, 'messages' => ['tj' => 'Чизе барои навсозӣ нест',                                                                  'eng' => 'Nothing to update',                                            'ru' => 'Нечего обновлять']],
+        // Message editing (Review / ChatMessage / TechSupportMessage — общие)
+        self::EDIT_WINDOW_EXPIRED             => ['http' => 403, 'messages' => ['tj' => 'Мӯҳлати таҳрир гузаштааст',                                                                'eng' => 'Can no longer be edited — the edit window has expired', 'ru' => 'Больше нельзя редактировать — истёк период редактирования']],
+        self::EDIT_TOO_DIFFERENT              => ['http' => 400, 'messages' => ['tj' => 'Матни нав аз аслӣ хеле фарқ мекунад — ин таҳрир нест, балки нависондани дубора',           'eng' => 'New text is too different from the original — this looks like a rewrite, not an edit', 'ru' => 'Новый текст слишком отличается от исходного — это не правка, а фактически переписывание заново']],
+        self::MESSAGE_ALREADY_DELETED         => ['http' => 410, 'messages' => ['tj' => 'Паём аллакай нест карда шудааст',                                                          'eng' => 'Message has already been deleted',                             'ru' => 'Сообщение уже удалено']],
+        self::TECH_SUPPORT_MESSAGE_EDIT_LOCKED => ['http' => 403, 'messages' => ['tj' => 'Оператор аллакай хондааст ё ҷавоб додааст — таҳрир баста аст',                            'eng' => 'Operator has already read or replied — editing is locked',     'ru' => 'Оператор уже прочитал или ответил — редактирование заблокировано']],
+        // http не используется (не ошибка) — просто текст, см. softDeleteMessage()
+        self::MESSAGE_DELETED_PLACEHOLDER      => ['http' => 200, 'messages' => ['tj' => 'Паём аз ҷониби муаллиф нест карда шуд',                                                    'eng' => 'Message deleted by author',                                    'ru' => 'Сообщение удалено автором']],
         // Entities
         self::TICKET_NOT_FOUND               => ['http' => 404, 'messages' => ['tj' => 'Билет ёфт нашуд',                                                                          'eng' => 'Ticket not found',                                             'ru' => 'Билет не найден']],
         self::CLIENT_NOT_FOUND               => ['http' => 404, 'messages' => ['tj' => 'Муштарӣ ёфт нашуд',                                                                        'eng' => 'Client not found',                                             'ru' => 'Клиент не найден']],
@@ -228,7 +249,6 @@ class AppMessages
         self::REVIEW_NOT_CLIENT              => ['http' => 403, 'messages' => ['tj' => 'Шумо бидуни муштарӣ будан наметавонед баррасии устод гузоред',                             'eng' => "You can't post a master review while not being a client",       'ru' => 'Нельзя оставить отзыв мастеру, не будучи клиентом']],
         self::REVIEW_MASTER_ROLE_MISMATCH    => ['http' => 403, 'messages' => ['tj' => 'Нақши устод мувофиқ нест',                                                                 'eng' => "Master's role doesn't match",                                  'ru' => 'Роль мастера не совпадает']],
         self::REVIEW_MASTER_SERVICE_MISMATCH => ['http' => 404, 'messages' => ['tj' => 'Хизмати устод мувофиқ нест',                                                               'eng' => "Master's service doesn't match",                               'ru' => 'Услуга мастера не совпадает']],
-        self::REVIEW_EDIT_WINDOW_EXPIRED     => ['http' => 403, 'messages' => ['tj' => 'Мӯҳлати таҳрири баррасӣ гузаштааст',                                                        'eng' => 'Review can no longer be edited — the 24-hour edit window has expired', 'ru' => 'Отзыв больше нельзя редактировать — истёк 24-часовой период редактирования']],
         // Role
         self::ROLE_ALREADY_ADMIN             => ['http' => 403, 'messages' => ['tj' => 'Шумо администратор ҳастед',                                                                'eng' => "You're admin",                                                 'ru' => 'Вы администратор']],
         self::ROLE_ALREADY_MASTER            => ['http' => 403, 'messages' => ['tj' => 'Шумо устод ҳастед',                                                                        'eng' => "You're master",                                                'ru' => 'Вы мастер']],

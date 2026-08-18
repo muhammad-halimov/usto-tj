@@ -10,7 +10,6 @@ use App\Entity\Review\Review;
 use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use App\Service\Extra\LocalizationService;
-use DateTimeImmutable;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ApiPatchReviewController extends AbstractApiPatchController
@@ -32,9 +31,13 @@ class ApiPatchReviewController extends AbstractApiPatchController
         // Отзыв можно редактировать только в течение 24 часов после создания —
         // дальше он считается "устоявшимся" (на него уже могли ссылаться в
         // рейтинге/споре), поэтому правка закрывается насовсем, не только
-        // владением проверяем.
-        if ($entity->getCreatedAt() < new DateTimeImmutable('-24 hours'))
-            return $this->errorJson(AppMessages::REVIEW_EDIT_WINDOW_EXPIRED);
+        // владением проверяем. Тот же хелпер, что у ChatMessage/
+        // TechSupportMessage (см. AbstractApiHelperController::isPastEditWindow),
+        // но у отзыва окно дольше (24ч, дефолт хелпера) — сообщения ТП/чата
+        // правятся 15 минут (MESSAGE_EDIT_WINDOW), отзыв — не то же самое,
+        // что реплика в переписке, поэтому и окно другое.
+        if ($this->isPastEditWindow($entity->getCreatedAt()))
+            return $this->errorJson(AppMessages::EDIT_WINDOW_EXPIRED);
 
         return null;
     }
@@ -45,12 +48,25 @@ class ApiPatchReviewController extends AbstractApiPatchController
         /** @var ReviewPatchInput $dto */
         if ($dto->rating < 1 || $dto->rating > 5) return $this->errorJson(AppMessages::INVALID_RATING);
 
+        // !== null — раньше отсутствие description в теле запроса всё равно
+        // стирало его (дефолт DTO — null), теперь как у ChatMessage/
+        // TechSupportMessage: поле не прислали — не трогаем.
+        if ($dto->description !== null) {
+            // Не даём стереть текст и вписать полностью другой в рамках
+            // "правки" — тот же смысл, что и у ChatMessage/TechSupportMessage:
+            // иначе 24-часовой лимит выше ничего не значил бы.
+            if ($this->isEditTooDifferent($entity->getDescription(), $dto->description))
+                return $this->errorJson(AppMessages::EDIT_TOO_DIFFERENT);
+
+            $entity->setDescription($dto->description);
+        }
+
+        $entity->setRating($dto->rating);
+
         foreach ($entity->getImages() as $img) {
             $entity->removeImage($img);
             $this->entityManager->remove($img);
         }
-
-        $entity->setDescription($dto->description)->setRating($dto->rating);
 
         foreach ($dto->images as $image) {
             if (!empty($image->image) && $image->image !== 'string') {

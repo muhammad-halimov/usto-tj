@@ -15,7 +15,7 @@ use App\Controller\Api\CRUD\POST\Chat\Message\ApiPostChatMessageController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Dto\Chat\ChatMessagePatchInput;
 use App\Dto\Image\ImageInput;
-use App\Entity\Contract\HasImagesInterface;
+use App\Entity\Contract\EditableMessageInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
@@ -72,7 +72,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
-class ChatMessage implements HasImagesInterface
+class ChatMessage implements EditableMessageInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, DescriptionTrait;
 
@@ -133,6 +133,34 @@ class ChatMessage implements HasImagesInterface
     ])]
     #[ApiProperty(writable: false)]
     private ?DateTimeImmutable $readAt = null;
+
+    /**
+     * "Помечать сообщение как изменено" — выставляется автоматически при
+     * первой правке текста (см. ApiPatchChatMessageController) и остаётся
+     * true навсегда, даже если текст правили несколько раз. Сама история
+     * правок — в EntityRevision (audit trail), это поле — только видимый
+     * пользователю признак "уже редактировалось".
+     */
+    #[ORM\Column(options: ['default' => false])]
+    #[Groups([
+        G::CHATS,
+        G::CHAT_MESSAGES,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $edited = false;
+
+    /**
+     * Мягкое удаление автором (см. EditableMessageInterface::DELETED_PLACEHOLDER,
+     * ApiDeleteChatMessageController) — отдельно от $edited: это не "правка",
+     * а замена содержимого на плейсхолдер, физическая строка в БД остаётся.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    #[Groups([
+        G::CHATS,
+        G::CHAT_MESSAGES,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $deletedByAuthor = false;
 
     /**
      * @var Collection<int, MultipleImage>
@@ -255,6 +283,30 @@ class ChatMessage implements HasImagesInterface
     public function setReadAt(?DateTimeImmutable $readAt): static
     {
         $this->readAt = $readAt;
+
+        return $this;
+    }
+
+    public function isEdited(): bool
+    {
+        return $this->edited;
+    }
+
+    public function setEdited(bool $edited): static
+    {
+        $this->edited = $edited;
+
+        return $this;
+    }
+
+    public function isDeletedByAuthor(): bool
+    {
+        return $this->deletedByAuthor;
+    }
+
+    public function setDeletedByAuthor(bool $deletedByAuthor): static
+    {
+        $this->deletedByAuthor = $deletedByAuthor;
 
         return $this;
     }
