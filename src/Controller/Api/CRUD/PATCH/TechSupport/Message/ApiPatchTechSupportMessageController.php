@@ -84,6 +84,12 @@ class ApiPatchTechSupportMessageController extends AbstractApiPatchController
         if ($text === null && $imagesParam === null)
             return $this->errorJson(AppMessages::NOTHING_TO_UPDATE);
 
+        // Не даём отредактировать сообщение так, чтобы не осталось ни
+        // текста, ни фото (см. wouldLeaveMessageEmpty()) — до применения
+        // изменений, чтобы не трогать сущность, если откажем.
+        if ($this->wouldLeaveMessageEmpty($entity, $text, $imagesParam))
+            return $this->errorJson(AppMessages::MESSAGE_EMPTY);
+
         // Обновляем текст сообщения.
         // Раньше здесь был баг: вызывался setAuthor($bearer), что перезаписывало
         // оригинального автора сообщения на того, кто его редактирует.

@@ -73,6 +73,12 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
         if ($text === null && $imagesParam === null)
             return $this->errorJson(AppMessages::NOTHING_TO_UPDATE);
 
+        // Не даём отредактировать сообщение так, чтобы не осталось ни
+        // текста, ни фото (см. wouldLeaveMessageEmpty()) — до применения
+        // изменений, чтобы не трогать сущность, если откажем.
+        if ($this->wouldLeaveMessageEmpty($entity, $text, $imagesParam))
+            return $this->errorJson(AppMessages::MESSAGE_EMPTY);
+
         if ($text !== null) {
             // Не даём стереть текст и вписать полностью другой в рамках
             // "правки" — иначе лимит на редактирование выше ничего не значил

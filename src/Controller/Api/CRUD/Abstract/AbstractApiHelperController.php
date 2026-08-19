@@ -3,6 +3,7 @@
 namespace App\Controller\Api\CRUD\Abstract;
 
 use App\ApiResource\AppMessages;
+use App\Dto\Image\ImageObjectInput;
 use App\Entity\Contract\EditableMessageInterface;
 use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\EntityRevision;
@@ -359,6 +360,32 @@ abstract class AbstractApiHelperController extends AbstractController
         $message->setDescription(AppMessages::get(AppMessages::MESSAGE_DELETED_PLACEHOLDER, $locale)->message);
         $message->setDeletedByAuthor(true);
         $message->setUpdatedAt();
+    }
+
+    /**
+     * Останется ли сообщение без текста И без фото после PATCH — используют
+     * ChatMessage/TechSupportMessage, чтобы не дать отредактировать
+     * сообщение в полностью пустое состояние (см. AppMessages::MESSAGE_EMPTY).
+     *
+     * Специально только PATCH, не POST: на создании пустой текст обязан
+     * проходить — фото прикрепляется ОТДЕЛЬНЫМ запросом уже ПОСЛЕ создания
+     * (см. handle() у ApiPost{Chat,TechSupport}MessageController), сущности
+     * с фото ещё не существует в момент самого POST. Закрыть эту дыру на
+     * уровне POST нельзя, не сломав двухшаговую отправку "фото без текста".
+     *
+     * @param string|null        $newText   $dto->description (null = не трогали)
+     * @param ImageObjectInput[]|null $newImages $dto->images (null = не трогали)
+     */
+    protected function wouldLeaveMessageEmpty(EditableMessageInterface $message, ?string $newText, ?array $newImages): bool
+    {
+        $resultingText = $newText ?? $message->getDescription();
+        if (trim((string) $resultingText) !== '') return false;
+
+        $hasImages = $newImages !== null
+            ? (bool) array_filter($newImages, fn(object $item) => !empty($item->image ?? null))
+            : !$message->getImages()->isEmpty();
+
+        return !$hasImages;
     }
 
     /**

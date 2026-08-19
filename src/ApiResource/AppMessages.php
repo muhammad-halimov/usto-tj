@@ -49,6 +49,10 @@ class AppMessages
     const string EDIT_WINDOW_EXPIRED            = 'edit_window_expired';
     const string EDIT_TOO_DIFFERENT             = 'edit_too_different';
     const string MESSAGE_ALREADY_DELETED        = 'message_already_deleted';
+    // ChatMessage/TechSupportMessage PATCH: нельзя отредактировать сообщение
+    // так, чтобы не осталось ни текста, ни фото — см.
+    // ApiPatch{Chat,TechSupport}MessageController::applyChanges().
+    const string MESSAGE_EMPTY                  = 'message_empty';
     // Уникально для TechSupportMessage — у Review/ChatMessage нет роли "оператор".
     const string TECH_SUPPORT_MESSAGE_EDIT_LOCKED = 'tech_support_message_edit_locked';
     // Не ошибка — текст, который реально ложится в description при мягком
@@ -195,6 +199,7 @@ class AppMessages
         self::EDIT_WINDOW_EXPIRED             => ['http' => 403, 'messages' => ['tj' => 'Мӯҳлати таҳрир гузаштааст',                                                                'eng' => 'Can no longer be edited — the edit window has expired', 'ru' => 'Больше нельзя редактировать — истёк период редактирования']],
         self::EDIT_TOO_DIFFERENT              => ['http' => 400, 'messages' => ['tj' => 'Матни нав аз аслӣ хеле фарқ мекунад — ин таҳрир нест, балки нависондани дубора',           'eng' => 'New text is too different from the original — this looks like a rewrite, not an edit', 'ru' => 'Новый текст слишком отличается от исходного — это не правка, а фактически переписывание заново']],
         self::MESSAGE_ALREADY_DELETED         => ['http' => 410, 'messages' => ['tj' => 'Паём аллакай нест карда шудааст',                                                          'eng' => 'Message has already been deleted',                             'ru' => 'Сообщение уже удалено']],
+        self::MESSAGE_EMPTY                   => ['http' => 400, 'messages' => ['tj' => 'Паём бояд матн ё расм дошта бошад',                                                        'eng' => 'Message must have either text or a photo',                     'ru' => 'Сообщение должно содержать текст или фото']],
         self::TECH_SUPPORT_MESSAGE_EDIT_LOCKED => ['http' => 403, 'messages' => ['tj' => 'Оператор аллакай хондааст ё ҷавоб додааст — таҳрир баста аст',                            'eng' => 'Operator has already read or replied — editing is locked',     'ru' => 'Оператор уже прочитал или ответил — редактирование заблокировано']],
         // http не используется (не ошибка) — просто текст, см. softDeleteMessage()
         self::MESSAGE_DELETED_PLACEHOLDER      => ['http' => 200, 'messages' => ['tj' => 'Паём аз ҷониби муаллиф нест карда шуд',                                                    'eng' => 'Message deleted by author',                                    'ru' => 'Сообщение удалено автором']],
