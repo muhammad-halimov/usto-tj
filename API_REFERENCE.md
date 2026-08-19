@@ -226,10 +226,12 @@ interface Occupation { id: number; title: string; description: string|null; imag
 
 **Edit/delete restrictions on `ChatMessage`** — identical mechanism to `TechSupportMessage` below (shared code, `AbstractApiHelperController`), minus the "operator reacted" lock (chat has no operator/appellant distinction, both sides are peers). See the `TechSupportMessage` section for the full breakdown of `edit_window_expired` / `edit_too_different` / `message_already_deleted` and how soft delete works — same codes, same `edited`/`deletedByAuthor` fields, same rules, just without `tech_support_message_edit_locked`.
 
+Photo-only messages (no text): omit `description`, send `""`, or send `null` on `POST /chat-messages` (all three normalize to `""` server-side), then attach the photo via the separate `upload-images` call. No `empty_text` error — text is fully optional at creation time.
+
 ```ts
 interface ChatPostInput  { replyAuthor?: string /* User IRI */; ticket?: string /* Ticket IRI */; }
 interface ChatPatchInput { active: boolean; }
-interface ChatMessagePostInput  { chat: string /* Chat IRI, required */; description: string; replyTo?: string /* ChatMessage IRI */; }
+interface ChatMessagePostInput  { chat: string /* Chat IRI, required */; description?: string; replyTo?: string /* ChatMessage IRI */; }
 interface ChatMessagePatchInput { chat?: string; description?: string; images?: { image: string }[]; }
 
 interface Chat {
@@ -448,7 +450,7 @@ interface BlackList { id: number; user: User; createdAt: string; updatedAt: stri
 | GET | `/api/tech-supports/inbox-token` | Mercure token covering ALL of the caller's tickets at once (as author or administrant — same scope as `/tech-supports/me`). Empty set → `{ token: null, topics: [] }` |
 | POST | `/api/tech-supports` | body: `TechSupportPostInput`. Works for guests too (no Bearer) — then `guestEmail` is required |
 | POST | `/api/tech-supports/{id}/read` | Marks all unread messages of this ticket as read for the caller (sets `readAt`). "Unread" = `author != caller` and `readAt` still `null`. Access: author, assigned `administrant`, **or any `ROLE_ADMIN`** (broader than `/subscribe`, which stays author+assigned-only). `403 ownership_mismatch` otherwise. No body, `204 No Content`. |
-| PATCH | `/api/tech-supports/{id}` | body: `TechSupportPatchInput`. **Author**: `status` only (state machine below). **Admin**: `status` + `title`/`reason`/`priority`/`description`/`images` — all silently no-op for non-admins (200, field just doesn't change), no error thrown. |
+| PATCH | `/api/tech-supports/{id}` | body: `TechSupportPatchInput`. **Author**: `status` (state machine below) + `title`/`description`/`images`, the last three subject to the same 24h edit window as below. **Admin**: everything the author can, plus `reason`/`priority` (no time limit — moderation, not content). Fields outside what the caller is allowed to touch are silently no-op (200, field just doesn't change), no error thrown — except `title`/`description`/`images` past the 24h window, which *does* error (`edit_window_expired`), for both author and admin. |
 | PATCH | `/api/tech-supports/{id}/assign` | ROLE_ADMIN, body: `TechSupportAssignInput` |
 | POST | `/api/tech-supports/{id}/upload-images` | multipart `imageFile[]` |
 
@@ -458,7 +460,7 @@ interface TechSupportInput { title?: string; reason?: string /* AppealReason IRI
 interface TechSupportPostInput extends TechSupportInput { guestEmail?: string; }
 interface TechSupportPatchInput extends TechSupportInput {
   status?: 'new'|'renewed'|'in_progress'|'resolved'|'closed'|'banned';
-  images?: { image: string }[];   // admin-only; reorder/prune existing MultipleImage refs by filename, same syncImages() mechanism as Chat/Ticket
+  images?: { image: string }[];   // author or admin, within the 24h window below; reorder/prune existing MultipleImage refs by filename, same syncImages() mechanism as Chat/Ticket
 }
 interface TechSupportAssignInput { administrant: string /* User IRI */; }
 
@@ -494,7 +496,9 @@ interface TechSupport {
 `TechSupport.STATUSES`: new, renewed, in_progress, resolved, closed, **banned**.
 `TechSupport.PRIORITIES`: 1=Низкий, 2=Средний, 3=Высокий, 4=Экстренный.
 
-**Status transitions on `PATCH /tech-supports/{id}`**: `ROLE_ADMIN` (incl. `ROLE_SUPER_ADMIN`) can set `status` to *any* value from *any* current value — no restrictions, including out of `banned` (unban). The **author** can only self-transition `resolved → renewed` or `closed → renewed` (reopen — e.g. the ticket was closed with no response, and the client comes back); every other status change by a non-admin returns `403 extra_denied`.
+**Status transitions on `PATCH /tech-supports/{id}`**: `ROLE_ADMIN` (incl. `ROLE_SUPER_ADMIN`) can set `status` to *any* value from *any* current value — no restrictions, including out of `banned` (unban). The **author** can only self-transition `resolved → renewed` or `closed → renewed` (reopen — e.g. the ticket was closed with no response, and the client comes back); every other status change by a non-admin returns `403 extra_denied`. Not subject to the edit window below — status changes are always available regardless of ticket age.
+
+**`title`/`description`/`images` edit window on `PATCH /tech-supports/{id}`**: same mechanism as `Review`/`ChatMessage`/`TechSupportMessage` (`AbstractApiHelperController::isPastEditWindow()`, 24h default) — `403 edit_window_expired` once the ticket is older than 24h from `createdAt`. Applies to *both* author and admin equally (unlike `reason`/`priority`, which stay admin-only and unrestricted by time).
 
 **`banned`** — reachable only by `ROLE_ADMIN`, from any status (including `closed`). While a ticket is `banned`, the **author loses all interaction**: `POST /tech-support-messages` and `POST /tech-supports/{id}/upload-images` both return `403 access_denied` for the author/guest — only `ROLE_ADMIN` can still post messages or images on a banned ticket. Unlike before, admin CAN move it back out of `banned` via `PATCH .../{id}`.
 
@@ -510,7 +514,7 @@ Real-time: Mercure, same mechanism as Chat (§5). Fetch a subscribe token (`/tec
 | DELETE | `/api/tech-support-messages/{id}` | **Soft delete** — see below, not a hard delete |
 | POST | `/api/tech-support-messages/{id}/upload-images` | multipart `imageFile[]` |
 
-Photo-only messages (no text): send `description: ""` on `POST /tech-support-messages`, then attach the photo via the separate `upload-images` call — same two-step pattern as `ChatMessage`. Only an actually-*missing* `description` (`null`/omitted) is rejected (`400 empty_text`); an empty string passes through.
+Photo-only messages (no text): omit `description`, send `description: ""`, or send `description: null` on `POST /tech-support-messages` (all three are equivalent — normalized to `""` server-side), then attach the photo via the separate `upload-images` call — same two-step pattern as `ChatMessage`. There's no `empty_text` error anymore; text is fully optional at creation time either way.
 
 ```ts
 interface TechSupportMessagePostInput  { techSupport?: string /* IRI */; description?: string; }
@@ -537,7 +541,7 @@ Note: marking read does **not** emit a Mercure event (unlike Chat, where `/chats
 
 **TechSupportMessage-only, on top of the above**: **locked once the operator reacted** (`tech_support_message_edit_locked`, `403`) — only gates the *appellant* editing (the ticket's own `author`); the administrant editing their own messages isn't subject to this. "Reacted" = the message's `readAt` is set, OR the administrant has sent at least one later message in the same ticket (no `replyTo` concept here unlike `ChatMessage`, so "responded" means "posted anything afterward"). `ChatMessage`/`Review` have no operator concept, so no equivalent lock.
 
-**Soft delete on `DELETE /tech-support-messages/{id}` and `DELETE /chat-messages/{id}`**: author OR any `ROLE_ADMIN` (moderation — same "any admin, not just the assigned one" principle already used for posting into a ticket). Not subject to any of the edit restrictions above — deletion is for removing accidentally-shared sensitive content, not "editing", so it stays available at any time. Sets `description` to a localized placeholder (tj/eng/ru, resolved from `?locale=` the same way as `AppMessages` error text — see `AbstractApiHelperController::DELETED_MESSAGE_PLACEHOLDER`), `deletedByAuthor: true`, and removes all attached photos (logged in the audit trail same as any other photo removal). The row itself is never physically deleted — the description change flows through the same update path as a normal edit, so it's captured in the audit trail automatically. Calling `DELETE` again on an already-deleted message is a no-op (`204`). `Review` has no delete endpoint covered by this — unaffected.
+**Soft delete on `DELETE /tech-support-messages/{id}` and `DELETE /chat-messages/{id}`**: author OR any `ROLE_ADMIN` (moderation — same "any admin, not just the assigned one" principle already used for posting into a ticket). Not subject to any of the edit restrictions above — deletion is for removing accidentally-shared sensitive content, not "editing", so it stays available at any time. Sets `description` to a localized placeholder (tj/eng/ru — see `AppMessages::MESSAGE_DELETED_PLACEHOLDER`), `deletedByAuthor: true`, and removes all attached photos (logged in the audit trail same as any other photo removal). **Locale resolution here is its own thing, not `AppMessages`'s usual `?locale=` default**: an explicit `?locale=tj` or `?locale=ru` is honored, but if `?locale=` is omitted entirely the placeholder defaults to **`eng`** (not `tj` like every other error/message response) — this text gets written into the DB permanently, so an unspecified language shouldn't silently pick a language nobody asked for. The row itself is never physically deleted — the description change flows through the same update path as a normal edit, so it's captured in the audit trail automatically. Calling `DELETE` again on an already-deleted message is a no-op (`204`). `Review` has no delete endpoint covered by this — unaffected.
 
 ## 12. LEGAL
 
@@ -604,9 +608,9 @@ interface EntityRevision {
 }
 ```
 
-**`parentId`**: the id of whatever directly owns `entityId` (the immediate FK, not the topmost ancestor) — lets you find every revision nested under one object even when they span different `entityType`s. Per `entityType`: `ticket` → always `null` (root of the hierarchy); `chat_message` → the id of its `Chat` (`ChatMessage.chat`, not the chat's `Ticket`); `tech_support_message` → the id of its `TechSupport`; `review` → the id of its `Ticket`; `multiple_image` → the id of whichever entity owned the deleted photo.
+**`parentId`**: the id of whatever directly owns `entityId` (the immediate FK, not the topmost ancestor) — lets you find every revision nested under one object even when they span different `entityType`s. Per `entityType`: `ticket` → always `null` (root of the hierarchy); `chat_message` → the id of its `Chat` (`ChatMessage.chat`, not the chat's `Ticket`); `tech_support_message` → the id of its `TechSupport`; `review` → the id of its `Ticket`; `multiple_image` → the id of whichever entity owned the deleted photo; `user` → always `null` (root, same as `ticket`).
 
-**`entity`**: the short class name of whatever `parentId` points to (`"Ticket"`, `"Chat"`, `"TechSupport"`, `"Review"`, `"ChatMessage"`, `"TechSupportMessage"`, `"Gallery"`, `"Appeal"`) — or, for `entityType: "ticket"` (no parent), the class name of the row itself (`"Ticket"`). Lets you filter/group without having to know which `entityType`s nest under which parent. Admin-panel translation table: `EntityRevision::ENTITIES` (`App\Entity\Extra\EntityRevision`).
+**`entity`**: the short class name of whatever `parentId` points to (`"Ticket"`, `"Chat"`, `"TechSupport"`, `"Review"`, `"ChatMessage"`, `"TechSupportMessage"`, `"Gallery"`, `"Appeal"`) — or, for a root `entityType` with no parent (`"ticket"`, `"user"`), the class name of the row itself (`"Ticket"`, `"User"`). Lets you filter/group without having to know which `entityType`s nest under which parent. Admin-panel translation table: `EntityRevision::ENTITIES` (`App\Entity\Extra\EntityRevision`).
 
 **Retention**: every revision defaults to `expiresAt = createdAt + 14 days`. A writer can pass `null` instead to keep a specific row forever — nothing currently does, but the field/mechanism supports it. Expiry is not automatic/DB-enforced — actual deletion only happens when `php bin/console app:prune-entity-revisions` runs (cron, not wired up by default in this repo). `expiresAt` is read-only from the API regardless (no write operations on this resource at all).
 
@@ -616,6 +620,7 @@ interface EntityRevision {
 - **`chat_message`** — on `PATCH /chat-messages/{id}` that changes `description`. `{ action: "updated", snapshot: { description: { old: "...", new: "..." } } }`.
 - **`tech_support_message`** — on `PATCH /tech-support-messages/{id}` that changes `description`. Same shape as `chat_message`.
 - **`review`** — on `PATCH /reviews/{id}` that changes `description` and/or `rating`. `snapshot` contains only whichever of the two actually changed, each as an `{ old, new }` pair.
+- **`user`** — on `PATCH /users/{id}` that changes `cookiesAgreed` (currently the only watched field for `User` — most other fields are either moderation-only, already covered elsewhere, or too sensitive to snapshot, e.g. `password`). `{ action: "updated", snapshot: { cookiesAgreed: { old: false, new: true } } }`. Note: `TechSupport` (the ticket itself — `title`/`description`/`images`, see §11) is **not** currently written to the audit trail despite having the same 24h edit window as the entities above; only `TechSupportMessage` (the messages within it) is.
 - **`multiple_image`** — not an old/new edit-snapshot like the above (deleted photos have no "new" value); `{ action: "deleted" }` whenever one or more existing photos are dropped from any entity's `images` array on PATCH (Ticket/Review/Chat message/Tech support/Tech support message/Gallery/Appeal — anything with `HasImagesInterface`, all funnel through the same `syncImages()` helper), or via `DELETE /api/multiple-images/{id}` (admin moderation, see above). **One row per batch, not per photo** — if a single PATCH drops 3 photos at once, that's one `EntityRevision` listing all 3, not three separate rows. `entityId` is the *first* deleted photo's own id (there's no single id once it's a batch — the full list is in `snapshot`). `snapshot: { images: [{ image: "<full path, e.g. /uploads/tickets/abc123.png>" }, ...] }` — full path (`uri_prefix` + directory + filename, matching what `EntityDirectoryNamerService` actually resolves it to), not just the bare filename.
 
 `reason` is writable from the admin panel only (not set by any listener, not writable via this API at all) — a free-text note an admin can attach after the fact, e.g. to explain a moderator-triggered deletion.

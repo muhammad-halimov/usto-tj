@@ -29,7 +29,11 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
 
     protected function setSerializationGroups(): array { return G::OPS_TECH_SUPPORT_POST; }
 
-    protected function getUserGrade(): string { return 'double'; }
+    // 'double' (дефолт CLIENT/MASTER) исключал бы обычный ROLE_ADMIN ещё до
+    // checkOwnership() ниже — а тот прямо рассчитан на то, что "любой
+    // ROLE_ADMIN может работать с любым тикетом" (тот же баг класса, что
+    // чинили в ApiPostTechSupportMessageController::getUserGrade()).
+    protected function getUserGrade(): string { return 'triple'; }
 
     protected function getNotFoundError(): string { return AppMessages::TECH_SUPPORT_NOT_FOUND; }
 
@@ -78,15 +82,22 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
     ];
 
     /**
-     * Автор тикета может патчить только статус (по правилам TRANSITIONS ниже).
-     * Админ может то же самое, плюс title/reason/priority/description/images —
-     * унаследованные от TechSupportInput поля, общие с POST (см. DTO).
+     * Автор тикета может патчить статус (по правилам AUTHOR_TRANSITIONS ниже)
+     * и, в пределах 24ч с момента создания, title/description/images — тот
+     * же принцип, что у Review/ChatMessage/TechSupportMessage: можно
+     * поправить формулировку сразу после создания, но не переписывать
+     * содержание тикета спустя произвольное время.
+     * Админ может то же title/description/images (тоже под 24ч — единое
+     * ограничение вне зависимости от того, кто редактирует), плюс
+     * reason/priority — без ограничения по времени, это модерация, а не
+     * содержание тикета.
      */
     protected function applyChanges(object $entity, User $bearer, object $dto): ?JsonResponse
     {
         /** @var TechSupport $entity */
         /** @var TechSupportPatchInput $dto */
-        $isAdmin = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
+        $isAdmin  = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
+        $isAuthor = $entity->getAuthor() === $bearer;
 
         // Статус теперь необязателен в теле запроса — PATCH умеет менять
         // и другие поля отдельно от смены статуса.
@@ -96,19 +107,29 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
             }
         }
 
+        // 24ч с момента создания тикета — тот же хелпер и код ошибки, что у
+        // Review/ChatMessage/TechSupportMessage (см.
+        // AbstractApiHelperController::isPastEditWindow, дефолт '-24 hours').
+        // Доступно и автору, и админу — reason/priority этим не ограничены
+        // (см. ниже, только под $isAdmin).
+        if ($isAdmin || $isAuthor) {
+            if ($dto->title !== null || $dto->description !== null || !empty($dto->images)) {
+                if ($this->isPastEditWindow($entity->getCreatedAt()))
+                    return $this->errorJson(AppMessages::EDIT_WINDOW_EXPIRED);
+
+                if ($dto->title !== null)       $entity->setTitle($dto->title);
+                if ($dto->description !== null) $entity->setDescription($dto->description);
+                if (!empty($dto->images))       $this->syncImages($entity, $dto->images, $bearer);
+            }
+        }
+
         if ($isAdmin) {
             if ($dto->reason !== null && !in_array($dto->reason->getApplicableTo(), ['support', 'overall'], true)) {
                 return $this->errorJson(AppMessages::WRONG_SUPPORT_REASON);
             }
 
-            if ($dto->title !== null)       $entity->setTitle($dto->title);
-            if ($dto->description !== null) $entity->setDescription($dto->description);
-            if ($dto->priority !== null)    $entity->setPriority($dto->priority);
-            if ($dto->reason !== null)      $entity->setReason($dto->reason);
-
-            if (!empty($dto->images)) {
-                $this->syncImages($entity, $dto->images, $bearer);
-            }
+            if ($dto->priority !== null) $entity->setPriority($dto->priority);
+            if ($dto->reason !== null)   $entity->setReason($dto->reason);
         }
 
         return null;
