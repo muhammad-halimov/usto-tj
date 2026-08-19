@@ -6,6 +6,9 @@ use App\Dto\Image\ImageObjectInput;
 
 class TicketPatchInput extends TicketInput
 {
-    /** @var ImageObjectInput[] */
-    public array $images = [];
+    // Nullable, а не [] по умолчанию — иначе "images не переданы" и "images
+    // явно отправлены пустым массивом" (удалить последнее фото) неразличимы
+    // в контроллере (см. GalleryPatchInput — тот же паттерн, уже правильный).
+    /** @var ImageObjectInput[]|null */
+    public ?array $images = null;
 }

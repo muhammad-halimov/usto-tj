@@ -68,7 +68,9 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
         $text        = $dto->description;
         $imagesParam = $dto->images;
 
-        if ($text === null && empty($imagesParam))
+        // === null, не empty() — иначе явное "images": [] (удалить последнее
+        // фото) неотличимо от "images вообще не прислали" (оба empty()).
+        if ($text === null && $imagesParam === null)
             return $this->errorJson(AppMessages::NOTHING_TO_UPDATE);
 
         if ($text !== null) {
@@ -82,7 +84,7 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
             $entity->setEdited(true);
         }
 
-        if (!empty($imagesParam)) {
+        if ($imagesParam !== null) {
             $this->syncImages($entity, $imagesParam, $bearer);
         }
 

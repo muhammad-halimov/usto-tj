@@ -334,9 +334,11 @@ interface Gallery { id: number; user: User; images: MultipleImage[]; createdAt: 
 
 **Edit restrictions on `PATCH /reviews/{id}`** — same shared mechanism as `ChatMessage`/`TechSupportMessage` (see §11 TECH SUPPORT for the full breakdown): `edit_window_expired` (`403`, 24h from `createdAt`) and `edit_too_different` (`400`, `description` must stay ≥50% similar to the original — omit the field entirely to leave it untouched, that's exempt). No soft delete / `edited` flag / operator-lock for `Review` — those are message-specific, not part of this.
 
+`images` on `ReviewPatchInput` is now optional and behaves like everywhere else (see §14): omit it to leave photos untouched, send `[]` to remove all of them. **Previously this field defaulted to `[]` and had no gate at all**, so it ran unconditionally on *every* PATCH — editing just `rating`, with no mention of `images`, used to silently wipe all of a review's photos. Fixed; omitting `images` is now safe.
+
 ```ts
 interface ReviewPostInput  { type?: 'client'|'master'; rating: number; ticket?: string /* IRI */; description?: string; master?: string /* IRI */; client?: string /* IRI */; }
-interface ReviewPatchInput { rating: number; description?: string; images: { image: string }[]; }
+interface ReviewPatchInput { rating: number; description?: string; images?: { image: string }[]; }
 
 interface Review {
   id: number;
@@ -575,7 +577,11 @@ interface MultipleImage {
 ```
 Universal image upload pattern — every resource that has images exposes:
 `POST /api/{resource}/{id}/upload-images` — `multipart/form-data`, field `imageFile[]` (multiple files, each ≤10MB, png/jpeg/jpg/webp) → `{ message: string, count: number }`.
-Reordering/removing already-uploaded images on PATCH: pass `images: [{ image: "<filename>" }, ...]` in entity's Patch DTO (Ticket, Review, Chat message, Gallery, Tech support ticket [admin-only], Tech support message) — order defines new `priority`; filenames omitted from the array are detached.
+Reordering/removing already-uploaded images on PATCH: pass `images: [{ image: "<filename>" }, ...]` in entity's Patch DTO (Ticket, Review, Chat message, Tech support ticket, Tech support message — Gallery is its own case, see below) — order defines new `priority`; filenames omitted from the array are detached.
+
+**Omitted vs. explicit `[]`** — these two are now meaningfully different and it matters: omitting `images` from the PATCH body entirely leaves the entity's photos untouched (not part of this edit); sending `images: []` explicitly detaches **all** of them (the "delete the last photo" case). Applies to `Ticket`, `Review`, `ChatMessage`, `TechSupportMessage`, and `TechSupport` (ticket-level). **This was broken until now** on all of those except `TechSupportMessage`/`ChatMessage`'s DTO shape (and `Gallery`, see below) — `images: []` was silently indistinguishable from omitting the field and did nothing; fixed by making the field nullable end-to-end. If you already have client code sending `{"images":[]}` to clear photos and it appeared to no-op, it should now actually work.
+
+`Gallery` is the one exception to "omit = untouched": `GalleryPatchInput.images` is effectively **required**, not optional — `PATCH /galleries/{id}` with no `images` key (or `null`) returns `400 invalid_json` rather than a no-op, since a gallery PATCH only exists to touch images in the first place.
 
 Admin photo moderation — `DELETE /api/multiple-images/{id}` — **ROLE_ADMIN/ROLE_SUPER_ADMIN only**, no ownership check at all (unlike the PATCH-based removal above, which only the entity's own author/participant can do). Deletes by the photo's own id regardless of which entity owns it — a client-side "which resource is this on" lookup isn't needed. Logs the same `EntityRevision` (`entityType: "multiple_image"`, `action: "deleted"`) as PATCH-triggered removal, so moderation deletions show up in the same audit trail either way.
 

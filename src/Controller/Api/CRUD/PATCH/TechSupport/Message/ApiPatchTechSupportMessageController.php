@@ -79,7 +79,9 @@ class ApiPatchTechSupportMessageController extends AbstractApiPatchController
         $text        = $dto->description;
         $imagesParam = $dto->images;
 
-        if ($text === null && empty($imagesParam))
+        // === null, не empty() — иначе явное "images": [] (удалить последнее
+        // фото) неотличимо от "images вообще не прислали" (оба empty()).
+        if ($text === null && $imagesParam === null)
             return $this->errorJson(AppMessages::NOTHING_TO_UPDATE);
 
         // Обновляем текст сообщения.
@@ -98,7 +100,7 @@ class ApiPatchTechSupportMessageController extends AbstractApiPatchController
 
         // Тот же механизм синхронизации фоток, что и в PATCH сообщений чата
         // (ApiPatchChatMessageController) — реордер/удаление по имени файла.
-        if (!empty($imagesParam)) {
+        if ($imagesParam !== null) {
             $this->syncImages($entity, $imagesParam, $bearer);
         }
 

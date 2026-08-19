@@ -6,11 +6,14 @@ use App\Dto\Image\ImageObjectInput;
 
 class TechSupportPatchInput extends TechSupportInput
 {
-    // Единственное поле, доступное автору тикета. Остальные (title/reason/
-    // priority/description/images, унаследованные от TechSupportInput) —
-    // только для админа, см. ApiPatchTechSupportController::applyChanges().
+    // Кто что может патчить — см. ApiPatchTechSupportController::applyChanges():
+    // автор — status (по AUTHOR_TRANSITIONS) + title/description/images (24ч
+    // окно); reason/priority (унаследованы от TechSupportInput) — только админ.
     public ?string $status = null;
 
-    /** @var ImageObjectInput[] */
-    public array $images = [];
+    // Nullable, а не [] по умолчанию — иначе "images не переданы" и "images
+    // явно отправлены пустым массивом" (удалить последнее фото) неразличимы
+    // в контроллере (см. GalleryPatchInput — тот же паттерн, уже правильный).
+    /** @var ImageObjectInput[]|null */
+    public ?array $images = null;
 }

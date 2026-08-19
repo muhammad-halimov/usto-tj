@@ -113,13 +113,15 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         // Доступно и автору, и админу — reason/priority этим не ограничены
         // (см. ниже, только под $isAdmin).
         if ($isAdmin || $isAuthor) {
-            if ($dto->title !== null || $dto->description !== null || !empty($dto->images)) {
+            // !== null, не !empty() — иначе явное "images": [] (удалить
+            // последнее фото) неотличимо от "images вообще не прислали".
+            if ($dto->title !== null || $dto->description !== null || $dto->images !== null) {
                 if ($this->isPastEditWindow($entity->getCreatedAt()))
                     return $this->errorJson(AppMessages::EDIT_WINDOW_EXPIRED);
 
                 if ($dto->title !== null)       $entity->setTitle($dto->title);
                 if ($dto->description !== null) $entity->setDescription($dto->description);
-                if (!empty($dto->images))       $this->syncImages($entity, $dto->images, $bearer);
+                if ($dto->images !== null)      $this->syncImages($entity, $dto->images, $bearer);
             }
         }
 

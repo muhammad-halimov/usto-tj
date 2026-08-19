@@ -79,7 +79,9 @@ class ApiPatchTicketController extends AbstractApiHelperController
             if ($error) return $error;
         }
 
-        if (!empty($dto->images)) {
+        // !== null, не !empty() — иначе явное "images": [] (удалить
+        // последнее фото) неотличимо от "images вообще не прислали".
+        if ($dto->images !== null) {
             $this->syncImages($ticket, $dto->images, $bearerUser);
         }
 

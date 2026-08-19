@@ -63,16 +63,22 @@ class ApiPatchReviewController extends AbstractApiPatchController
 
         $entity->setRating($dto->rating);
 
-        foreach ($entity->getImages() as $img) {
-            $entity->removeImage($img);
-            $this->entityManager->remove($img);
-        }
+        // !== null — раньше это выполнялось БЕЗУСЛОВНО на каждый PATCH: DTO
+        // дефолтил images в [], так что правка одного rating/description без
+        // единого упоминания images стирала все фото отзыва. Теперь как и
+        // везде — поле не прислали, фото не трогаем.
+        if ($dto->images !== null) {
+            foreach ($entity->getImages() as $img) {
+                $entity->removeImage($img);
+                $this->entityManager->remove($img);
+            }
 
-        foreach ($dto->images as $image) {
-            if (!empty($image->image) && $image->image !== 'string') {
-                $newImage = (new MultipleImage())->setImage($image->image);
-                $this->persist($newImage);
-                $entity->addImage($newImage);
+            foreach ($dto->images as $image) {
+                if (!empty($image->image) && $image->image !== 'string') {
+                    $newImage = (new MultipleImage())->setImage($image->image);
+                    $this->persist($newImage);
+                    $entity->addImage($newImage);
+                }
             }
         }
 
