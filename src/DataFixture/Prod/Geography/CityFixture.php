@@ -1,16 +1,22 @@
 <?php
 
-namespace App\DataFixture\Geography;
+namespace App\DataFixture\Prod\Geography;
 
 use App\Entity\Extra\Translation;
 use App\Entity\Geography\City\City;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Persistence\ObjectManager;
 use ReflectionClass;
 
-class CityFixture extends Fixture
+class CityFixture extends Fixture implements FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['prod'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         $citiesData = [
@@ -90,6 +96,29 @@ class CityFixture extends Fixture
             'Ishkoshim' => [
                 'translations' => ['tj' => 'Ишкошим', 'ru' => 'Ишкашим', 'eng' => 'Ishkoshim'],
                 'description'  => 'Ишкашим, ГБАО',
+            ],
+            // ── ГРРП ──
+            'Hisor' => [
+                'translations' => ['tj' => 'Ҳисор', 'ru' => 'Гиссар', 'eng' => 'Hisor'],
+                'description'  => 'Гиссар, ГРРП',
+            ],
+            'Tursunzoda' => [
+                'translations' => ['tj' => 'Турсунзода', 'ru' => 'Турсунзаде', 'eng' => 'Tursunzoda'],
+                'description'  => 'Турсунзаде, ГРРП',
+            ],
+            'Norak' => [
+                'translations' => ['tj' => 'Норак', 'ru' => 'Нурек', 'eng' => 'Norak'],
+                'description'  => 'Нурек, Хатлонская область',
+            ],
+            // ── Согдийская область ──
+            'Isfara' => [
+                'translations' => ['tj' => 'Исфара', 'ru' => 'Исфара', 'eng' => 'Isfara'],
+                'description'  => 'Исфара, Согдийская область',
+            ],
+            // ── Хатлонская область ──
+            'Farkhor' => [
+                'translations' => ['tj' => 'Фарҳор', 'ru' => 'Фархор', 'eng' => 'Farkhor'],
+                'description'  => 'Фархор, Хатлонская область',
             ],
         ];
 

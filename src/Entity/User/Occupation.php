@@ -54,7 +54,6 @@ class Occupation
     {
         $this->education = new ArrayCollection();
         $this->master = new ArrayCollection();
-        $this->categories = new ArrayCollection();
         $this->translations = new ArrayCollection();
         $this->tickets = new ArrayCollection();
     }
@@ -120,14 +119,18 @@ class Occupation
     #[Ignore]
     private Collection $master;
 
-    /**
-     * @var Collection<int, Category>
-     */
-    #[ORM\ManyToMany(targetEntity: Category::class, mappedBy: 'occupations')]
+    // Подкатегория принадлежит РОВНО одной категории — было ManyToMany
+    // (occupation <-> category через join-таблицу category_occupation), но
+    // ни один код нигде не пользовался тем, что подкатегория теоретически
+    // могла бы относиться к нескольким категориям сразу, а данные всегда
+    // были 1:1 на практике. ManyToOne — владеющая сторона здесь (FK
+    // category_id лежит в occupation), Category::$occupations — обратная.
+    #[ORM\ManyToOne(targetEntity: Category::class, inversedBy: 'occupations')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         G::OCCUPATIONS,
     ])]
-    private Collection $categories;
+    private ?Category $category = null;
 
     /**
      * @var Collection<int, Translation>
@@ -201,29 +204,14 @@ class Occupation
         return $this;
     }
 
-    /**
-     * @return Collection<int, Category>
-     */
-    public function getCategories(): Collection
+    public function getCategory(): ?Category
     {
-        return $this->categories;
+        return $this->category;
     }
 
-    public function addCategory(Category $category): static
+    public function setCategory(?Category $category): static
     {
-        if (!$this->categories->contains($category)) {
-            $this->categories->add($category);
-            $category->addOccupation($this);
-        }
-
-        return $this;
-    }
-
-    public function removeCategory(Category $category): static
-    {
-        if ($this->categories->removeElement($category)) {
-            $category->removeOccupation($this);
-        }
+        $this->category = $category;
 
         return $this;
     }

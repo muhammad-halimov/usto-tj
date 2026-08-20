@@ -1,19 +1,25 @@
 <?php
 
-namespace App\DataFixture\Geography;
+namespace App\DataFixture\Prod\Geography;
 
 use App\Entity\Extra\Translation;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\City\Suburb;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
 /**
  * Suburbs (ПГТ — посёлки городского типа / кварталы городских районов).
  */
-class SuburbFixture extends Fixture implements DependentFixtureInterface
+class SuburbFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['prod'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // [$ref, $cityRef, $translations, $desc]
@@ -35,6 +41,15 @@ class SuburbFixture extends Fixture implements DependentFixtureInterface
             // ── Хорог ──
             ['khorog_markaz',      'khorog',   ['tj' => 'Марказ',             'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Хорог'],
             ['khorog_porshev',     'khorog',   ['tj' => 'Поршнев',           'ru' => 'Поршнев',             'eng' => 'Porshnev'],         'Квартал Поршнев, Хорог'],
+            // ── Исфара ──
+            ['isfara_markaz',      'isfara',   ['tj' => 'Марказ',             'ru' => 'Центральный',         'eng' => 'Center'],           'Центральный квартал, Исфара'],
+            ['isfara_chorku_q',    'isfara',   ['tj' => 'Чоркӯҳӣ',          'ru' => 'Чоркухский',          'eng' => 'Chorku Area'],      'Квартал Чоркухский, Исфара'],
+            // ── Гиссар ──
+            ['hisor_markaz',       'hisor',    ['tj' => 'Марказ',             'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Гиссар'],
+            // ── Турсунзаде ──
+            ['tursunzoda_markaz',  'tursunzoda',['tj' => 'Марказ',            'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Турсунзаде'],
+            // ── Нурек ──
+            ['norak_markaz',       'norak',    ['tj' => 'Марказ',             'ru' => 'Центр',               'eng' => 'Center'],           'Центр города, Нурек'],
         ];
 
         foreach ($suburbsData as [$ref, $cityRef, $translations, $desc]) {

@@ -1,9 +1,9 @@
 <?php
 
-namespace App\DataFixture\User;
+namespace App\DataFixture\Dev\User;
 
-use App\DataFixture\Additional\ReviewFIxture;
-use App\DataFixture\Ticket\TicketFixture;
+use App\DataFixture\Dev\Additional\ReviewFIxture;
+use App\DataFixture\Dev\Additional\TicketFixture;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;

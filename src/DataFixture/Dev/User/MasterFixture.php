@@ -1,11 +1,11 @@
 <?php
 
-namespace App\DataFixture\User;
+namespace App\DataFixture\Dev\User;
 
-use App\DataFixture\Additional\ReviewFIxture;
-use App\DataFixture\Geography\DistrictFixture;
-use App\DataFixture\Ticket\OccupationFixture;
-use App\DataFixture\Ticket\TicketFixture;
+use App\DataFixture\Dev\Additional\ReviewFIxture;
+use App\DataFixture\Dev\Additional\TicketFixture;
+use App\DataFixture\Prod\Geography\DistrictFixture;
+use App\DataFixture\Prod\Ticket\OccupationFixture;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;

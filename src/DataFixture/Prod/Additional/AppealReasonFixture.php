@@ -1,16 +1,22 @@
 <?php
 
-namespace App\DataFixture\Appeal;
+namespace App\DataFixture\Prod\Additional;
 
 use App\Entity\Appeal\Reason\AppealReason;
 use App\Entity\Extra\Translation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Persistence\ObjectManager;
 use ReflectionClass;
 
-class AppealReasonFixture extends Fixture
+class AppealReasonFixture extends Fixture implements FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['prod'];
+    }
+
     private const array REASONS = [
         'offend' => [
             'applicableTo' => 'chat',
@@ -100,6 +106,33 @@ class AppealReasonFixture extends Fixture
                 'ru'  => 'Другое',
                 'tj'  => 'Дигар',
                 'eng' => 'Other',
+            ],
+        ],
+        'fake_profile' => [
+            'applicableTo' => 'user',
+            'authRequired' => true,
+            'translations' => [
+                'ru'  => 'Поддельный профиль',
+                'tj'  => 'Профили қалбакӣ',
+                'eng' => 'Fake Profile',
+            ],
+        ],
+        'impersonation' => [
+            'applicableTo' => 'user',
+            'authRequired' => true,
+            'translations' => [
+                'ru'  => 'Выдаёт себя за другого человека',
+                'tj'  => 'Худро ба ҷои шахси дигар вонамуд мекунад',
+                'eng' => 'Impersonation',
+            ],
+        ],
+        'harassment' => [
+            'applicableTo' => 'user',
+            'authRequired' => true,
+            'translations' => [
+                'ru'  => 'Домогательство/Преследование',
+                'tj'  => 'Таъқиб/Озордиҳӣ',
+                'eng' => 'Harassment',
             ],
         ],
         'fake_review' => [

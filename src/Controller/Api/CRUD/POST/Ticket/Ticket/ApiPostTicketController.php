@@ -53,7 +53,10 @@ class ApiPostTicketController extends AbstractApiPostController
         $category    = $dto->category;
         $unit        = $dto->unit;
 
-        if ($subcategory && !$category->getOccupations()->contains($subcategory))
+        // Occupation::$category — теперь честный one-to-many (одна
+        // подкатегория принадлежит ровно одной категории), сравниваем
+        // напрямую, а не contains() по коллекции многие-ко-многим.
+        if ($subcategory && $subcategory->getCategory() !== $category)
             return $this->errorJson(AppMessages::SUBCATEGORY_NOT_IN_CATEGORY);
 
         $ticket = new Ticket();

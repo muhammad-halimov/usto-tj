@@ -1,6 +1,6 @@
 <?php
 
-namespace App\DataFixture\Additional;
+namespace App\DataFixture\Dev\Additional;
 
 use App\Entity\Review\Review;
 use Doctrine\Bundle\FixturesBundle\Fixture;

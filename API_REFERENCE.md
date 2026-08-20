@@ -199,8 +199,9 @@ GET /api/occupations        GET /api/occupations/{id}
 ```ts
 interface Category { id: number; title: string; description: string|null; image: string|null; priority: number|null; occupations: Occupation[]; }
 interface Unit     { id: number; title: string; description: string|null; priority: number|null; }
-interface Occupation { id: number; title: string; description: string|null; image: string|null; priority: number|null; categories: Category[]; }
+interface Occupation { id: number; title: string; description: string|null; image: string|null; priority: number|null; category: Category | null; }
 ```
+**Breaking change**: `Occupation.categories: Category[]` → `Occupation.category: Category | null`. A subcategory belongs to exactly one category — was modeled as many-to-many (join table), now a real one-to-many (`category_id` FK on `occupation`), since nothing ever actually used a subcategory spanning multiple categories and the old shape let that happen by accident with no validation catching it. `Category.occupations` is unaffected — still an array, still every subcategory under that category.
 
 ## 5. CHATS
 

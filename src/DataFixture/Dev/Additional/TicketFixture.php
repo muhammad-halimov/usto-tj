@@ -1,8 +1,7 @@
 <?php
 
-namespace App\DataFixture\Ticket;
+namespace App\DataFixture\Dev\Additional;
 
-use App\DataFixture\Additional\ReviewFIxture;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\FixturesBundle\Fixture;

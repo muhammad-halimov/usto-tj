@@ -53,8 +53,7 @@ class OccupationCrudController extends AbstractCrudController
             ->setColumns(5)
             ->setRequired(false);
 
-        yield AssociationField::new('categories', 'Категории работ')
-            ->setFormTypeOptions(['by_reference' => false])
+        yield AssociationField::new('category', 'Категория')
             ->setColumns(5);
 
         yield IntegerField::new('priority', 'Порядок')

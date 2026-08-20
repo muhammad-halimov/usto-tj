@@ -1,20 +1,26 @@
 <?php
 
-namespace App\DataFixture\Geography;
+namespace App\DataFixture\Prod\Geography;
 
 use App\Entity\Extra\Translation;
 use App\Entity\Geography\District\District;
 use App\Entity\Geography\District\Settlement;
 use App\Entity\Geography\District\Village;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
 /**
  * Settlements (посёлки/пгт) within districts, each containing villages.
  */
-class SettlementFixture extends Fixture implements DependentFixtureInterface
+class SettlementFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['prod'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // [$settlementRef, $districtRef, $settlementTranslations, $settlementDesc, $villages]
@@ -27,7 +33,7 @@ class SettlementFixture extends Fixture implements DependentFixtureInterface
                 'Посёлок Хушьёр, район Рудаки, ГРРП',
                 [
                     ['village_khushyor_poyon', ['tj' => 'Хушёри Поён', 'ru' => 'Хушьёр Нижний', 'eng' => 'Lower Khushyor'], 'Нижний Хушьёр'],
-                    ['village_khushyor_boло', ['tj' => 'Хушёри Боло',  'ru' => 'Хушьёр Верхний', 'eng' => 'Upper Khushyor'], 'Верхний Хушьёр'],
+                    ['village_khushyor_bolo', ['tj' => 'Хушёри Боло',  'ru' => 'Хушьёр Верхний', 'eng' => 'Upper Khushyor'], 'Верхний Хушьёр'],
                 ],
             ],
             [
@@ -44,7 +50,7 @@ class SettlementFixture extends Fixture implements DependentFixtureInterface
                 ['tj' => 'Ҷумба', 'ru' => 'Джумба', 'eng' => 'Jumba'],
                 'Посёлок Джумба, район Спитамен',
                 [
-                    ['village_chashma', ['tj' => 'Чашма', 'ru' => 'Чашма', 'eng' => 'Chashma'], '村/Джамоат Чашма'],
+                    ['village_chashma', ['tj' => 'Чашма', 'ru' => 'Чашма', 'eng' => 'Chashma'], 'Деха Чашма, джамоат Ширин'],
                 ],
             ],
             // ── Хатлон — Вахш ──
@@ -53,7 +59,7 @@ class SettlementFixture extends Fixture implements DependentFixtureInterface
                 ['tj' => 'Гулистон', 'ru' => 'Гулистон', 'eng' => 'Guliston'],
                 'ПГТ Гулистон, район Вахш, Хатлон',
                 [
-                    ['village_guliston_boло', ['tj' => 'Гулистони Боло', 'ru' => 'Гулистон Верхний', 'eng' => 'Upper Guliston'], 'Гулистон Верхний'],
+                    ['village_guliston_bolo', ['tj' => 'Гулистони Боло', 'ru' => 'Гулистон Верхний', 'eng' => 'Upper Guliston'], 'Гулистон Верхний'],
                     ['village_guliston_payon', ['tj' => 'Гулистони Поён', 'ru' => 'Гулистон Нижний', 'eng' => 'Lower Guliston'], 'Гулистон Нижний'],
                 ],
             ],
@@ -73,6 +79,33 @@ class SettlementFixture extends Fixture implements DependentFixtureInterface
                 'Посёлок Барадж, район Шугнан, ГБАО',
                 [
                     ['village_baroj_1', ['tj' => 'Бароҷи Поён', 'ru' => 'Барадж Нижний', 'eng' => 'Lower Baroj'], 'Нижний Барадж'],
+                ],
+            ],
+            // ── ГРРП — Гиссар ──
+            [
+                'settlement_kandak', 'hisor_d',
+                ['tj' => 'Кандак', 'ru' => 'Кандак', 'eng' => 'Kandak'],
+                'Посёлок Кандак, район Гиссар, ГРРП',
+                [
+                    ['village_kandak_1', ['tj' => 'Кандаки Боло', 'ru' => 'Кандак Верхний', 'eng' => 'Upper Kandak'], 'Верхний Кандак'],
+                ],
+            ],
+            // ── Согдийская — Исфара ──
+            [
+                'settlement_surh', 'isfara_d',
+                ['tj' => 'Сурх', 'ru' => 'Сурх', 'eng' => 'Surkh'],
+                'Посёлок Сурх, район Исфара, Согдийская обл.',
+                [
+                    ['village_surh_1', ['tj' => 'Сурхи Поён', 'ru' => 'Сурх Нижний', 'eng' => 'Lower Surkh'], 'Нижний Сурх'],
+                ],
+            ],
+            // ── Хатлон — Фархор ──
+            [
+                'settlement_pushing', 'farkhor_d',
+                ['tj' => 'Пушинг', 'ru' => 'Пушинг', 'eng' => 'Pushing'],
+                'Посёлок Пушинг, район Фархор, Хатлон',
+                [
+                    ['village_pushing_1', ['tj' => 'Пушинги Марказӣ', 'ru' => 'Пушинг Центральный', 'eng' => 'Central Pushing'], 'Центральный Пушинг'],
                 ],
             ],
         ];

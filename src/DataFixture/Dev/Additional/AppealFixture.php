@@ -1,11 +1,10 @@
 <?php
 
-namespace App\DataFixture\Appeal;
+namespace App\DataFixture\Dev\Additional;
 
-use App\DataFixture\Additional\ReviewFIxture;
-use App\DataFixture\Ticket\TicketFixture;
-use App\DataFixture\User\ClientFixture;
-use App\DataFixture\User\MasterFixture;
+use App\DataFixture\Dev\User\ClientFixture;
+use App\DataFixture\Dev\User\MasterFixture;
+use App\DataFixture\Prod\Additional\AppealReasonFixture;
 use App\Entity\Appeal\Reason\AppealReason;
 use App\Entity\Appeal\Types\AppealReview;
 use App\Entity\Appeal\Types\AppealTicket;

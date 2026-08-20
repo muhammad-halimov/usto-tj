@@ -1,19 +1,25 @@
 <?php
 
-namespace App\DataFixture\Geography;
+namespace App\DataFixture\Prod\Geography;
 
 use App\Entity\Extra\Translation;
 use App\Entity\Geography\District\Community;
 use App\Entity\Geography\District\District;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
 /**
  * Communities (джамоаты / кварталы) within districts.
  */
-class CommunityFixture extends Fixture implements DependentFixtureInterface
+class CommunityFixture extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['prod'];
+    }
+
     public function load(ObjectManager $manager): void
     {
         // [$ref, $districtRef, $translations, $desc]
@@ -36,6 +42,17 @@ class CommunityFixture extends Fixture implements DependentFixtureInterface
             // ── ГБАО ──
             ['comm_shugnan_main',    'shugnan',    ['tj' => 'Шуғнон',     'ru' => 'Шугнан',      'eng' => 'Shugnan'],    'Джамоати Шугнан, район Шугнан, ГБАО'],
             ['comm_rushan_porshnev', 'rushan',     ['tj' => 'Поршнев',   'ru' => 'Поршнев',     'eng' => 'Porshnev'],   'Джамоати Поршнев, район Рушан, ГБАО'],
+            ['comm_vanj_yamg',       'vanj',       ['tj' => 'Ямг',        'ru' => 'Ямг',         'eng' => 'Yamg'],       'Джамоати Ямг, район Ванч, ГБАО'],
+            // ── ГРРП (новые районы) ──
+            ['comm_hisor_gulistonobod', 'hisor_d', ['tj' => 'Гулистонобод', 'ru' => 'Гулистанабад', 'eng' => 'Gulistonobod'], 'Джамоати Гулистанабад, район Гиссар'],
+            ['comm_tursunzoda_karatag', 'tursunzoda_d', ['tj' => 'Қаратоғ', 'ru' => 'Каратаг',   'eng' => 'Karatag'],    'Джамоати Каратаг, район Турсунзаде'],
+            ['comm_vahdat_gulshan',  'vahdat_d',   ['tj' => 'Гулшан',     'ru' => 'Гулшан',      'eng' => 'Gulshan'],    'Джамоати Гулшан, район Вахдат'],
+            // ── Согдийская область (новые районы) ──
+            ['comm_isfara_chorku',   'isfara_d',   ['tj' => 'Чоркӯҳ',    'ru' => 'Чоркух',       'eng' => 'Chorku'],     'Джамоати Чоркух, район Исфара'],
+            ['comm_ghafurov_oim',    'ghafurov',   ['tj' => 'Ойим',       'ru' => 'Ойим',         'eng' => 'Oyim'],       'Джамоати Ойим, район Б. Гафурова'],
+            // ── Хатлонская область (новые районы) ──
+            ['comm_farkhor_sarikhosor', 'farkhor_d', ['tj' => 'Сариҳосор', 'ru' => 'Сарихосор',  'eng' => 'Sarikhosor'], 'Джамоати Сарихосор, район Фархор'],
+            ['comm_panj_darqad',     'panj',       ['tj' => 'Дарқад',     'ru' => 'Даркад',       'eng' => 'Darqad'],     'Джамоати Даркад, район Пяндж'],
         ];
 
         foreach ($communitiesData as [$ref, $distRef, $translations, $desc]) {

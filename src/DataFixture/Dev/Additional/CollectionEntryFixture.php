@@ -1,10 +1,9 @@
 <?php
 
-namespace App\DataFixture\Additional;
+namespace App\DataFixture\Dev\Additional;
 
-use App\DataFixture\Ticket\TicketFixture;
-use App\DataFixture\User\ClientFixture;
-use App\DataFixture\User\MasterFixture;
+use App\DataFixture\Dev\User\ClientFixture;
+use App\DataFixture\Dev\User\MasterFixture;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Entity\User\BlackList;

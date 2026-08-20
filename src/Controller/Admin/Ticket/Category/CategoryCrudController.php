@@ -7,6 +7,7 @@ use App\Controller\Admin\Field\VichImageField;
 use App\Entity\Ticket\Category;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
@@ -49,8 +50,12 @@ class CategoryCrudController extends AbstractCrudController
         yield CollectionField::new('translations', 'Название')
             ->useEntryCrudForm(TranslationCrudController::class)
             ->setFormTypeOptions(['by_reference' => false])
-            ->setColumns(10)
+            ->setColumns(5)
             ->setRequired(false);
+
+        yield AssociationField::new('occupations', 'Подкатегории')
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(5);
 
         yield IntegerField::new('priority', 'Порядок')
             ->setColumns(2)

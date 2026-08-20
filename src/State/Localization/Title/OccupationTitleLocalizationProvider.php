@@ -17,7 +17,7 @@ readonly class OccupationTitleLocalizationProvider extends AbstractLocalizationP
         /** @var Occupation $entity */
         $this->localizationService->localizeEntity($entity, $locale);
 
-        foreach ($entity->getCategories() as $category) {
+        if ($category = $entity->getCategory()) {
             $this->localizationService->localizeEntity($category, $locale);
         }
     }

@@ -103,7 +103,14 @@ class Category
     #[Ignore]
     private Collection $userTickets;
 
-    #[ORM\ManyToMany(targetEntity: Occupation::class, inversedBy: 'categories')]
+    /**
+     * @var Collection<int, Occupation>
+     *
+     * Обратная сторона Occupation::$category (ManyToOne, FK на стороне
+     * occupation) — было ManyToMany, переведено в честный one-to-many, см.
+     * докблок над Occupation::$category.
+     */
+    #[ORM\OneToMany(targetEntity: Occupation::class, mappedBy: 'category', cascade: ['persist'])]
     #[Groups([
         G::CATEGORIES,
     ])]
@@ -159,7 +166,7 @@ class Category
     {
         if (!$this->occupations->contains($occupation)) {
             $this->occupations->add($occupation);
-            $occupation->addCategory($this);
+            $occupation->setCategory($this);
         }
 
         return $this;
@@ -168,7 +175,9 @@ class Category
     public function removeOccupation(Occupation $occupation): static
     {
         if ($this->occupations->removeElement($occupation)) {
-            $occupation->removeCategory($this);
+            if ($occupation->getCategory() === $this) {
+                $occupation->setCategory(null);
+            }
         }
 
         return $this;

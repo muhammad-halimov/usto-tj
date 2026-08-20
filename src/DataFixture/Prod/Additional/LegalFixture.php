@@ -1,14 +1,20 @@
 <?php
 
-namespace App\DataFixture\Additional;
+namespace App\DataFixture\Prod\Additional;
 
 use App\Entity\Extra\Translation;
 use App\Entity\Legal\Legal;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Persistence\ObjectManager;
 
-class LegalFixture extends Fixture
+class LegalFixture extends Fixture implements FixtureGroupInterface
 {
+    public static function getGroups(): array
+    {
+        return ['prod'];
+    }
+
     private const array LEGALS = [
         [
             'type'        => 'terms_of_use',
