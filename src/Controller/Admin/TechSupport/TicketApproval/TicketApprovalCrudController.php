@@ -7,14 +7,22 @@ use App\Controller\Admin\Traits\AdminActionsTrait;
 use App\Controller\Admin\Traits\NonAdminUserQueryTrait;
 use App\Controller\Admin\Traits\TimestampFieldsTrait;
 use App\Entity\TechSupport\TicketApproval;
+use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
+use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\BatchActionDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Doctrine\ORM\QueryBuilder;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class TicketApprovalCrudController extends AbstractCrudController
 {
@@ -22,7 +30,12 @@ class TicketApprovalCrudController extends AbstractCrudController
 
     use TimestampFieldsTrait;
 
-    use AdminActionsTrait;
+    // configureActions уже переопределён ниже (нужно доп. batch-действие) —
+    // достаём базовую реализацию трейта под своим именем, чтобы не
+    // дублировать её содержимое (стандартные DETAIL/EDIT/DELETE + права).
+    use AdminActionsTrait {
+        configureActions as private baseConfigureActions;
+    }
 
     public function __construct(private readonly AdminUrlGenerator $adminUrlGenerator) {}
 
@@ -41,6 +54,25 @@ class TicketApprovalCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение подтверждения')
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о подтверждении")
             ->setDefaultSort(['createdAt' => 'DESC']);
+    }
+
+    public function configureActions(Actions $actions): Actions
+    {
+        $actions = $this->baseConfigureActions($actions);
+
+        // Массовое подтверждение — выделяешь несколько строк в списке и
+        // одной кнопкой ставишь approved=true каждой (у отдельной строки то
+        // же самое делается переключателем поля 'approved' — тут просто
+        // пакетный вариант для очереди из нескольких заявок сразу).
+        $actions->add(Crud::PAGE_INDEX, Action::new('batchApprove', 'Подтвердить выбранные', 'fas fa-check-double')
+            ->createAsBatchAction()
+            ->askConfirmation(
+                'Подтвердить все выбранные заявки? Соответствующие тикеты станут одобренными и снова видны публично.',
+                'Подтвердить'
+            )
+            ->linkToCrudAction('batchApprove'));
+
+        return $actions;
     }
 
     public function configureFields(string $pageName): iterable
@@ -90,5 +122,44 @@ class TicketApprovalCrudController extends AbstractCrudController
 
         /** @noinspection HtmlUnknownTarget */
         return sprintf('<a href="%s" target="_blank">Открыть карточку тикета #%d ↗</a>', $url, $ticket->getId());
+    }
+
+    /**
+     * Обработчик batch-действия 'batchApprove' — ставит approved=true всем
+     * выбранным TicketApproval разом. Переиспользует TicketApproval::
+     * setApproved() как есть (та же сущность, что и при ручном подтверждении
+     * одной строки переключателем поля 'approved') — вся связанная логика
+     * (каскадное одобрение Ticket, защита от повторной установки true у уже
+     * одобренной записи и т.д.) отрабатывает точно так же.
+     *
+     * CSRF-проверка и сверка entityFqcn — по тому же паттерну, что встроенный
+     * AbstractCrudController::batchDelete().
+     */
+    public function batchApprove(AdminContext $context, BatchActionDto $batchActionDto, EntityManagerInterface $entityManager): RedirectResponse
+    {
+        if (!$this->isCsrfTokenValid('ea-batch-action-batchApprove-' . $batchActionDto->getEntityFqcn(), $batchActionDto->getCsrfToken())) {
+            return $this->redirectToRoute($context->getDashboardRouteName());
+        }
+
+        if ($batchActionDto->getEntityFqcn() !== TicketApproval::class) {
+            throw new BadRequestHttpException();
+        }
+
+        $repository = $entityManager->getRepository(TicketApproval::class);
+
+        foreach ($batchActionDto->getEntityIds() as $entityId) {
+            /** @var TicketApproval|null $approval */
+            $approval = $repository->find($entityId);
+
+            if ($approval && !$approval->isApproved()) {
+                $approval->setApproved(true);
+            }
+        }
+
+        $entityManager->flush();
+
+        return $this->redirect(
+            $this->adminUrlGenerator->setAction(Crud::PAGE_INDEX)->set(EA::PAGE, 1)->generateUrl()
+        );
     }
 }
