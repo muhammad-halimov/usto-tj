@@ -60,6 +60,38 @@ class ApiPatchTicketController extends AbstractApiHelperController
             return $this->errorJson(AppMessages::ACCESS_DENIED);
         }
 
+        // Быстрый путь: в теле прислали ТОЛЬКО active — это тумблер
+        // "скрыть/показать своё же объявление", а не правка контента.
+        // Сверять category/subcategory, парсить address, синхронизировать
+        // images или пересчитывать budget/negotiableBudget тут физически
+        // не с чем: ничего из этого не прислали, всё это ниже так и так
+        // свелось бы к "оставить как было" — просто патчим active и выходим,
+        // не заходя в блоки, которые ничего не поменяют. Сам active больше
+        // не тянет за собой цикл пере-одобрения TicketListener'а (см. его
+        // NOTIFIABLE_FIELDS) — но даже без этого тут не было бы смысла
+        // прогонять тикет через код, целиком предназначенный для других полей.
+        $isActiveOnlyPatch =
+            $dto->active !== null
+            && $dto->title === null
+            && $dto->description === null
+            && $dto->notice === null
+            && $dto->budget === null
+            && $dto->negotiableBudget === null
+            && $dto->priority === null
+            && $dto->category === null
+            && $dto->subcategory === null
+            && $dto->unit === null
+            && empty($dto->address)
+            && $dto->images === null;
+
+        if ($isActiveOnlyPatch) {
+            $ticket->setActive($dto->active);
+            $this->flush();
+            $this->afterFetch($ticket, $bearerUser);
+
+            return $this->buildResponse($ticket);
+        }
+
         /** @var Category $category */
         $category    = $dto->category    ?? $ticket->getCategory();
         $unit        = $dto->unit        ?? $ticket->getUnit();

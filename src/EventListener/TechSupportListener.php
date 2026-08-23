@@ -3,12 +3,15 @@
 namespace App\EventListener;
 
 use App\Entity\TechSupport\TechSupport;
+use App\Entity\User;
 use App\Service\Extra\AdminLoadBalancerService;
 use App\Service\Notification\Email\NotifyNewTechSupportEmailService;
 use App\Service\Notification\NotificationDispatcher;
 use App\Service\Notification\Telegram\NotifyNewTechSupportTelegramBotService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
+use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * Обрабатывает бизнес-логику тикетов техподдержки:
@@ -17,6 +20,15 @@ use Doctrine\ORM\Events;
  *                начальный статус «new» (до записи в БД)
  *  postPersist — отправляет уведомление назначенному администратору
  *                (после успешной записи, когда у тикета есть ID)
+ *  preUpdate / postUpdate — ловят РУЧНОЕ переназначение администранта
+ *                (PATCH /tech-supports/{id}/assign, см.
+ *                ApiAssignTechSupportController) и уведомляют нового
+ *                администранта тем же способом, что и при создании тикета —
+ *                тот же приём отложенной side-эффекта, что
+ *                TechSupportMessageListener использует для EntityRevision:
+ *                changeset доступен только в preUpdate, но сайд-эффекты
+ *                (отправка уведомлений) безопаснее делать в postUpdate,
+ *                когда изменение уже точно записано в БД.
  *
  * Балансировка нагрузки:
  *   При создании каждого нового тикета мы ищем администратора с наименьшим
@@ -28,13 +40,23 @@ use Doctrine\ORM\Events;
  */
 #[AsEntityListener(event: Events::prePersist, entity: TechSupport::class)]
 #[AsEntityListener(event: Events::postPersist, entity: TechSupport::class)]
-readonly class TechSupportListener
+#[AsEntityListener(event: Events::preUpdate, entity: TechSupport::class)]
+#[AsEntityListener(event: Events::postUpdate, entity: TechSupport::class)]
+class TechSupportListener
 {
+    /**
+     * @var array<int, User> Тикет (по spl_object_id) → новый администрант,
+     * которого нужно уведомить в postUpdate. Заполняется в preUpdate —
+     * единственном месте, где доступен changeset (PreUpdateEventArgs).
+     */
+    private array $pendingAdminChange = [];
+
     public function __construct(
-        private NotifyNewTechSupportTelegramBotService $telegramNotifier,
-        private NotifyNewTechSupportEmailService       $emailNotifier,
-        private AdminLoadBalancerService               $adminLoadBalancerService,
-        private NotificationDispatcher                 $dispatcher,
+        private readonly NotifyNewTechSupportTelegramBotService $telegramNotifier,
+        private readonly NotifyNewTechSupportEmailService       $emailNotifier,
+        private readonly AdminLoadBalancerService               $adminLoadBalancerService,
+        private readonly NotificationDispatcher                 $dispatcher,
+        private readonly Security                               $security,
     ){}
 
     /**
@@ -54,7 +76,44 @@ readonly class TechSupportListener
      */
     public function postPersist(TechSupport $techSupport): void
     {
-        $admin = $techSupport->getAdministrant();
+        $this->notifyAdmin($techSupport, $techSupport->getAdministrant());
+    }
+
+    /**
+     * Ловим смену поля administrant (ручное переназначение) — само значение
+     * "было/стало" достаём здесь, пока доступен changeset; для ManyToOne
+     * getNewValue() возвращает сам объект User, а не просто его id.
+     */
+    public function preUpdate(TechSupport $techSupport, PreUpdateEventArgs $event): void
+    {
+        if (!$event->hasChangedField('administrant')) return;
+
+        $newAdmin = $event->getNewValue('administrant');
+        if ($newAdmin instanceof User) {
+            $this->pendingAdminChange[spl_object_id($techSupport)] = $newAdmin;
+        }
+    }
+
+    public function postUpdate(TechSupport $techSupport): void
+    {
+        $key = spl_object_id($techSupport);
+        if (!isset($this->pendingAdminChange[$key])) return;
+
+        $newAdmin = $this->pendingAdminChange[$key];
+        unset($this->pendingAdminChange[$key]);
+
+        // Не уведомляем, если админ назначил тикет сам себе — он и так знает.
+        if ($newAdmin === $this->security->getUser()) return;
+
+        $this->notifyAdmin($techSupport, $newAdmin);
+    }
+
+    private function notifyAdmin(TechSupport $techSupport, ?User $admin): void
+    {
+        // getRoles() у User виртуально достраивает ROLE_ADMIN для
+        // ROLE_SUPER_ADMIN (см. User::getRoles()) — эта проверка отличается
+        // от AdminLoadBalancerService::findAllAdmins() тем, что тут уже
+        // готовый PHP-объект User, а не сырой SQL по колонке roles.
         if ($admin === null || !in_array('ROLE_ADMIN', $admin->getRoles())) return;
 
         $this->dispatcher->send(

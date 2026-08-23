@@ -57,6 +57,33 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getResult();
     }
 
+    /**
+     * Все пользователи, способные администрировать (ROLE_ADMIN ИЛИ
+     * ROLE_SUPER_ADMIN) — для балансировки нагрузки (AdminLoadBalancerService)
+     * и подобных мест, где нужен именно полный список "живых" админов.
+     *
+     * НЕ то же самое, что findAllByRole('ROLE_ADMIN'): та бьёт LIKE-поиском
+     * по сырой колонке roles в БД, а строка "ROLE_SUPER_ADMIN" НЕ содержит
+     * подстроку "ROLE_ADMIN" (нет смежного "ROLE_ADMIN" внутри "ROLE_SUPER_ADMIN"),
+     * так что findAllByRole('ROLE_ADMIN') супер-админов не находит вовсе.
+     * User::getRoles() виртуально достраивает ROLE_ADMIN у супер-админа, но
+     * это чисто PHP-уровневое расширение — до сырого SQL оно не доходит.
+     * Отсюда и был баг: единственный реальный админ в проде имеет только
+     * ROLE_SUPER_ADMIN, и findAllByRole('ROLE_ADMIN') возвращал пустой
+     * массив → AdminLoadBalancerService::setLeastLoadedAdmin() молча
+     * ничего не назначал (see if (empty($admins)) return;).
+     */
+    public function findAllAdmins(): array
+    {
+        return $this
+            ->createQueryBuilder('u')
+            ->where("CAST(u.roles AS text) LIKE :roleAdmin OR CAST(u.roles AS text) LIKE :roleSuperAdmin")
+            ->setParameter('roleAdmin', '%ROLE_ADMIN%')
+            ->setParameter('roleSuperAdmin', '%ROLE_SUPER_ADMIN%')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findByOccupationId(int $occupationId): array
     {
         return $this->createQueryBuilder('u')

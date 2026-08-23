@@ -35,8 +35,13 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
     /**
      * Для одиночного GET:
      *   1. Загружаем тикет по ID без фильтра approved.
-     *   2. Если approved=true — виден всем.
-     *   3. Если approved=false — виден только автору (сравниваем email/identifier).
+     *   2. Публично виден, только если approved=true И публикатор (мастер —
+     *      для service, автор — иначе) сам active+approved — то же условие,
+     *      что ApprovedTicketExtension применяет к коллекции GET /tickets.
+     *      Раньше здесь проверялся только ticket.approved — если публикатор
+     *      уже одобренного тикета потом деактивировался, тикет пропадал из
+     *      коллекции, но всё ещё был доступен по прямой ссылке /tickets/{id}.
+     *   3. Иначе — виден только автору/мастеру (владельцу тикета).
      */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
@@ -50,13 +55,20 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
 
             $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'tj') ?? 'tj';
 
-            // Approved tickets are visible to everyone
-            if ($ticket->getApproved()) {
+            $publisher = $ticket->getService() ? $ticket->getMaster() : $ticket->getAuthor();
+            $isPubliclyVisible = $ticket->getApproved()
+                && $publisher !== null
+                && $publisher->getActive()
+                && $publisher->getApproved();
+
+            if ($isPubliclyVisible) {
                 $this->localize($ticket, $locale);
                 return $ticket;
             }
 
-            // Unapproved: only the author or master (ticket owner) can see it
+            // Не видно публично (либо сам тикет не approved, либо
+            // деактивирован/не подтверждён его публикатор): виден только
+            // автору или мастеру (владельцу тикета).
             $user = $this->security->getUser();
             if ($user !== null) {
                 $identifier = $user->getUserIdentifier();

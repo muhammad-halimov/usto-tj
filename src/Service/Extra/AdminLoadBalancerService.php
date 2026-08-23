@@ -32,7 +32,12 @@ readonly class AdminLoadBalancerService
      */
     public function setLeastLoadedAdmin(object $entity, array $activeCriteria): void
     {
-        $admins = $this->entityManager->getRepository(User::class)->findAllByRole('ROLE_ADMIN');
+        // findAllAdmins(), а НЕ findAllByRole('ROLE_ADMIN') — последняя не
+        // находит пользователей с ROLE_SUPER_ADMIN (см. докблок метода:
+        // "ROLE_SUPER_ADMIN" не содержит подстроку "ROLE_ADMIN"). Раньше это
+        // означало, что при единственном реальном админе с ROLE_SUPER_ADMIN
+        // этот метод получал пустой список и вообще не назначал администранта.
+        $admins = $this->entityManager->getRepository(User::class)->findAllAdmins();
 
         if (empty($admins)) return;
 
