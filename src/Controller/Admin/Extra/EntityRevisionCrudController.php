@@ -13,6 +13,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
@@ -138,22 +139,41 @@ class EntityRevisionCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setColumns(2);
 
-        // Биндим на виртуальный геттер snapshotSummary, а не на реальное поле
-        // snapshot (Doctrine json-колонка) — EasyAdmin определяет тип виджета
-        // по маппингу колонки и падает на "Array to string conversion"
-        // независимо от класса Field, если биндить напрямую на json-свойство.
-        // TextEditorField (тот же класс, что у reason ниже) даёт на форме
-        // редактирования Trix — он читает значение геттера как HTML-источник,
-        // поэтому сам геттер уже отдаёт экранированный текст с реальными
-        // "<br>" (см. EntityRevision::getSnapshotSummary). На детальной
-        // странице template по умолчанию у text_editor второй раз
-        // экранирует и добавляет nl2br поверх уже готового HTML — переопределяем
-        // на crud/field/text (тот же приём, что раньше), который выводит
-        // значение как доверенный raw HTML без повторного экранирования.
+        // Биндим на виртуальные геттеры, а не на реальное поле snapshot
+        // (Doctrine json-колонка) напрямую — EasyAdmin определяет тип
+        // виджета по маппингу колонки и падает на "Array to string
+        // conversion" независимо от класса Field, если биндить напрямую на
+        // json-свойство.
+        //
+        // ДВА поля на одни и те же данные, не одно — DETAIL и EDIT в
+        // EasyAdmin рендерятся принципиально разными путями: DETAIL — через
+        // setTemplateName() (вывод под моим контролем), EDIT — всегда через
+        // настоящий Symfony Form-виджет конкретного класса Field, который
+        // САМ, дополнительно, экранирует переданное значение. Раньше здесь
+        // было одно HTML-поле (TextEditorField/Trix) — на DETAIL оно
+        // работало верно, а на EDIT удваивало экранирование ("<br>"
+        // показывался как буквальный текст "&lt;br&gt;", уже экранированный
+        // "&lt;div&gt;" — как "&amp;lt;div&amp;gt;", проверено живьём);
+        // единственным рабочим вариантом было прятать его с формы насовсем
+        // (->hideOnForm()) — из-за чего "было → стало" пропадало при
+        // редактировании reason/expiresAt (единственные реально
+        // редактируемые здесь поля). Теперь вместо этого — раздельные поля:
+        //   - snapshotSummary (HTML, "<br>") — только DETAIL, raw HTML.
+        //   - snapshotSummaryPlain (текст, "\n") — только EDIT, обычный
+        //     <textarea> (не Trix): значение НЕ предэкранировано, поэтому
+        //     единственное экранирование самого Form-виджета — корректное,
+        //     а "\n" браузер сам показывает как перенос строки
+        //     (white-space: pre у textarea), без нужды в "<br>".
         yield TextEditorField::new('snapshotSummary', 'Что изменилось (было → стало)')
             ->setTemplateName('crud/field/text')
             ->setDisabled()
-            ->hideOnIndex()
+            ->onlyOnDetail()
+            ->setColumns(12);
+
+        yield TextareaField::new('snapshotSummaryPlain', 'Что изменилось (было → стало)')
+            ->setDisabled()
+            ->setNumOfRows(8)
+            ->onlyOnForms()
             ->setColumns(12);
 
         // Единственное второе (кроме retention) редактируемое поле —

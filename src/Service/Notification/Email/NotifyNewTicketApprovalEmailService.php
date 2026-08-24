@@ -27,18 +27,32 @@ class NotifyNewTicketApprovalEmailService extends AbstractTicketApprovalNotifica
         $budget     = $this->budget($ticket);
         $authorId   = $ticket?->getAuthor()?->getEmail() ?? 'Неизвестен';
         $author     = htmlspecialchars($authorId, ENT_QUOTES, 'UTF-8');
-        // Заполняется TicketListener при автообновлении ("Изменены поля: ...")
-        // либо вручную админом при создании — пусто у по-настоящему новых тикетов.
-        $note       = $ticketApproval->getDescription();
-        $noteHtml   = $note ? "<p style=\"color:#667eea\"><strong>{$note}</strong></p>" : '';
+
+        // Детальный снимок "поле: было → стало" ТОЛЬКО последней правки (см.
+        // SnapshotSummaryTrait::getLatestChangeSummary) — не вся накопленная
+        // за окно повторного использования заявки история (TicketApproval::
+        // appendSnapshot/TicketListener::resolveApproval): письмо — про "что
+        // изменилось только что", полная история всё равно видна по ссылке
+        // ниже (см. тот же довод в NotifyNewTicketApprovalTelegramBotService,
+        // где полная история к тому же реально упиралась в защитный лимит
+        // длины и обрезалась посреди строки). Уже экранированный HTML с
+        // "<br>" между строками, можно вставлять как есть. Пусто у
+        // по-настоящему новых заявок (заведены не в ответ на правку тикета).
+        $changes     = $ticketApproval->getLatestChangeSummary();
+        $changesHtml = $changes !== '—'
+            ? "<p style=\"color:#667eea\"><strong>Изменения:</strong><br>{$changes}</p>"
+            : '';
+        // Текстовая версия письма — getLatestChangeSummaryPlain(): то же
+        // самое, но с "\n" вместо "<br>" и без HTML-экранирования.
+        $changesText = $changes !== '—' ? $ticketApproval->getLatestChangeSummaryPlain() : '';
 
         return $this->sendEmail(
             to:      $user->getEmail(),
             subject: "Услуга/объявление на проверку | {$siteName}",
-            text:    "Услуга/объявление на проверку\n\n{$note}\n\n{$ticket?->getTitle()}\nКатегория: {$category} | Бюджет: {$budget}\nАвтор: {$authorId}\n\n{$ticket?->getDescription()}\n\n{$url}",
+            text:    "Услуга/объявление на проверку\n\n{$changesText}\n\n{$ticket?->getTitle()}\nКатегория: {$category} | Бюджет: {$budget}\nАвтор: {$authorId}\n\n{$ticket?->getDescription()}\n\n{$url}",
             html:    $this->htmlEmail(
                 'Услуга/объявление на проверку',
-                $noteHtml
+                $changesHtml
                 . "<p>Заголовок: <strong>{$title}</strong></p>"
                 . "<p>Категория: <strong>{$category}</strong> | Бюджет: <strong>{$budget}</strong></p>"
                 . "<p>Автор: <strong>{$author}</strong></p>"

@@ -379,6 +379,20 @@ class Ticket implements HasImagesInterface
      * @var Collection<int, Address>
      */
     #[ORM\ManyToMany(targetEntity: Address::class, inversedBy: 'tickets', cascade: ['all'])]
+    // Assert\Valid — без неё Symfony Validator не спускается внутрь
+    // коллекции при валидации самого Ticket: Address::
+    // validateGeographyHierarchy() (проверка "город принадлежит
+    // выбранному региону" и т.п.) иначе просто никогда не вызывается,
+    // если Address приходит НЕ как отдельный top-level объект валидации
+    // (как на прямой странице /address/new), а как элемент ВЛОЖЕННОЙ
+    // коллекции — ровно так это происходит в EasyAdmin (TicketCrudController::
+    // CollectionField 'addresses' → useEntryCrudForm(AddressCrudController)
+    // рендерит адрес прямо ВНУТРИ формы Ticket, единым сабмитом, без
+    // отдельного захода на страницу Address). Без этой аннотации там можно
+    // было сохранить "Согдийская область" + город "Вахдат" (реально из
+    // другой области) — сам Address создавался бы валидным по своим
+    // собственным правилам, просто validate($ticket) их не проверял.
+    #[Assert\Valid]
     #[Groups([
         G::MASTER_TICKETS,
         G::CLIENT_TICKETS,

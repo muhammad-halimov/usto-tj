@@ -908,6 +908,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, Address>
      */
     #[ORM\ManyToMany(targetEntity: Address::class, mappedBy: 'users', cascade: ['persist'])]
+    // Assert\Valid — та же причина, что у Ticket::$addresses (см. её
+    // докблок): без неё Address::validateGeographyHierarchy() не
+    // срабатывает, когда адрес приходит вложенным элементом коллекции
+    // (UserCrudController::CollectionField 'addresses' →
+    // useEntryCrudForm(AddressCrudController)), а не отдельным top-level
+    // объектом валидации.
+    #[Assert\Valid]
     #[Groups([
         G::USER_PUBLIC,
         G::MASTERS,

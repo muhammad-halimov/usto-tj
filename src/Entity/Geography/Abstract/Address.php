@@ -18,6 +18,8 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity]
@@ -342,5 +344,67 @@ class Address
         }
 
         return $this;
+    }
+
+    /**
+     * Гарантирует, что вся адресная иерархия внутренне непротиворечива —
+     * то же самое условие, что уже проверяет AddressValidationTrait::
+     * buildAndValidateAddresses() при создании/правке адреса тикета через
+     * API (POST/PATCH /tickets). Но та проверка живёт в контроллере и
+     * срабатывает только для этого конкретного пути — этот Callback
+     * гарантирует то же самое на уровне самой сущности, то есть везде, где
+     * Address проходит через Symfony Validator. В первую очередь это
+     * закрывает реальную дыру в EasyAdmin (AddressCrudController): там
+     * province/city/district/... — обычные AssociationField с autocomplete()
+     * без всякой сверки друг с другом, поэтому можно было сохранить
+     * "Согдийская область" + город "Вахдат" (который на самом деле относится
+     * к другой области) — валидатор такое отклонит с тем же текстом ошибки,
+     * что уже видит клиент API (см. AppMessages::CITY_NOT_IN_PROVINCE и
+     * соседние — messages['ru'] переиспользованы здесь дословно).
+     */
+    #[Assert\Callback]
+    public function validateGeographyHierarchy(ExecutionContextInterface $context): void
+    {
+        if ($this->city !== null && $this->city->getProvince()?->getId() !== $this->province?->getId()) {
+            $context->buildViolation('Город не принадлежит указанному региону')
+                ->atPath('city')
+                ->addViolation();
+        }
+
+        if ($this->suburb !== null && $this->suburb->getCities()?->getId() !== $this->city?->getId()) {
+            $context->buildViolation('Подрайон не принадлежит указанному городу')
+                ->atPath('suburb')
+                ->addViolation();
+        }
+
+        if ($this->district !== null && $this->district->getProvince()?->getId() !== $this->province?->getId()) {
+            $context->buildViolation('Район не принадлежит указанному региону')
+                ->atPath('district')
+                ->addViolation();
+        }
+
+        if ($this->community !== null && $this->community->getDistrict()?->getId() !== $this->district?->getId()) {
+            $context->buildViolation('Джамоат не принадлежит указанному району')
+                ->atPath('community')
+                ->addViolation();
+        }
+
+        if ($this->settlement !== null && $this->settlement->getDistrict()?->getId() !== $this->district?->getId()) {
+            $context->buildViolation('Населённый пункт не принадлежит указанному району')
+                ->atPath('settlement')
+                ->addViolation();
+        }
+
+        if ($this->village !== null) {
+            if ($this->settlement === null) {
+                $context->buildViolation('Требуется населённый пункт при указании деревни')
+                    ->atPath('village')
+                    ->addViolation();
+            } elseif ($this->village->getSettlement()?->getId() !== $this->settlement->getId()) {
+                $context->buildViolation('Деревня не принадлежит указанному населённому пункту')
+                    ->atPath('village')
+                    ->addViolation();
+            }
+        }
     }
 }

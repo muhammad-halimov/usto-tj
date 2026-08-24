@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\SnapshotSummaryTrait;
 use App\Entity\User;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
@@ -59,7 +60,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ApiFilter(SearchFilter::class, properties: ['entityType' => 'exact', 'entityId' => 'exact', 'parentId' => 'exact', 'entity' => 'exact', 'action' => 'exact'])]
 class EntityRevision
 {
-    use CreatedAtTrait;
+    use CreatedAtTrait, SnapshotSummaryTrait;
 
     public const string ACTION_UPDATED = 'updated';
     public const string ACTION_DELETED = 'deleted';
@@ -111,17 +112,21 @@ class EntityRevision
     ];
 
     /**
-     * Переводы имён полей внутри $snapshot для getSnapshotSummary() —
-     * "description: было → стало" превращается в "Описание: было → стало".
-     * Один общий список на все entityType, потому что имена полей
-     * пересекаются (description есть у ticket/chat_message/
+     * Переводы имён полей внутри $snapshot для getSnapshotSummary() (см.
+     * SnapshotSummaryTrait) — "description: было → стало" превращается в
+     * "Описание: было → стало". Один общий список на все entityType, потому
+     * что имена полей пересекаются (description есть у ticket/chat_message/
      * tech_support_message/review) — таскать перевод за каждым писателем
      * отдельно смысла нет. Поле, которого здесь нет, просто печатается как
      * есть (см. getSnapshotSummary) — новый versioned-писатель ничего не
      * сломает, если забыть сюда что-то добавить, просто будет непереведённая
      * строка вместо ошибки.
+     *
+     * public — переиспользуется TicketApproval (см. её getFieldLabels()):
+     * снимок там — те же самые поля Ticket + 'address', один и тот же
+     * перевод не дублируем.
      */
-    private const array FIELD_LABELS = [
+    public const array FIELD_LABELS = [
         'title'            => 'Заголовок',
         'description'      => 'Описание',
         'notice'           => 'Доп. описание',
@@ -135,6 +140,7 @@ class EntityRevision
         'unit'             => 'Единицы',
         'rating'           => 'Рейтинг',
         'cookiesAgreed'    => 'Согласие на cookie',
+        'address'          => 'Адрес',
     ];
 
     /** По умолчанию хранится 14 дней — см. $expiresAt и app:prune-entity-revisions. */
@@ -409,61 +415,24 @@ class EntityRevision
     }
 
     /**
-     * Плоское человекочитаемое представление snapshot — "поле: было → стало"
-     * по строке на изменённое поле (для action=deleted пары старое/новое
-     * нет, просто "поле: значение"). Виртуальный геттер, НЕ ORM-поле —
-     * единственный чистый способ показать это в EasyAdmin: биндить поле
-     * формы напрямую на $snapshot (Doctrine json-колонка) нельзя, EasyAdmin
-     * определяет тип виджета по маппингу колонки и падает на
-     * "Array to string conversion" независимо от класса Field.
+     * getSnapshotSummary() — из SnapshotSummaryTrait. Виртуальный геттер, НЕ
+     * ORM-поле — единственный чистый способ показать это в EasyAdmin:
+     * биндить поле формы напрямую на $snapshot (Doctrine json-колонка)
+     * нельзя, EasyAdmin определяет тип виджета по маппингу колонки и падает
+     * на "Array to string conversion" независимо от класса Field.
      *
-     * Строки уже экранированы и разделены реальным "<br>", а не "\n":
-     * EntityRevisionCrudController показывает это поле через TextEditorField
-     * (Trix), а форма редактирования отдаёт значение геттера Trix-редактору
-     * напрямую как HTML-источник — обычный "\n" в HTML визуально
-     * схлопывается (как в любом браузере), тогда как "<br>" сохраняется.
-     * На детальной странице поле рендерится через шаблон crud/field/text
-     * (см. setTemplateName в контроллере), который выводит значение как
-     * доверенный raw HTML — повторного экранирования не будет.
+     * Строки уже экранированы и разделены реальным "<br>" (дефолт
+     * getSnapshotSummary), а не "\n": EntityRevisionCrudController
+     * показывает это поле через TextEditorField (Trix), а форма
+     * редактирования отдаёт значение геттера Trix-редактору напрямую как
+     * HTML-источник — обычный "\n" в HTML визуально схлопывается (как в
+     * любом браузере), тогда как "<br>" сохраняется. На детальной странице
+     * поле рендерится через шаблон crud/field/text (см. setTemplateName в
+     * контроллере), который выводит значение как доверенный raw HTML —
+     * повторного экранирования не будет.
      */
-    public function getSnapshotSummary(): string
+    protected function getFieldLabels(): array
     {
-        if (!$this->snapshot) return '—';
-
-        // Пакетное удаление фото (см. AbstractApiHelperController::
-        // logImagesDeletion) — один EntityRevision на ВСЕ фото, удалённые
-        // за один запрос, а не по записи на каждое. Форма снапшота другая:
-        // список путей, а не "поле: было → стало", разбираем отдельно.
-        if (isset($this->snapshot['images']) && is_array($this->snapshot['images'])) {
-            $lines = [];
-            foreach ($this->snapshot['images'] as $entry) {
-                $path = is_array($entry) ? ($entry['image'] ?? '') : (string) $entry;
-                $lines[] = htmlspecialchars("Фото: {$path}", ENT_QUOTES, 'UTF-8');
-            }
-            return implode('<br>', $lines);
-        }
-
-        $lines = [];
-        foreach ($this->snapshot as $field => $value) {
-            $label = self::FIELD_LABELS[$field] ?? $field;
-
-            if (is_array($value) && array_key_exists('old', $value) && array_key_exists('new', $value)) {
-                $line = "{$label}: " . $this->stringifySnapshotValue($value['old']) . ' → ' . $this->stringifySnapshotValue($value['new']);
-            } else {
-                $line = "{$label}: " . $this->stringifySnapshotValue($value);
-            }
-            $lines[] = htmlspecialchars($line, ENT_QUOTES, 'UTF-8');
-        }
-
-        return implode('<br>', $lines);
-    }
-
-    private function stringifySnapshotValue(mixed $value): string
-    {
-        if ($value === null)  return '(пусто)';
-        if (is_bool($value))  return $value ? 'да' : 'нет';
-        if (is_scalar($value)) return (string) $value;
-
-        return json_encode($value, JSON_UNESCAPED_UNICODE);
+        return self::FIELD_LABELS;
     }
 }

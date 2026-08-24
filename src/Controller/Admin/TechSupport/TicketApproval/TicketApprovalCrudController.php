@@ -18,6 +18,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\BatchActionDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Doctrine\ORM\QueryBuilder;
@@ -97,6 +98,42 @@ class TicketApprovalCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield TextEditorField::new('description', 'Описание')
+            ->setColumns(12);
+
+        // Биндим на виртуальные геттеры, а не на $snapshot (json-колонка)
+        // напрямую: EasyAdmin определяет тип виджета по маппингу колонки и
+        // падает на "Array to string conversion" при прямом биндинге на
+        // json-поле, независимо от класса Field.
+        //
+        // ДВА разных поля на ОДНИ и те же данные, не одно — потому что
+        // EasyAdmin рендерит DETAIL и EDIT/NEW через принципиально разные
+        // пути: DETAIL — через setTemplateName() (я управляю выводом
+        // напрямую), EDIT/NEW — всегда через настоящий Symfony Form-виджет
+        // конкретного класса Field (тут — TextEditorType/TextareaType),
+        // который сам, дополнительно, экранирует переданное значение.
+        // Раньше здесь было одно HTML-поле (Trix) — на DETAIL оно показывало
+        // "<br>" как перенос строки, а на EDIT удвоенно экранировало то же
+        // значение ("<br>" превращался в видимый текст "&lt;br&gt;", уже
+        // экранированный "&lt;div&gt;" — в "&amp;lt;div&amp;gt;", проверено
+        // живьём) — единственным рабочим вариантом было прятать его с формы
+        // насовсем (->hideOnForm()), из-за чего "было → стало" пропадало при
+        // редактировании. Теперь вместо этого — раздельные поля, оба видны:
+        //   - snapshotSummary (HTML, <br>) — только DETAIL, raw HTML.
+        //   - snapshotSummaryPlain (текст, "\n") — только EDIT/NEW, обычный
+        //     <textarea> (не Trix): значение НЕ предэкранировано, поэтому
+        //     единственное экранирование самого Symfony Form-виджета —
+        //     корректное, а "\n" браузер сам показывает как перенос строки
+        //     (white-space: pre у textarea), без нужды в "<br>".
+        yield TextEditorField::new('snapshotSummary', 'Что изменилось (было → стало)')
+            ->setTemplateName('crud/field/text')
+            ->setDisabled()
+            ->onlyOnDetail()
+            ->setColumns(12);
+
+        yield TextareaField::new('snapshotSummaryPlain', 'Что изменилось (было → стало)')
+            ->setDisabled()
+            ->setNumOfRows(8)
+            ->onlyOnForms()
             ->setColumns(12);
 
         yield from $this->timestampFields();
