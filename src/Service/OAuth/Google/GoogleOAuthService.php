@@ -19,6 +19,17 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
+/**
+ * Провайдер-специфичная реализация code+state flow для Google (см. общий
+ * код-флоу в GeneralOAuth и разбивку шагов в AbstractOAuthService).
+ * Особенность Google среди трёх провайдеров: профиль приходит НЕ через
+ * отдельный REST-запрос, а прямо в id_token (JWT, подписанный Google) —
+ * exchangeCodeForTokens() отдаёт токены как есть, а fetchUserData()
+ * сам верифицирует и декодирует id_token (verifyIdToken()), плюс
+ * опционально добирает телефон/пол/дату рождения отдельным вызовом
+ * People API (fetchAdditionalUserDetails() — эти поля не входят в
+ * стандартный OIDC id_token).
+ */
 class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInterface
 {
     private ?array $googlePublicKeys = null;
@@ -71,6 +82,12 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
                 ]),
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
+            // ВНИМАНИЕ: реальная причина отказа Google (просроченный/уже
+            // использованный code, redirect_uri mismatch, неверный
+            // client_secret и т.д.) есть в $e->getResponse(), но нигде не
+            // логируется — наружу всегда уходит одно и то же generic
+            // сообщение. Это затрудняет диагностику на проде (см. также
+            // такой же паттерн в Facebook/InstagramOAuthService).
             throw new BadRequestHttpException(
                 AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
@@ -78,6 +95,12 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     }
 
     /**
+     * В отличие от Facebook/Instagram, здесь нет отдельного вызова
+     * профиля — id_token из exchangeCodeForTokens() УЖЕ содержит claims
+     * (sub/email/given_name/...), их нужно только верифицировать
+     * (verifyIdToken()). access_token используется отдельно, только чтобы
+     * добрать поля, которых нет в id_token (телефон/пол/ДР).
+     *
      * @throws RedirectionExceptionInterface
      * @throws DecodingExceptionInterface
      * @throws ClientExceptionInterface
@@ -100,6 +123,14 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     }
 
     /**
+     * Проверяет подпись id_token по публичным ключам Google (JWKS,
+     * кэшируются в $this->googlePublicKeys на время жизни запроса — не
+     * персистентный кэш, только чтобы не дёргать /certs дважды за один
+     * вызов), затем aud (наш client_id), iss (google) и exp (не истёк).
+     * Любая нестыковка → TOKEN_INVALID_OR_EXPIRED, без деталей — это
+     * ожидаемо строже, чем обмен code, т.к. подделанный/чужой id_token —
+     * прямая попытка подмены личности, а не просто сетевая ошибка.
+     *
      * @throws TransportExceptionInterface
      * @throws ServerExceptionInterface
      * @throws RedirectionExceptionInterface
@@ -169,6 +200,14 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
         }
     }
 
+    /**
+     * Три сценария (см. UserManagementInterface) — здесь ещё и жёсткое
+     * требование email_verified: Google отдаёт email всегда, но он может
+     * быть НЕ подтверждён (редко, но возможно), а сценарий 2 (implicit
+     * link по email) без верификации был бы дырой — кто угодно мог бы
+     * привязаться к чужому аккаунту по email, который на самом деле ему
+     * не принадлежит.
+     */
     public function findOrCreateUser(array $userData, ?string $role): array
     {
         if (!($userData['email_verified'] ?? false)) {

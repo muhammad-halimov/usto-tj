@@ -14,6 +14,21 @@ use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
+/**
+ * ВНИМАНИЕ: этот контроллер сейчас НЕ подключён ни к одному роуту — его
+ * Post-операция в ApiAuthentication (uriTemplate: '/authentication_token')
+ * целиком закомментирована. Мёртвый код, оставлен как есть (не в рамках
+ * задачи с комментариями), но при попытке его включить обратно учтите:
+ * $user->getOauthType() ниже вызывает метод, КОТОРОГО НЕТ ни в User, ни
+ * где-либо ещё в проекте (проверено grep'ом) — при реальном запросе это
+ * упало бы фатальной ошибкой "Call to undefined method". Судя по всему
+ * это заготовка под будущую фичу "OAuth-only аккаунт не может логиниться
+ * по паролю" (см. OAUTH_ONLY_ACCOUNT в AppMessages), которую в итоге
+ * реализовали иначе или не завершили — при реактивации либо реализуйте
+ * getOauthType()/getActiveProviders()/hasAnyProvider() (например, как
+ * тонкую обёртку над $user->getOauthProviders(), см. OAuthProvider), либо
+ * уберите эту проверку.
+ */
 class ApiLoginController extends AbstractController
 {
     public function __invoke(

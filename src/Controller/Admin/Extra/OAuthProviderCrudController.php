@@ -9,6 +9,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
+/**
+ * Админка над OAuthProvider — обычно открывается не напрямую из меню, а
+ * как вложенная CollectionField-форма внутри UserCrudController (поле
+ * "oauthProviders", ->useEntryCrudForm(self::class)) — читай: список
+ * привязок конкретного юзера. Только просмотр/ручное редактирование
+ * значений — сама привязка создаётся кодом (OAuth-логин/link), не отсюда.
+ */
 class OAuthProviderCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string

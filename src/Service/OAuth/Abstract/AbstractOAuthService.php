@@ -18,7 +18,16 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Базовый класс для всех OAuth сервисов
+ * Общая для Google/Facebook/Instagram реализация code+state OAuth-цикла —
+ * полный код-флоу описан в GeneralOAuth, сюда попадает только шаги
+ * generateOAuthRedirectUri()/handleCode() (state, обмен code, сборка
+ * ответа); provider-специфичные шаги (URI/параметры авторизации, обмен
+ * code, разбор профиля, поиск/создание User) — abstract-методы ниже,
+ * реализуются в GoogleOAuthService/FacebookOAuthService/
+ * InstagramOAuthService.
+ *
+ * Telegram сюда НЕ входит — у него нет code/state, свой отдельный
+ * TelegramOAuthService со своим методом handleCallback().
  */
 abstract class AbstractOAuthService implements
     OAuthServiceInterface,
@@ -26,6 +35,16 @@ abstract class AbstractOAuthService implements
     UserDataFetcherInterface,
     UserManagementInterface
 {
+    /**
+     * Префикс ключа в кэше для anti-CSRF state (см. generateOAuthRedirectUri/
+     * handleCode) — тот же префикс, что и в LinkOAuthProviderController
+     * (продублирован там как своя константа, а не переиспользован отсюда:
+     * это НЕ общий стейт-стор двух разных вещей, а один и тот же namespace
+     * состояний — state, порождённый /auth/{provider}/url, годится и для
+     * логина через GeneralOAuth::callback, и для привязки через
+     * ProfileOAuth::link — какой из двух путей его "погасит", решает
+     * фронтенд самим выбором, куда отправить code/state).
+     */
     private const string OAUTH_PREFIX = 'oauth_state_';
 
     public function __construct(
@@ -37,6 +56,12 @@ abstract class AbstractOAuthService implements
     ) {}
 
     /**
+     * Первый шаг code+state flow — собрать URL согласия провайдера.
+     * Anti-CSRF state: 16 случайных байт → hex, кладём в кэш на 10 минут
+     * (StateStorageService::TTL) как ЕДИНСТВЕННОЕ доказательство "этот
+     * code/state round-trip начали мы" — без него любой мог бы прислать
+     * на /callback чужой code с произвольным state и подделать привязку.
+     *
      * @throws RandomException
      * @throws InvalidArgumentException
      */
@@ -51,10 +76,24 @@ abstract class AbstractOAuthService implements
     }
 
     /**
+     * Второй-пятый шаги code+state flow — проверка state → обмен code на
+     * токены → получение профиля → find-or-create пользователя → выдача
+     * JWT. Именно этот метод дёргают {Provider}OAuthCallbackController'ы
+     * через AbstractOAuthCallbackController — общий для всех трёх
+     * провайдеров, provider-специфичны только exchangeCodeForTokens()/
+     * fetchUserData()/findOrCreateUser() внутри.
+     *
+     * State одноразовый: get() + delete() СРАЗУ, до обмена code — повторный
+     * вызов с тем же state (двойной сабмит, повтор запроса) второй раз
+     * упадёт с OAUTH_INVALID_STATE ещё до похода к провайдеру.
+     *
      * @param string $code
      * @param string $state
-     * @param string|null $role
-     * @return array
+     * @param string|null $role 'master'|'client'|null — роль НОВОГО
+     *                          пользователя, если его придётся создать
+     *                          (findOrCreateUser); на уже существующего
+     *                          не влияет.
+     * @return array ['user' => User, 'token' => string, 'isNew' => bool]
      * @throws InvalidArgumentException
      */
     public function handleCode(string $code, string $state, ?string $role): array
@@ -73,16 +112,23 @@ abstract class AbstractOAuthService implements
     }
 
     /**
-     * Возвращает URI для авторизации
+     * Базовый URI страницы согласия провайдера (без query) — обычно
+     * env-переменная вида {PROVIDER}_AUTH_URI.
      */
     abstract protected function getAuthUri(): string;
 
     /**
-     * Возвращает параметры для URL авторизации
+     * Query-параметры для URL авторизации: как минимум client_id,
+     * redirect_uri, response_type, scope — состав и синтаксис scope у
+     * каждого провайдера свой (Google — через пробел, Facebook — через
+     * запятую), см. конкретные реализации.
      */
     abstract protected function getAuthParams(): array;
 
-    // Методы из интерфейсов должны быть реализованы в подклассах
+    // Методы из интерфейсов должны быть реализованы в подклассах —
+    // см. докблоки соответствующих интерфейсов (TokenExchangeInterface/
+    // UserDataFetcherInterface/UserManagementInterface/OAuthServiceInterface)
+    // за смыслом каждого шага.
     abstract public function exchangeCodeForTokens(string $code): array;
     abstract public function fetchUserData(array $tokens): array;
     abstract public function findOrCreateUser(array $userData, ?string $role): array;

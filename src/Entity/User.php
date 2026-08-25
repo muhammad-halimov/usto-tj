@@ -941,6 +941,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private Collection $addresses;
 
+    /**
+     * Привязанные внешние аккаунты (google/facebook/instagram/telegram) —
+     * см. OAuthProvider. writable: false — эта коллекция никогда не
+     * пишется напрямую через API-запрос к User, только через выделенные
+     * OAuth-эндпоинты (GeneralOAuth::callback / ProfileOAuth::link/
+     * unlink). G::USERS_ME — видна только самому владельцу, не в
+     * публичном профиле.
+     */
     #[ORM\OneToMany(targetEntity: OAuthProvider::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
     #[Groups([
         G::USERS_ME
@@ -1832,6 +1840,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    /** См. докблок $oauthProviders выше. */
     public function getOauthProviders(): Collection
     {
         return $this->oauthProviders;

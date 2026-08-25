@@ -14,6 +14,14 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
+/**
+ * Провайдер-специфичная реализация code+state flow для Facebook (см.
+ * общий код-флоу в GeneralOAuth и разбивку шагов в AbstractOAuthService).
+ * В отличие от Google, здесь нет id_token — профиль тянется отдельным
+ * REST-запросом к Graph API /me (fetchUserData()) уже ПОСЛЕ обмена code
+ * на access_token. Обмен токенов у Facebook идёт через GET с query-
+ * параметрами (не POST+body, как у Google/Instagram) — так требует их API.
+ */
 class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceInterface
 {
     public function getProviderName(): string
@@ -63,6 +71,10 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
                 ],
             ])->toArray();
         } catch (ClientExceptionInterface) {
+            // ВНИМАНИЕ: как и у Google/Instagram — реальная причина отказа
+            // Facebook (истёкший/повторный code, redirect_uri mismatch,
+            // неверный client_secret) не логируется, наружу уходит один и
+            // тот же generic OAUTH_CODE_EXCHANGE_FAILED.
             throw new BadRequestHttpException(
                 AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
@@ -70,6 +82,11 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
     }
 
     /**
+     * Отдельный запрос к Graph API /me (в отличие от Google, где профиль
+     * уже был в id_token) — те же ошибки обмена/доступа маскируются под
+     * тот же generic OAUTH_CODE_EXCHANGE_FAILED, что и в
+     * exchangeCodeForTokens() выше.
+     *
      * @throws TransportExceptionInterface
      * @throws ServerExceptionInterface
      * @throws RedirectionExceptionInterface
@@ -93,6 +110,12 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
         }
     }
 
+    /**
+     * Три сценария (см. UserManagementInterface). В отличие от Google,
+     * здесь НЕТ проверки на "подтверждённый" email — Facebook Graph API
+     * не отдаёт флаг верификации email в принципе, поэтому сценарий 2
+     * (implicit link по email) здесь доверяет email от Facebook как есть.
+     */
     public function findOrCreateUser(array $userData, ?string $role): array
     {
         $facebookId = $userData['id'];

@@ -13,6 +13,17 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * DELETE /profile/oauth/{provider} — отвязать провайдер от ТЕКУЩЕГО
+ * (залогиненного) пользователя. Требует аутентификации — в отличие от
+ * логин-флоу, ничего не создаёт и не ищет пользователей, только чистит
+ * одну OAuthProvider-связь.
+ *
+ * Защита от блокировки собственного аккаунта: отказ (OAUTH_LAST_AUTH_
+ * METHOD), если у юзера НЕТ пароля (например, завёлся только через OAuth,
+ * плейсхолдер-пароль пуст) И это последний привязанный провайдер — иначе
+ * пользователь потерял бы вообще все способы войти.
+ */
 class UnlinkOAuthProviderController extends AbstractController
 {
     public function __construct(

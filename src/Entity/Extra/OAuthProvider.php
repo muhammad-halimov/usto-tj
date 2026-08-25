@@ -10,6 +10,21 @@ use App\Repository\User\UserOAuthProviderRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
+/**
+ * Связующая сущность User <-> внешний OAuth-аккаунт (google/facebook/
+ * instagram/telegram) — по одной записи на каждую привязку. Создаётся
+ * в трёх местах: findOrCreateUser() каждого *OAuthService при
+ * логине/регистрации (Google/Facebook/Instagram/Telegram), и в
+ * LinkOAuthProviderController при явной привязке доп. провайдера уже
+ * залогиненному пользователю.
+ *
+ * uq_provider_id (provider, providerId) гарантирует на уровне БД, что
+ * один и тот же внешний аккаунт не может быть привязан сразу к двум
+ * разным User — эта проверка дублируется и в коде (см.
+ * UserOAuthProviderRepository::findOneByProviderAndId() +
+ * UserRepository::findByOAuthProvider()), но констрейнт — последняя
+ * линия защиты от гонки при параллельных запросах.
+ */
 #[ORM\Entity(repositoryClass: UserOAuthProviderRepository::class)]
 #[ORM\Table(name: 'user_oauth_provider')]
 #[ORM\UniqueConstraint(name: 'uq_provider_id', columns: ['provider', 'provider_id'])]

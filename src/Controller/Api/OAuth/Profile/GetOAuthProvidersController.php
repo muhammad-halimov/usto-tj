@@ -11,6 +11,12 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * GET /profile/oauth/providers — список провайдеров, привязанных к
+ * ТЕКУЩЕМУ (залогиненному) пользователю, для экрана "Способы входа" в
+ * профиле. Не часть code+state/Telegram-widget флоу — просто читает уже
+ * существующие OAuthProvider-связи текущего юзера.
+ */
 class GetOAuthProvidersController extends AbstractController
 {
     public function __construct(

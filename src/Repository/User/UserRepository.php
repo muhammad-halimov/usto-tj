@@ -94,6 +94,14 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getResult();
     }
 
+    /**
+     * Тир 1 find-or-create во всех *OAuthService::findOrCreateUser() (см.
+     * UserManagementInterface) — "уже привязан этот providerId к какому-
+     * то User?". В отличие от UserOAuthProviderRepository::
+     * findOneByProviderAndId(), сразу отдаёт User, а не саму связь —
+     * этому методу не нужно различать "занято другим" от "занято мной",
+     * это делает только LinkOAuthProviderController.
+     */
     public function findByOAuthProvider(string $provider, string $providerId): ?User
     {
         return $this

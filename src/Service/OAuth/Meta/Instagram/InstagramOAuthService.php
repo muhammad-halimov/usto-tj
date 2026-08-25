@@ -5,17 +5,52 @@ namespace App\Service\OAuth\Meta\Instagram;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
+use App\Repository\User\UserRepository;
+use App\Service\Extra\StateStorageService;
 use App\Service\OAuth\Abstract\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
+use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+/**
+ * Провайдер-специфичная реализация code+state flow для Instagram (см.
+ * общий код-флоу в GeneralOAuth и разбивку шагов в AbstractOAuthService).
+ * Ключевое отличие от Google/Facebook: Instagram Graph API НИКОГДА не
+ * отдаёт email (см. $fields в fetchUserData() ниже — там его просто нет),
+ * поэтому findOrCreateUser() здесь ДВУХступенчатый, а не трёхступенчатый
+ * — сценарий "existing user by verified email" (тир 2 у Google/Facebook)
+ * невозможен в принципе, сразу либо уже привязанный юзер, либо новый.
+ *
+ * В отличие от Google/FacebookOAuthService, сюда добавлен собственный
+ * конструктор с LoggerInterface (25.08.2026) — специально для того, чтобы
+ * логировать реальный ответ Instagram при ошибке обмена code/профиля
+ * (см. exchangeCodeForTokens()/fetchUserData() ниже), т.к. именно этот
+ * провайдер регулярно ломается непонятным для юзера/фронта generic-
+ * сообщением "Мубодилаи код бо провайдер ноком шуд" без единой зацепки в
+ * логах — Google/Facebook эту же проблему пока не получили (см. их
+ * докблоки), но при повторении её там стоит применить тот же приём.
+ */
 class InstagramOAuthService extends AbstractOAuthService implements OAuthServiceInterface
 {
+    public function __construct(
+        HttpClientInterface           $httpClient,
+        StateStorageService           $stateStorage,
+        UserRepository                $userRepository,
+        EntityManagerInterface        $entityManager,
+        JWTTokenManagerInterface      $jwtManager,
+        private readonly LoggerInterface $logger,
+    ) {
+        parent::__construct($httpClient, $stateStorage, $userRepository, $entityManager, $jwtManager);
+    }
+
     public function getProviderName(): string
     {
         return 'Instagram';
@@ -57,6 +92,16 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
                 ]),
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
+            // Логируем реальный ответ Instagram (не $e->getMessage() — она
+            // обычно просто "HTTP 400 returned..." без тела) — getContent(false)
+            // не бросает исключение повторно, даже если тело не парсится.
+            // Смотреть в логи по этому сообщению при жалобах на
+            // /auth/instagram/callback — раньше причина была не видна
+            // вообще, наружу уходил только generic OAUTH_CODE_EXCHANGE_FAILED.
+            $this->logger->error('Instagram OAuth: обмен code на токен не удался', [
+                'status' => $e->getResponse()->getStatusCode(),
+                'body'   => $e->getResponse()->getContent(false),
+            ]);
             throw new BadRequestHttpException(
                 AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
@@ -71,6 +116,8 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
      */
     public function fetchUserData(array $tokens): array
     {
+        // Обратите внимание: email тут нет и не будет — Instagram Graph
+        // API его просто не отдаёт ни в каком поле.
         $fields = ['id', 'username', 'name', 'profile_picture_url', 'biography'];
 
         try {
@@ -81,12 +128,20 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
                 ],
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
+            $this->logger->error('Instagram OAuth: не удалось получить профиль пользователя', [
+                'status' => $e->getResponse()->getStatusCode(),
+                'body'   => $e->getResponse()->getContent(false),
+            ]);
             throw new BadRequestHttpException(
                 AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
 
+    /**
+     * Двухступенчатый вариант UserManagementInterface (без тира
+     * "existing user by email" — см. докблок класса).
+     */
     public function findOrCreateUser(array $userData, ?string $role): array
     {
         $instagramId = $userData['id'];
