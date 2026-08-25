@@ -153,6 +153,12 @@ class AppMessages
     const string OAUTH_INVALID_SIGNATURE        = 'oauth_invalid_signature';
     const string OAUTH_CODE_EXCHANGE_FAILED     = 'oauth_code_exchange_failed';
     const string OAUTH_UNVERIFIED_EMAIL         = 'oauth_unverified_email';
+    // Специфично для Instagram: жёсткое ограничение платформы (не временная
+    // ошибка) — с 04.12.2024 (закрытие Instagram Basic Display API) личные
+    // (Personal) аккаунты не могут получить профиль через
+    // "Instagram API with Instagram Login" вообще, только Professional
+    // (Business/Creator). См. InstagramOAuthService::fetchUserData().
+    const string OAUTH_INSTAGRAM_PROFESSIONAL_REQUIRED = 'oauth_instagram_professional_required';
 
     /** Locale active for the current request (set by AppErrorLocaleListener). */
     private static string $locale = 'tj';
@@ -278,6 +284,7 @@ class AppMessages
         self::OAUTH_INVALID_SIGNATURE        => ['http' => 400, 'messages' => ['tj' => 'Имзои Telegram нодуруст аст',                                                              'eng' => 'Invalid Telegram signature',                                   'ru' => 'Неверная подпись Telegram']],
         self::OAUTH_CODE_EXCHANGE_FAILED     => ['http' => 400, 'messages' => ['tj' => 'Мубодилаи код бо провайдер ноком шуд',                                                     'eng' => 'Failed to exchange code with the OAuth provider',               'ru' => 'Не удалось обменять код с провайдером']],
         self::OAUTH_UNVERIFIED_EMAIL         => ['http' => 400, 'messages' => ['tj' => 'Почтаи электронӣ аз ҷониби провайдер тасдиқ нашудааст',                                    'eng' => 'Email is not verified by the OAuth provider',                   'ru' => 'Email не подтверждён провайдером']],
+        self::OAUTH_INSTAGRAM_PROFESSIONAL_REQUIRED => ['http' => 400, 'messages' => ['tj' => 'Барои воридшавӣ тавассути Instagram, ҳисоби шумо бояд навъи Professional (Business ё Creator) бошад. Ин корро дар Instagram: Танзимот → Навъи ҳисоб иваз кунед', 'eng' => 'To sign in with Instagram, your account must be a Professional (Business or Creator) account. Switch it in Instagram: Settings → Account type', 'ru' => 'Для входа через Instagram ваш аккаунт должен быть переведён в Professional (Business или Creator). Сделать это можно в Instagram: Настройки → Тип аккаунта']],
     ];
 
     public function __construct(

@@ -152,10 +152,31 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
                 ],
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
+            $body = $e->getResponse()->getContent(false);
+
             $this->logger->error('Instagram OAuth: не удалось получить профиль пользователя', [
                 'status' => $e->getResponse()->getStatusCode(),
-                'body'   => $e->getResponse()->getContent(false),
+                'body'   => $body,
             ]);
+
+            // Известный жёсткий кейс платформы (найден по продовым логам
+            // 25.08.2026): "Unsupported request - method type: get"
+            // (IGApiException, code 100) на этом конкретном запросе — не
+            // временная ошибка сети/API, а следствие того, что аккаунт,
+            // которым логинятся, Personal, а не Professional (Business/
+            // Creator). С закрытия Instagram Basic Display API (04.12.2024)
+            // у Personal-аккаунтов вообще нет официального способа получить
+            // профиль через Instagram API with Instagram Login — конвертация
+            // на стороне кода невозможна, это ограничение платформы. Отдаём
+            // осмысленную ошибку вместо generic OAUTH_CODE_EXCHANGE_FAILED.
+            $decoded = json_decode($body, true);
+            if (($decoded['error']['code'] ?? null) === 100
+                && str_contains($decoded['error']['message'] ?? '', 'Unsupported request')) {
+                throw new BadRequestHttpException(
+                    AppMessages::get(AppMessages::OAUTH_INSTAGRAM_PROFESSIONAL_REQUIRED)->message
+                );
+            }
+
             throw new BadRequestHttpException(
                 AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
