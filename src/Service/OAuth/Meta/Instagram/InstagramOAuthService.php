@@ -120,8 +120,32 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
         // API его просто не отдаёт ни в каком поле.
         $fields = ['id', 'username', 'name', 'profile_picture_url', 'biography'];
 
+        // БАГФИКС (25.08.2026, найден по продовым логам): Meta задепрекейтила
+        // алиас /me в новом "Instagram API with Instagram Login" (том самом,
+        // что использует scope instagram_business_basic) — INSTAGRAM_GRAPH_URI
+        // исторически указывает на https://graph.instagram.com/me (так и
+        // прописано в .oauth.credentials на проде), но сейчас Instagram
+        // отвечает 400 "Unsupported request - method type: get" (IGApiException,
+        // code 100) на любой GET к /me — ДО того, как вообще проверяет fields.
+        // Правильный путь — /{user_id}, где user_id приходит прямо в ответе
+        // exchangeCodeForTokens() рядом с access_token (см. текущий формат
+        // ответа short-lived token exchange у Instagram API with Instagram
+        // Login). Поэтому здесь подменяем хвост "/me" на "/{user_id}", а не
+        // берём INSTAGRAM_GRAPH_URI как готовый URL — это устойчиво и к
+        // будущим смена версии в самой переменной (например .../v21.0/me).
+        $userId = $tokens['user_id'] ?? null;
+        if ($userId === null) {
+            $this->logger->error('Instagram OAuth: в ответе обмена code нет user_id', ['tokens' => array_keys($tokens)]);
+            throw new BadRequestHttpException(
+                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
+            );
+        }
+
+        $graphBaseUri = preg_replace('#/me/?$#', '', rtrim($_ENV['INSTAGRAM_GRAPH_URI'], '/'));
+        $uri = $graphBaseUri . '/' . $userId;
+
         try {
-            return $this->httpClient->request('GET', $_ENV['INSTAGRAM_GRAPH_URI'], [
+            return $this->httpClient->request('GET', $uri, [
                 'query' => [
                     'fields' => implode(',', $fields),
                     'access_token' => $tokens['access_token']
