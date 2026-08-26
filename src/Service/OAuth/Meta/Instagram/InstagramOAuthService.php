@@ -5,6 +5,7 @@ namespace App\Service\OAuth\Meta\Instagram;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
+use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use App\Service\Extra\StateStorageService;
 use App\Service\OAuth\Abstract\AbstractOAuthService;
@@ -12,7 +13,6 @@ use App\Service\OAuth\Interface\OAuthServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -102,9 +102,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
                 'status' => $e->getResponse()->getStatusCode(),
                 'body'   => $e->getResponse()->getContent(false),
             ]);
-            throw new BadRequestHttpException(
-                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
-            );
+            throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
         }
     }
 
@@ -136,9 +134,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
         $userId = $tokens['user_id'] ?? null;
         if ($userId === null) {
             $this->logger->error('Instagram OAuth: в ответе обмена code нет user_id', ['tokens' => array_keys($tokens)]);
-            throw new BadRequestHttpException(
-                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
-            );
+            throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
         }
 
         $graphBaseUri = preg_replace('#/me/?$#', '', rtrim($_ENV['INSTAGRAM_GRAPH_URI'], '/'));
@@ -172,14 +168,10 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             $decoded = json_decode($body, true);
             if (($decoded['error']['code'] ?? null) === 100
                 && str_contains($decoded['error']['message'] ?? '', 'Unsupported request')) {
-                throw new BadRequestHttpException(
-                    AppMessages::get(AppMessages::OAUTH_INSTAGRAM_PROFESSIONAL_REQUIRED)->message
-                );
+                throw new AppMessageException(AppMessages::OAUTH_INSTAGRAM_PROFESSIONAL_REQUIRED);
             }
 
-            throw new BadRequestHttpException(
-                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
-            );
+            throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
         }
     }
 

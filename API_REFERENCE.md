@@ -9,16 +9,26 @@ Swagger/OpenAPI: enabled at API Platform's default docs entrypoint.
 
 Error format: JSON body `{ "code": "<error_code>", "message": "<localized message>" }` with matching HTTP status. Full catalogue: `GET /api/app-messages` (list) / `GET /api/app-messages/{code}` (single). Message language follows the same `?locale=` param.
 
-**Second error format — framework-level validation** (`422`, not part of the `AppMessages` catalogue above, not localized by `?locale=`): any `#[Assert\*]` constraint failing during `POST`/`PATCH` (required field missing, string too long, `UniqueEntity` — a duplicate `email`/`login` on `POST /users`, custom `#[Assert\Callback]` rules like the `dateOfBirth` 18+ check — see §3) comes back shaped as API Platform's standard `ConstraintViolationList`, not the `{code, message}` shape above:
+**This is now the format for essentially every business-logic/auth/permission error in the API** — `401`/`403` from `AccessService` (used by nearly every authenticated endpoint: `authentication_required`, `access_denied`, `extra_denied`, `user_blocked`), every OAuth error (`oauth_invalid_state`, `oauth_code_exchange_failed`, etc.), `email_already_exists`/`login_already_exists`/`user_underage` on `POST /users` — **fixed 27.08.2026, systemic fix**. Until then, anything thrown as a raw PHP exception outside a controller (i.e. from a *service* — `AccessService`, all four OAuth services, `LinkOAuthProviderController`, `ExtractIriService`) actually reached the client as API Platform's generic Problem+JSON shape below, **silently losing `code` entirely** — only `message`-driven controllers using their own explicit JSON-building (`errorJson()`) ever produced the documented `{code, message}` shape. This is exactly what the original Instagram OAuth bug report earlier in this doc's history looked like (`{"title":"An error occurred","detail":"...","status":400,"type":"/errors/400"}`, no `code` at all) — now fixed everywhere via a single `AppMessageException` + a global exception listener, so `code` is reliably present on every error from this catalogue regardless of where in the code it's thrown from. If you still see the shape below from any endpoint, that's a bug worth reporting — it shouldn't happen anymore for anything in the `AppMessages` catalogue:
+```ts
+interface GenericProblemJson {  // legacy/fallback shape — should no longer appear for AppMessages-catalogue errors
+  title: string;
+  detail: string;
+  status: number;
+  type: string;
+}
+```
+
+**Separate, still-current second format — plain field-level validation** (`422`, not part of the `AppMessages` catalogue, not localized by `?locale=`): a `#[Assert\*]` constraint failing on an *individual field* that isn't one of the special business-rule cases above (e.g. `password` too short/missing required character classes, `phone` format) still comes back as API Platform's standard `ConstraintViolationList`:
 ```ts
 interface ConstraintViolationList {
   status: 422;
   violations: { propertyPath: string; message: string; code: string | null }[];
-  detail: string;   // all violations joined, e.g. "email: This email is already registered"
+  detail: string;   // all violations joined
   title: string;
 }
 ```
-Distinguish the two formats by shape (`violations` array present vs. a flat `code`/`message`), not by status code alone — both can be `4xx`. **This used to be inconsistent**: a duplicate `email`/`login` on `POST /users`, and an under-18 `dateOfBirth`, both used to crash with a raw unhandled `500` instead of this `422` — fixed; both now go through the same clean `ConstraintViolationList` path like every other field-level validation error.
+Distinguish the two formats by shape (`violations` array present vs. a flat `code`/`message`), not by status code alone.
 
 ---
 
@@ -141,7 +151,7 @@ interface OAuthProvider {
 `User.GENDERS` = `{ gender_female, gender_male, gender_neutral }`.
 `Phone.CODES`: `+992, +998, +996, +7, +1, +44, +49, +33, +86, +81, +91, +971, +380, +375`.
 
-Registration body (`POST /api/users`): standard User writable fields — `email`, `password`, `name`, `surname`, `patronymic?`, `gender?`, `dateOfBirth?`, phones etc. (validation groups `registration`). `email`/`login` duplicates and an under-18 `dateOfBirth` are both rejected as `422 ConstraintViolationList` (see the note under "Error format" above), `propertyPath` = `email`/`login`/`dateOfBirth` respectively.
+Registration body (`POST /api/users`): standard User writable fields — `email`, `password`, `name`, `surname`, `patronymic?`, `gender?`, `dateOfBirth?`, phones etc. (validation groups `registration`). A duplicate `email` → `409 email_already_exists`, duplicate `login` → `409 login_already_exists`, `dateOfBirth` under 18 → `400 user_underage` — all three are the standard `{code, message}` `AppMessages` shape (see "Error format" above), checked in `UserListener`/`User::validateDateOfBirth()` on both create and update (so this applies to `PATCH /users/{id}` too, not just registration).
 
 `User.banned` — same mechanism as `Ticket.banned` (§4): never writable via the API, toggled only from EasyAdmin by ROLE_SUPER_ADMIN. Setting it forces `active=false`/`approved=false` immediately, and while `true` neither can be set back to `true` through any code path — including self-activation via `POST /confirm-account/` (token) and `POST /confirm-account-tokenless/` (resend). On top of the entity-level guard, `AccessService::check()` now hard-rejects a banned user (`403 access_denied`) on **every** authenticated endpoint that goes through `checkedUser()` — unconditionally, regardless of the `activeAndApproved` flag some endpoints pass `false` for (that flag only relaxes the "email not confirmed yet" gate, not a ban). `ROLE_SUPER_ADMIN` still bypasses everything, same as it already did for active/approved.
 

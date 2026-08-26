@@ -6,13 +6,13 @@ use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Entity\User\Phone;
+use App\Exception\AppMessageException;
 use App\Service\OAuth\Abstract\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use DateTime;
 use Exception;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -88,9 +88,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             // логируется — наружу всегда уходит одно и то же generic
             // сообщение. Это затрудняет диагностику на проде (см. также
             // такой же паттерн в Facebook/InstagramOAuthService).
-            throw new BadRequestHttpException(
-                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
-            );
+            throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
         }
     }
 
@@ -110,7 +108,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     public function fetchUserData(array $tokens): array
     {
         if (!isset($tokens['id_token'])) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message);
+            throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
         }
 
         $userData = $this->verifyIdToken($tokens['id_token']);
@@ -154,28 +152,26 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
                     ->request('GET', $_ENV['GOOGLE_CERTS_URI'])
                     ->toArray();
             } catch (Exception) {
-                throw new BadRequestHttpException(
-                    AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
-                );
+                throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
             }
         }
 
         try {
             $decoded = JWT::decode($idToken, JWK::parseKeySet($this->googlePublicKeys));
         } catch (Exception) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new AppMessageException(AppMessages::TOKEN_INVALID_OR_EXPIRED);
         }
 
         if ($decoded->aud !== $_ENV['OAUTH_GOOGLE_CLIENT_ID']) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new AppMessageException(AppMessages::TOKEN_INVALID_OR_EXPIRED);
         }
 
         if (!in_array($decoded->iss, [$_ENV['GOOGLE_ACCOUNT_URI'], 'accounts.google.com'])) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new AppMessageException(AppMessages::TOKEN_INVALID_OR_EXPIRED);
         }
 
         if ($decoded->exp < time()) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new AppMessageException(AppMessages::TOKEN_INVALID_OR_EXPIRED);
         }
 
         return (array)$decoded;
@@ -226,7 +222,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     public function findOrCreateUser(array $userData, ?string $role): array
     {
         if (!($userData['email_verified'] ?? false)) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_UNVERIFIED_EMAIL)->message);
+            throw new AppMessageException(AppMessages::OAUTH_UNVERIFIED_EMAIL);
         }
 
         $googleId = $userData['sub'];

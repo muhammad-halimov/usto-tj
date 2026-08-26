@@ -4,10 +4,9 @@ namespace App\Service\Extra;
 
 use App\ApiResource\AppMessages;
 use App\Entity\User;
+use App\Exception\AppMessageException;
 use App\Repository\User\BlackListRepository;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Symfony\Component\Security\Core\Exception\TokenNotFoundException;
 
 /**
  * Централизованная проверка прав доступа для контроллеров.
@@ -19,8 +18,14 @@ use Symfony\Component\Security\Core\Exception\TokenNotFoundException;
  *   'master' — только Master
  *   'admin'  — только Admin
  *
- * При ошибке бросаются исключения Symfony,
- * которые API Platform перехватывает и отдаёт соответствующий HTTP-код.
+ * При ошибке бросается AppMessageException (см. её докблок) — HTTP-код
+ * берётся из AppMessages::REGISTRY по коду ошибки, а не из типа
+ * исключения. БАГФИКС (26.08.2026, системный фикс формата ошибок): до
+ * этого здесь кидались голые TokenNotFoundException/
+ * AccessDeniedHttpException(AppMessages::get(...)->message) — это
+ * центральная точка проверки доступа буквально ВСЕХ защищённых
+ * эндпоинтов, так что баг "code теряется, долетает только текст" отсюда
+ * бил почти по всему API разом (401/403 без code).
  */
 readonly class AccessService
 {
@@ -48,11 +53,11 @@ readonly class AccessService
         if ($grade === 'anonymous') return true;
 
         if (!$user)
-            throw new TokenNotFoundException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
+            throw new AppMessageException(AppMessages::AUTHENTICATION_REQUIRED);
         elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
-            throw new AccessDeniedHttpException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
+            throw new AppMessageException(AppMessages::AUTHENTICATION_REQUIRED);
         elseif (!$this->security->getUser())
-            throw new TokenNotFoundException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
+            throw new AppMessageException(AppMessages::AUTHENTICATION_REQUIRED);
 
         // ROLE_SUPER_ADMIN всемогущ: проходит любой $grade (включая 'client'/
         // 'master'-only) и не блокируется active/approved/banned. Единственное,
@@ -68,43 +73,43 @@ readonly class AccessService
         // не подтверждённый email, а не про блокировку. Бан — другое, отключать
         // его для конкретных эндпоинтов смысла нет.
         if ($user->getBanned()) {
-            throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
+            throw new AppMessageException(AppMessages::ACCESS_DENIED);
         }
 
         if ($activeAndApproved) {
             if (!$user->getActive())
-                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
+                throw new AppMessageException(AppMessages::ACCESS_DENIED);
             elseif (!$user->getApproved())
-                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
+                throw new AppMessageException(AppMessages::ACCESS_DENIED);
         }
 
         switch ($grade) {
             case 'triple':
                 if (!array_intersect(self::TRIPLE_ALLOWED_ROLES, $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                    throw new AppMessageException(AppMessages::EXTRA_DENIED);
                 break;
             case 'double':
                 if (!array_intersect(self::DOUBLE_ALLOWED_ROLES, $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                    throw new AppMessageException(AppMessages::EXTRA_DENIED);
                 break;
             case 'single':
                 if (!array_intersect(self::SINGLE_ALLOWED_ROLES, $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                    throw new AppMessageException(AppMessages::EXTRA_DENIED);
                 break;
             case 'client':
                 if (!in_array("ROLE_CLIENT", $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                    throw new AppMessageException(AppMessages::EXTRA_DENIED);
                 break;
             case 'master':
                 if (!in_array("ROLE_MASTER", $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                    throw new AppMessageException(AppMessages::EXTRA_DENIED);
                 break;
             case 'admin':
                 if (!in_array("ROLE_ADMIN", $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                    throw new AppMessageException(AppMessages::EXTRA_DENIED);
                 break;
             default:
-                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                throw new AppMessageException(AppMessages::EXTRA_DENIED);
         }
 
         return true;
@@ -123,7 +128,7 @@ readonly class AccessService
         if (!$sender || !$recipient) return true;
 
         if ($this->blackListRepository->findDuplicate($recipient, $sender)) {
-            throw new AccessDeniedHttpException(AppMessages::get(AppMessages::USER_BLOCKED)->message);
+            throw new AppMessageException(AppMessages::USER_BLOCKED);
         }
 
         return true;

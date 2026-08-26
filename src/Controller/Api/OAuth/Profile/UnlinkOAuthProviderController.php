@@ -5,6 +5,7 @@ namespace App\Controller\Api\OAuth\Profile;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
+use App\Exception\AppMessageException;
 use App\Service\Extra\AccessService;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -46,14 +47,14 @@ class UnlinkOAuthProviderController extends AbstractController
             ->first() ?: null;
 
         if ($providerEntity === null) {
-            return $this->json(['error' => AppMessages::OAUTH_NOT_LINKED, 'message' => AppMessages::get(AppMessages::OAUTH_NOT_LINKED)->message], 400);
+            throw new AppMessageException(AppMessages::OAUTH_NOT_LINKED);
         }
 
         $hasPassword      = !empty($currentUser->getPassword());
         $hasOtherProvider = $currentUser->getOauthProviders()->count() > 1;
 
         if (!$hasPassword && !$hasOtherProvider) {
-            return $this->json(['error' => AppMessages::OAUTH_LAST_AUTH_METHOD, 'message' => AppMessages::get(AppMessages::OAUTH_LAST_AUTH_METHOD)->message], 400);
+            throw new AppMessageException(AppMessages::OAUTH_LAST_AUTH_METHOD);
         }
 
         $currentUser->removeOauthProvider($providerEntity);

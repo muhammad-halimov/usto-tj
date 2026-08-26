@@ -5,9 +5,9 @@ namespace App\Service\OAuth\Meta\Facebook;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
+use App\Exception\AppMessageException;
 use App\Service\OAuth\Abstract\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -75,9 +75,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             // Facebook (истёкший/повторный code, redirect_uri mismatch,
             // неверный client_secret) не логируется, наружу уходит один и
             // тот же generic OAUTH_CODE_EXCHANGE_FAILED.
-            throw new BadRequestHttpException(
-                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
-            );
+            throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
         }
     }
 
@@ -104,9 +102,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
                 ],
             ])->toArray();
         } catch (ClientExceptionInterface) {
-            throw new BadRequestHttpException(
-                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
-            );
+            throw new AppMessageException(AppMessages::OAUTH_CODE_EXCHANGE_FAILED);
         }
     }
 

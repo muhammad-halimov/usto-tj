@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\ApiResource\AppMessages;
 use App\Controller\Api\CRUD\GET\User\User\ApiGetMyProfileController;
 use App\Controller\Api\CRUD\GET\User\User\SocialNetworkController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
@@ -54,6 +55,7 @@ use App\Entity\User\Education;
 use App\Entity\User\Occupation;
 use App\Entity\User\Phone;
 use App\Entity\User\SocialNetwork;
+use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
 use DateTime;
@@ -63,7 +65,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -82,15 +83,13 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
  * сам ORM\UniqueConstraint в БД (см. ниже), а он бьёт по insert уже
  * ПОСЛЕ прохождения валидации.
  *
- * #[UniqueEntity] ниже добавляет app-уровневую проверку (SELECT перед
- * insert/update, через Symfony Validator — тот же механизм, что уже
- * валидирует Length/Regex у password ниже) — теперь дубликат email/login
- * возвращает обычную структурированную ошибку валидации (422,
- * ConstraintViolationList), как и любая другая проблема с полем,
- * а не падает 500-й необработанным исключением. login — тоже, та же
- * природа бага (свой ORM\UniqueConstraint, до этого фикса тоже без
- * app-уровневой защиты); ignoreNull по умолчанию true — не проверяет
- * уникальность, если login не передан (он nullable).
+ * Проверка уникальности email/login теперь — в UserListener::prePersist/
+ * preUpdate() (AppMessageException → EMAIL_ALREADY_EXISTS/
+ * LOGIN_ALREADY_EXISTS, {code, message} + 409), НЕ через #[UniqueEntity]:
+ * тот отдавал ConstraintViolationList (422, нелокализованный английский
+ * текст) — другой формат ошибки, чем весь остальной API. login — та же
+ * природа бага (свой ORM\UniqueConstraint, тоже раньше был без
+ * app-уровневой защиты).
  */
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -98,8 +97,6 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_LOGIN', fields: ['login'])]
-#[UniqueEntity(fields: ['email'], message: 'This email is already registered')]
-#[UniqueEntity(fields: ['login'], message: 'This login is already taken')]
 #[ApiResource(
     operations: [
         new GetCollection(
@@ -1903,14 +1900,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * запроса — ДО того, как в дело вступает Symfony Validator, — так что
      * это исключение долетало необработанным до kernel-уровня и уходило
      * клиенту как голый 500 Internal Server Error (со стектрейсом в теле
-     * ответа) вместо обычной валидационной ошибки 422. Живьём проверено:
-     * POST /users с dateOfBirth младше 18 лет реально падал 500.
+     * ответа). Живьём проверено: POST /users с dateOfBirth младше 18 лет
+     * реально падал 500.
      *
      * Вынесено сюда, в #[Assert\Callback] — тот же механизм, что уже
-     * использует validateRoleCombination() выше: срабатывает уже В
-     * ПРАВИЛЬНОЙ фазе (ValidateProvider, после денормализации), поэтому
-     * нарушение превращается в обычный ConstraintViolationList (422),
-     * а не в падение сервера.
+     * использует validateRoleCombination() выше — срабатывает уже В
+     * ПРАВИЛЬНОЙ фазе (ValidateProvider, после денормализации). Кидает
+     * AppMessageException, а не $context->buildViolation(): единый
+     * {code, message} формат со всем остальным API, а не
+     * ConstraintViolationList с нелокализованным английским текстом
+     * (см. докблок AppMessageException — это тоже часть системного фикса
+     * от 26.08.2026 на единый формат ошибок).
      */
     #[Assert\Callback]
     public function validateDateOfBirth(ExecutionContextInterface $context): void
@@ -1920,9 +1920,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $age = (new DateTime())->diff($this->dateOfBirth)->y;
 
         if ($age < 18) {
-            $context->buildViolation('User must be at least 18 years old')
-                ->atPath('dateOfBirth')
-                ->addViolation();
+            throw new AppMessageException(AppMessages::USER_UNDERAGE);
         }
     }
 

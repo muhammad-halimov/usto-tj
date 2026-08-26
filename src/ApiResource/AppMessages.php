@@ -41,6 +41,14 @@ class AppMessages
     const string ACCESS_DENIED                  = 'access_denied';
     const string OWNERSHIP_MISMATCH             = 'ownership_mismatch';
     const string AUTH_REQUIRED_FOR_CHAT_APPEALS = 'auth_required_for_chat_appeals';
+    // Раньше проверялись только через #[UniqueEntity]/#[Assert\Callback] —
+    // отдавали ConstraintViolationList (422, нелокализованный английский
+    // текст), а не {code, message}. Теперь через UserListener +
+    // AppMessageException (см. их докблоки) — единый формат со всеми
+    // остальными ошибками API.
+    const string EMAIL_ALREADY_EXISTS           = 'email_already_exists';
+    const string LOGIN_ALREADY_EXISTS           = 'login_already_exists';
+    const string USER_UNDERAGE                  = 'user_underage';
 
     // ── Message editing (Review, ChatMessage, TechSupportMessage — общие правила) ──
     // Один набор кодов на все три сущности вместо копии на каждую — сама
@@ -192,6 +200,9 @@ class AppMessages
         self::ACCESS_DENIED                  => ['http' => 403, 'messages' => ['tj' => 'Дастрасӣ рад шуд',                                                                         'eng' => 'Access denied',                                                'ru' => 'Доступ запрещён']],
         self::OWNERSHIP_MISMATCH             => ['http' => 403, 'messages' => ['tj' => 'Моликият мувофиқ нест',                                                                    'eng' => "Ownership doesn't match",                                      'ru' => 'Права владения не совпадают']],
         self::AUTH_REQUIRED_FOR_CHAT_APPEALS => ['http' => 401, 'messages' => ['tj' => 'Барои шикоятҳои чат тасдиқ зарур аст',                                                    'eng' => 'Authentication required for chat appeals',                     'ru' => 'Для жалоб в чате требуется аутентификация']],
+        self::EMAIL_ALREADY_EXISTS           => ['http' => 409, 'messages' => ['tj' => 'Ин почтаи электронӣ аллакай сабт шудааст',                                                  'eng' => 'This email is already registered',                             'ru' => 'Этот email уже зарегистрирован']],
+        self::LOGIN_ALREADY_EXISTS           => ['http' => 409, 'messages' => ['tj' => 'Ин логин аллакай гирифта шудааст',                                                          'eng' => 'This login is already taken',                                  'ru' => 'Этот логин уже занят']],
+        self::USER_UNDERAGE                  => ['http' => 400, 'messages' => ['tj' => 'Корбар бояд на кам аз 18 сола бошад',                                                       'eng' => 'User must be at least 18 years old',                           'ru' => 'Пользователь должен быть не младше 18 лет']],
         // Chat
         self::CHAT_NOT_FOUND                 => ['http' => 404, 'messages' => ['tj' => 'Чат ёфт нашуд',                                                                            'eng' => 'Chat not found',                                               'ru' => 'Чат не найден']],
         self::CHAT_ALREADY_EXISTS            => ['http' => 409, 'messages' => ['tj' => 'Чат аллакай вуҷуд дорад',                                                                  'eng' => 'Chat already exists',                                          'ru' => 'Чат уже существует']],

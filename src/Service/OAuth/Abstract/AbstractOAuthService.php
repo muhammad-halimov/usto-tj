@@ -4,6 +4,7 @@ namespace App\Service\OAuth\Abstract;
 
 use App\ApiResource\AppMessages;
 use App\Entity\User;
+use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use App\Service\Extra\StateStorageService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
@@ -14,7 +15,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Cache\InvalidArgumentException;
 use Random\RandomException;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -99,7 +99,7 @@ abstract class AbstractOAuthService implements
     public function handleCode(string $code, string $state, ?string $role): array
     {
         if ($this->stateStorage->get(self::OAUTH_PREFIX . $state) === null) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_STATE)->message);
+            throw new AppMessageException(AppMessages::OAUTH_INVALID_STATE);
         }
 
         $this->stateStorage->delete(self::OAUTH_PREFIX . $state);

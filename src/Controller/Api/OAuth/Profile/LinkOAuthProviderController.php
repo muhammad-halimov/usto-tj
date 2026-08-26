@@ -5,6 +5,7 @@ namespace App\Controller\Api\OAuth\Profile;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
+use App\Exception\AppMessageException;
 use App\Repository\User\UserOAuthProviderRepository;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\StateStorageService;
@@ -19,7 +20,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -85,7 +85,7 @@ class LinkOAuthProviderController extends AbstractController
         $provider = (string) ($body['provider'] ?? '');
 
         if (!in_array($provider, self::VALID_PROVIDERS, true)) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_PROVIDER)->message . '. Must be one of: ' . implode(', ', self::VALID_PROVIDERS));
+            throw new AppMessageException(AppMessages::OAUTH_INVALID_PROVIDER, 'Must be one of: ' . implode(', ', self::VALID_PROVIDERS));
         }
 
         ['id' => $providerId, 'email' => $realEmail] = $this->resolveProviderId($provider, $body);
@@ -101,9 +101,9 @@ class LinkOAuthProviderController extends AbstractController
             // (кто-то опередил / это чужой аккаунт — TAKEN), либо к
             // текущему же (повторный клик — ALREADY_LINKED).
             if ($existing->getUser()->getId() !== $currentUser->getId()) {
-                return $this->json(['error' => AppMessages::OAUTH_PROVIDER_TAKEN, 'message' => AppMessages::get(AppMessages::OAUTH_PROVIDER_TAKEN)->message], 400);
+                throw new AppMessageException(AppMessages::OAUTH_PROVIDER_TAKEN);
             }
-            return $this->json(['error' => AppMessages::OAUTH_ALREADY_LINKED, 'message' => AppMessages::get(AppMessages::OAUTH_ALREADY_LINKED)->message], 400);
+            throw new AppMessageException(AppMessages::OAUTH_ALREADY_LINKED);
         }
 
         // Если юзер раньше завёлся без реального email (плейсхолдер
@@ -165,10 +165,10 @@ class LinkOAuthProviderController extends AbstractController
             $authDate = (int)    ($body['auth_date'] ?? 0);
 
             if ($id === '' || $hash === '') {
-                throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_ID_HASH_REQUIRED)->message);
+                throw new AppMessageException(AppMessages::OAUTH_ID_HASH_REQUIRED);
             }
             if (time() - $authDate > 600) {
-                throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_TELEGRAM_EXPIRED)->message);
+                throw new AppMessageException(AppMessages::OAUTH_TELEGRAM_EXPIRED);
             }
 
             $this->verifyTelegramHash($body, $hash);
@@ -181,11 +181,11 @@ class LinkOAuthProviderController extends AbstractController
         $state = (string) ($body['state'] ?? '');
 
         if ($code === '' || $state === '') {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_CODE_STATE_REQUIRED)->message . ' for ' . $provider);
+            throw new AppMessageException(AppMessages::OAUTH_CODE_STATE_REQUIRED, 'for ' . $provider);
         }
 
         if ($this->stateStorage->get(self::OAUTH_PREFIX . $state) === null) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_STATE)->message);
+            throw new AppMessageException(AppMessages::OAUTH_INVALID_STATE);
         }
         $this->stateStorage->delete(self::OAUTH_PREFIX . $state);
 
@@ -238,7 +238,7 @@ class LinkOAuthProviderController extends AbstractController
         $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
         $secretKey = hash('sha256', $_ENV['OUATH_TELEGRAM_CLIENT_SECRET'], true);
         if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
-            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_SIGNATURE)->message);
+            throw new AppMessageException(AppMessages::OAUTH_INVALID_SIGNATURE);
         }
     }
 

@@ -2,7 +2,10 @@
 
 namespace App\EventListener;
 
+use App\ApiResource\AppMessages;
 use App\Entity\User;
+use App\Exception\AppMessageException;
+use App\Repository\User\UserRepository;
 use App\Service\Auth\AccountConfirmationService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
@@ -39,23 +42,62 @@ readonly class UserListener
     public function __construct(
         private UserPasswordHasherInterface  $passwordHasher,
         private AccountConfirmationService   $accountConfirmationService,
+        private UserRepository               $userRepository,
         private LoggerInterface              $logger,
     ) {}
 
     /**
-     * Хэшируем пароль перед сохранением пользователя
+     * Хэшируем пароль и проверяем уникальность email/login перед
+     * сохранением пользователя
      */
     public function prePersist(User $user): void
     {
+        $this->checkUniqueness($user);
         $this->hashPasswordIfNeeded($user);
     }
 
     /**
-     * Хэшируем пароль перед обновлением пользователя
+     * То же самое перед обновлением — email/login могут поменять и
+     * через PATCH /users/{id}, дубликат должен ловиться и там же
      */
     public function preUpdate(User $user): void
     {
+        $this->checkUniqueness($user);
         $this->hashPasswordIfNeeded($user);
+    }
+
+    /**
+     * БАГФИКС (26.08.2026, системный фикс формата ошибок — см. докблок
+     * AppMessageException): раньше уникальность email/login проверялась
+     * через #[UniqueEntity] прямо на классе User — рабочий, но отдающий
+     * ДРУГОЙ формат ответа (ConstraintViolationList, 422,
+     * нелокализованный английский текст), чем весь остальной API
+     * ({code, message} через AppMessages). Перенесено сюда, чтобы кидать
+     * AppMessageException и получить тот же формат, что и везде.
+     *
+     * Сравниваем по id, а не просто "нашли ли что-то": на preUpdate
+     * findOneBy() с НЕизменённым email/login находит самого же
+     * редактируемого пользователя — это не дубликат, а он сам.
+     * На prePersist $user->getId() ещё null, так что любая найденная
+     * строка — чужая, сравнение отработает верно и без спецкейса.
+     */
+    private function checkUniqueness(User $user): void
+    {
+        $email = $user->getEmail();
+        if ($email !== null) {
+            $existing = $this->userRepository->findOneBy(['email' => $email]);
+            if ($existing !== null && $existing->getId() !== $user->getId()) {
+                throw new AppMessageException(AppMessages::EMAIL_ALREADY_EXISTS);
+            }
+        }
+
+        $login = $user->getLogin();
+        if ($login !== null) {
+            $existing = $this->userRepository->findOneBy(['login' => $login]);
+            if ($existing !== null && $existing->getId() !== $user->getId()) {
+                throw new AppMessageException(AppMessages::LOGIN_ALREADY_EXISTS);
+            }
+        }
     }
 
     /**

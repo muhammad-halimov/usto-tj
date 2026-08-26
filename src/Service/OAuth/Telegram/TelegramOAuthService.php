@@ -6,11 +6,11 @@ use App\ApiResource\AppMessages;
 use App\Dto\OAuth\TelegramCallbackInput;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
+use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -77,7 +77,7 @@ readonly class TelegramOAuthService
         // НЕ "этот запрос действительно от владельца аккаунта" (нет
         // проверки hash) — см. докблок класса.
         if (!$this->checkTelegramUserExists($id)) {
-            throw new NotFoundHttpException(AppMessages::get(AppMessages::USER_NOT_FOUND)->message);
+            throw new AppMessageException(AppMessages::USER_NOT_FOUND);
         }
 
         $input            = new TelegramCallbackInput();
