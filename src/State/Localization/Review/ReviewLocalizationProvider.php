@@ -13,7 +13,10 @@ readonly class ReviewLocalizationProvider extends AbstractLocalizationProvider
      * Для одиночного GET /reviews/{id} — тот же критерий видимости, что
      * ReviewVisibilityExtension применяет к коллекции GET /reviews: ОБЕ
      * стороны отзыва (master и client, каждая если заполнена) должны быть
-     * active = true AND approved = true.
+     * active = true AND approved = true. Плюс (с 26.08.2026) — тикет
+     * (объявление), к которому привязан отзыв, если заполнен, должен быть
+     * approved = true, тем же условием, что ReviewVisibilityExtension
+     * применяет к коллекции.
      *
      * Раньше здесь проверялся только "субъект" (сторона, соответствующая
      * Review::$type) — этого было недостаточно, потому что master и client
@@ -23,8 +26,8 @@ readonly class ReviewLocalizationProvider extends AbstractLocalizationProvider
      * сторон теперь скрывает отзыв целиком, а не только когда деактивирован
      * тот, о ком формально сам отзыв.
      *
-     * Если сторона не заполнена (null) — не скрываем по ней (null-safe, как
-     * в FavoriteVisibilityExtension).
+     * Если сторона/тикет не заполнены (null) — не скрываем по ним (null-safe,
+     * как в FavoriteVisibilityExtension).
      *
      * GET /reviews/me через этот provider не проходит — у него свой
      * контроллер (ApiGetMyReviewsController), поэтому self-доступ не задет.
@@ -40,11 +43,13 @@ readonly class ReviewLocalizationProvider extends AbstractLocalizationProvider
 
             $master = $review->getMaster();
             $client = $review->getClient();
+            $ticket = $review->getTicket();
 
             $masterHidden = $master !== null && (!$master->getActive() || !$master->getApproved());
             $clientHidden = $client !== null && (!$client->getActive() || !$client->getApproved());
+            $ticketHidden = $ticket !== null && !$ticket->getApproved();
 
-            if ($masterHidden || $clientHidden) {
+            if ($masterHidden || $clientHidden || $ticketHidden) {
                 return null;
             }
 

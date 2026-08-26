@@ -13,6 +13,9 @@ use Doctrine\ORM\QueryBuilder;
  * ЛЮБАЯ из двух сторон (master или client) сейчас деактивирована или не
  * подтверждена — то же условие (active = true AND approved = true), что
  * ApprovedTicketExtension/UserVisibilityExtension применяют к публикатору.
+ * Плюс (с 26.08.2026) — отзыв скрывается, если привязанный к нему тикет
+ * (объявление) сам не approved, тем же условием, что ApprovedTicketExtension
+ * применяет к самому тикету в GET /tickets.
  *
  * Изначально тут проверялся только "субъект" отзыва — сторона, зависящая
  * от Review::$type (master при type='master', client при type='client').
@@ -24,6 +27,9 @@ use Doctrine\ORM\QueryBuilder;
  *
  * Если сторона не заполнена (master/client IS NULL) — не скрываем по ней:
  * тот же null-safe подход, что уже применяется в FavoriteVisibilityExtension.
+ * Ticket у отзыва тоже nullable (onDelete: SET NULL) — если ticket IS NULL
+ * (тикет удалён), тоже не скрываем по этому условию, отзыв остаётся видимым
+ * по критерию сторон.
  *
  * Не применяется к:
  *   GET /api/reviews/me   — кастомный контроллер (ApiGetMyReviewsController),
@@ -52,17 +58,22 @@ final class ReviewVisibilityExtension implements QueryCollectionExtensionInterfa
 
         $masterAlias = $queryNameGenerator->generateJoinAlias('master');
         $clientAlias = $queryNameGenerator->generateJoinAlias('client');
+        $ticketAlias = $queryNameGenerator->generateJoinAlias('ticket');
 
         // LEFT JOIN (не INNER), потому что у отзыва заполнено только ОДНО
         // из полей (master ИЛИ client) в зависимости от type — но проверяем
-        // ОБЕ стороны, а не только ту, что соответствует типу.
+        // ОБЕ стороны, а не только ту, что соответствует типу. Ticket тоже
+        // LEFT JOIN — он nullable (onDelete: SET NULL), см. докблок выше.
         $queryBuilder
             ->leftJoin("$alias.master", $masterAlias)
             ->leftJoin("$alias.client", $clientAlias)
+            ->leftJoin("$alias.ticket", $ticketAlias)
             ->andWhere(
                 "($alias.master IS NULL OR ($masterAlias.active = true AND $masterAlias.approved = true))
                 AND
-                ($alias.client IS NULL OR ($clientAlias.active = true AND $clientAlias.approved = true))"
+                ($alias.client IS NULL OR ($clientAlias.active = true AND $clientAlias.approved = true))
+                AND
+                ($alias.ticket IS NULL OR $ticketAlias.approved = true)"
             );
     }
 }
