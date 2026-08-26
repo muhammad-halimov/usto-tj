@@ -43,6 +43,8 @@ Error format: JSON body `{ "code": "<error_code>", "message": "<localized messag
 
 `provider` values: `google`, `facebook`, `instagram`, `telegram`.
 
+**Instagram-specific limitation (Meta platform restriction, not fixable server-side)**: since Meta shut down the Instagram Basic Display API (Dec 4, 2024), `instagram_business_basic` (what this app uses) only works for **Professional** (Business/Creator) Instagram accounts — a **Personal** account can complete the OAuth consent screen and code exchange fine, but the profile-fetch step then fails. Surfaced as its own error code `oauth_instagram_professional_required` (`400`) rather than the generic `oauth_code_exchange_failed`, with a user-facing message telling them to switch their Instagram account to Professional (Settings → Account type). Frontend should handle this code distinctly (e.g. show that specific guidance) rather than a generic "login failed" toast.
+
 ## 3. USERS
 
 | Method | Path | Notes |
@@ -186,7 +188,7 @@ interface Ticket {
 }
 ```
 
-`Ticket.approved` is also reset to `false` automatically whenever a content-affecting field changes (`title`, `description`, `notice`, `budget`, `negotiableBudget`, `service`, `priority`, `category`, `subcategory`, `unit`) — same field list `TicketListener` already used for the admin re-review notification (new `TicketApproval` → least-loaded-admin assignment → Telegram/email notification, see §15 for the audit trail this writes). A previously-approved ticket drops out of public `/tickets` listings again until an admin re-approves.
+`Ticket.approved` is also reset to `false` automatically whenever a content-affecting field changes (`title`, `description`, `notice`, `budget`, `negotiableBudget`, `service`, `priority`, `category`, `subcategory`, `unit`) — same field list `TicketListener` already used for the admin re-review notification (new `TicketApproval` → least-loaded-admin assignment → Telegram/email notification, see §15 for the audit trail this writes). A previously-approved ticket drops out of public `/tickets` listings again until an admin re-approves. **`addresses` triggers the exact same reset/re-review cycle**, just via a separate code path (`TicketListener::onFlush()`, since it's a collection change, not a scalar field diff) — changing which addresses are attached to a ticket is content-affecting too, not exempt like `active` is.
 
 `active` is deliberately **not** in that list (it used to be): flipping it is a routine "pause/resume my own listing" toggle, not a content edit. A `PATCH` that only changes `active` is applied directly — no new `TicketApproval`, no admin notification, no `EntityRevision`, and `approved` is left untouched. Changing `active` together with an actual content field still goes through the full re-review cycle for that field as usual; `active` itself just isn't part of what triggers it.
 
@@ -307,6 +309,8 @@ interface Address {
 ```
 `AddressFilter` on `/api/users` and `/api/tickets`: filter by nested geography, e.g. `?address.province=<id>`, `?address.city=<id>`, etc. — inspect `AddressFilter` at request time if exact param names are needed; the frontend agent should confirm via a live OPTIONS/GET call.
 
+**Hierarchy validation** (enforced on every write that embeds an `Address`, i.e. `POST`/`PATCH /tickets`, `POST`/`PATCH /users` addresses): each filled level must actually belong to its parent — `city`/`district` must belong to the given `province`, `suburb` to the given `city`, `community`/`settlement` to the given `district`, `village` to the given `settlement`. A mismatch (e.g. a `city` from one province combined with a `province` it doesn't belong to) is rejected with `422` and one of `city_not_in_province`/`district_not_in_province`/`community_not_in_district`/`suburb_not_in_city`/`settlement_not_in_district`/`village_not_in_settlement`. Since `Address` has no own endpoint (always arrives nested inside `Ticket.addresses`/`User.addresses`), this only actually fires because both entities cascade validation into the collection (`#[Assert\Valid]`) — worth knowing if a previously-accepted malformed address payload starts getting rejected now.
+
 ## 7. GALLERIES
 
 | Method | Path | Notes |
@@ -334,6 +338,8 @@ interface Gallery { id: number; user: User; images: MultipleImage[]; createdAt: 
 | POST | `/api/reviews` | body: `ReviewPostInput` |
 | PATCH | `/api/reviews/{id}` | body: `ReviewPatchInput`. See edit restrictions below |
 | DELETE | `/api/reviews/{id}` | owner-side only (client reviewing master or vice-versa) |
+
+**Visibility**: `GET /api/reviews` (collection) and `GET /api/reviews/{id}` both hide a review if either side (`master` or `client`, whichever is filled) currently has `active=false` or `approved=false` — checked on **both** sides, not just the one matching `type`, since the other side is still serialized in full in the response. Also hides a review if its `ticket` is filled and that ticket's own `approved` is `false` (a ticket dropping out of `/tickets` — see §4 — pulls its reviews out of `/reviews` too). `GET /reviews/me` is unaffected — it goes through its own controller/repository call, not this filter.
 
 **Edit restrictions on `PATCH /reviews/{id}`** — same shared mechanism as `ChatMessage`/`TechSupportMessage` (see §11 TECH SUPPORT for the full breakdown): `edit_window_expired` (`403`, 24h from `createdAt`) and `edit_too_different` (`400`, `description` must stay ≥50% similar to the original — omit the field entirely to leave it untouched, that's exempt). No soft delete / `edited` flag / operator-lock for `Review` — those are message-specific, not part of this.
 
@@ -626,7 +632,7 @@ interface EntityRevision {
 
 `entityType` values currently written, and what triggers each. For `action: "updated"`, `snapshot[field]` is always `{ old: <previous value>, new: <value after the edit> }` — both sides included, not just the previous one:
 
-- **`ticket`** — on every `PATCH /tickets/{id}` that changes at least one of `title`/`description`/`notice`/`budget`/`negotiableBudget`/`service`/`priority`/`category`/`subcategory`/`unit`. `snapshot` contains only the fields that actually changed (association fields like `category`/`subcategory`/`unit` are stored as their id, not the embedded object, on both `old` and `new`). Same trigger also resets `Ticket.approved` to `false` — see §4. `active` does **not** trigger this (see §4) — a PATCH that only flips `active` writes no revision at all.
+- **`ticket`** — on every `PATCH /tickets/{id}` that changes at least one of `title`/`description`/`notice`/`budget`/`negotiableBudget`/`service`/`priority`/`category`/`subcategory`/`unit`. `snapshot` contains only the fields that actually changed (association fields like `category`/`subcategory`/`unit` are stored as their id, not the embedded object, on both `old` and `new`). Same trigger also resets `Ticket.approved` to `false` — see §4. `active` does **not** trigger this (see §4) — a PATCH that only flips `active` writes no revision at all. **`addresses`** also writes a `ticket` revision (separate code path — a collection change, not a scalar diff), shaped as `snapshot: { address: { old: AddressSnapshot[], new: AddressSnapshot[] } }` where each `AddressSnapshot` is `{ province, city, suburb, district, community, settlement, village }` and each of those is `{ id: number, title: string | null } | null` — the full attached-addresses list on each side (not a diff of individual address fields), compared as a set (order doesn't matter).
 - **`chat_message`** — on `PATCH /chat-messages/{id}` that changes `description`. `{ action: "updated", snapshot: { description: { old: "...", new: "..." } } }`.
 - **`tech_support_message`** — on `PATCH /tech-support-messages/{id}` that changes `description`. Same shape as `chat_message`.
 - **`review`** — on `PATCH /reviews/{id}` that changes `description` and/or `rating`. `snapshot` contains only whichever of the two actually changed, each as an `{ old, new }` pair.
