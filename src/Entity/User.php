@@ -63,7 +63,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use InvalidArgumentException;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -72,12 +72,34 @@ use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
+/**
+ * БАГФИКС (26.08.2026, найден по продовому 500): POST /users с email,
+ * который уже занят, раньше падал НЕОБРАБОТАННЫМ PDOException/
+ * UniqueConstraintViolationException прямо из Doctrine ("duplicate key
+ * value violates unique constraint uniq_identifier_email") — 500 Internal
+ * Server Error вместо внятной ошибки, потому что до этого нигде не было
+ * app-уровневой проверки уникальности: единственной защитой оставался
+ * сам ORM\UniqueConstraint в БД (см. ниже), а он бьёт по insert уже
+ * ПОСЛЕ прохождения валидации.
+ *
+ * #[UniqueEntity] ниже добавляет app-уровневую проверку (SELECT перед
+ * insert/update, через Symfony Validator — тот же механизм, что уже
+ * валидирует Length/Regex у password ниже) — теперь дубликат email/login
+ * возвращает обычную структурированную ошибку валидации (422,
+ * ConstraintViolationList), как и любая другая проблема с полем,
+ * а не падает 500-й необработанным исключением. login — тоже, та же
+ * природа бага (свой ORM\UniqueConstraint, до этого фикса тоже без
+ * app-уровневой защиты); ignoreNull по умолчанию true — не проверяет
+ * уникальность, если login не передан (он nullable).
+ */
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
 #[Vich\Uploadable]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_LOGIN', fields: ['login'])]
+#[UniqueEntity(fields: ['email'], message: 'This email is already registered')]
+#[UniqueEntity(fields: ['login'], message: 'This login is already taken')]
 #[ApiResource(
     operations: [
         new GetCollection(
@@ -1868,17 +1890,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setDateOfBirth(?DateTime $dateOfBirth): static
     {
-        if ($dateOfBirth !== null) {
-            $age = (new DateTime())->diff($dateOfBirth)->y;
-
-            if ($age < 18) {
-                throw new InvalidArgumentException('User must be at least 18 years old');
-            }
-        }
-
         $this->dateOfBirth = $dateOfBirth;
 
         return $this;
+    }
+
+    /**
+     * БАГФИКС (26.08.2026, найден при аудите на предмет необработанных
+     * 500): проверка "не младше 18" раньше жила ПРЯМО в setDateOfBirth()
+     * и кидала сырой InvalidArgumentException. Сеттеры вызываются Symfony
+     * Serializer'ом (PropertyAccessor) во время денормализации тела
+     * запроса — ДО того, как в дело вступает Symfony Validator, — так что
+     * это исключение долетало необработанным до kernel-уровня и уходило
+     * клиенту как голый 500 Internal Server Error (со стектрейсом в теле
+     * ответа) вместо обычной валидационной ошибки 422. Живьём проверено:
+     * POST /users с dateOfBirth младше 18 лет реально падал 500.
+     *
+     * Вынесено сюда, в #[Assert\Callback] — тот же механизм, что уже
+     * использует validateRoleCombination() выше: срабатывает уже В
+     * ПРАВИЛЬНОЙ фазе (ValidateProvider, после денормализации), поэтому
+     * нарушение превращается в обычный ConstraintViolationList (422),
+     * а не в падение сервера.
+     */
+    #[Assert\Callback]
+    public function validateDateOfBirth(ExecutionContextInterface $context): void
+    {
+        if ($this->dateOfBirth === null) return;
+
+        $age = (new DateTime())->diff($this->dateOfBirth)->y;
+
+        if ($age < 18) {
+            $context->buildViolation('User must be at least 18 years old')
+                ->atPath('dateOfBirth')
+                ->addViolation();
+        }
     }
 
     /**

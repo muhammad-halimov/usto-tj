@@ -9,6 +9,17 @@ Swagger/OpenAPI: enabled at API Platform's default docs entrypoint.
 
 Error format: JSON body `{ "code": "<error_code>", "message": "<localized message>" }` with matching HTTP status. Full catalogue: `GET /api/app-messages` (list) / `GET /api/app-messages/{code}` (single). Message language follows the same `?locale=` param.
 
+**Second error format — framework-level validation** (`422`, not part of the `AppMessages` catalogue above, not localized by `?locale=`): any `#[Assert\*]` constraint failing during `POST`/`PATCH` (required field missing, string too long, `UniqueEntity` — a duplicate `email`/`login` on `POST /users`, custom `#[Assert\Callback]` rules like the `dateOfBirth` 18+ check — see §3) comes back shaped as API Platform's standard `ConstraintViolationList`, not the `{code, message}` shape above:
+```ts
+interface ConstraintViolationList {
+  status: 422;
+  violations: { propertyPath: string; message: string; code: string | null }[];
+  detail: string;   // all violations joined, e.g. "email: This email is already registered"
+  title: string;
+}
+```
+Distinguish the two formats by shape (`violations` array present vs. a flat `code`/`message`), not by status code alone — both can be `4xx`. **This used to be inconsistent**: a duplicate `email`/`login` on `POST /users`, and an under-18 `dateOfBirth`, both used to crash with a raw unhandled `500` instead of this `422` — fixed; both now go through the same clean `ConstraintViolationList` path like every other field-level validation error.
+
 ---
 
 ## 1. AUTH
@@ -44,6 +55,8 @@ Error format: JSON body `{ "code": "<error_code>", "message": "<localized messag
 `provider` values: `google`, `facebook`, `instagram`, `telegram`.
 
 **Instagram-specific limitation (Meta platform restriction, not fixable server-side)**: since Meta shut down the Instagram Basic Display API (Dec 4, 2024), `instagram_business_basic` (what this app uses) only works for **Professional** (Business/Creator) Instagram accounts — a **Personal** account can complete the OAuth consent screen and code exchange fine, but the profile-fetch step then fails. Surfaced as its own error code `oauth_instagram_professional_required` (`400`) rather than the generic `oauth_code_exchange_failed`, with a user-facing message telling them to switch their Instagram account to Professional (Settings → Account type). Frontend should handle this code distinctly (e.g. show that specific guidance) rather than a generic "login failed" toast.
+
+**Google-specific**: `POST /auth/google/callback` used to be able to crash with a raw `500` (not the `oauth_code_exchange_failed` `400` you'd expect) if Google's certs endpoint was transiently unreachable while verifying the `id_token` — fixed; a transient failure there now also comes back as the normal `oauth_code_exchange_failed` `400` like every other provider-side hiccup.
 
 ## 3. USERS
 
@@ -128,7 +141,7 @@ interface OAuthProvider {
 `User.GENDERS` = `{ gender_female, gender_male, gender_neutral }`.
 `Phone.CODES`: `+992, +998, +996, +7, +1, +44, +49, +33, +86, +81, +91, +971, +380, +375`.
 
-Registration body (`POST /api/users`): standard User writable fields — `email`, `password`, `name`, `surname`, `patronymic?`, `gender?`, `dateOfBirth?`, phones etc. (validation groups `registration`).
+Registration body (`POST /api/users`): standard User writable fields — `email`, `password`, `name`, `surname`, `patronymic?`, `gender?`, `dateOfBirth?`, phones etc. (validation groups `registration`). `email`/`login` duplicates and an under-18 `dateOfBirth` are both rejected as `422 ConstraintViolationList` (see the note under "Error format" above), `propertyPath` = `email`/`login`/`dateOfBirth` respectively.
 
 `User.banned` — same mechanism as `Ticket.banned` (§4): never writable via the API, toggled only from EasyAdmin by ROLE_SUPER_ADMIN. Setting it forces `active=false`/`approved=false` immediately, and while `true` neither can be set back to `true` through any code path — including self-activation via `POST /confirm-account/` (token) and `POST /confirm-account-tokenless/` (resend). On top of the entity-level guard, `AccessService::check()` now hard-rejects a banned user (`403 access_denied`) on **every** authenticated endpoint that goes through `checkedUser()` — unconditionally, regardless of the `activeAndApproved` flag some endpoints pass `false` for (that flag only relaxes the "email not confirmed yet" gate, not a ban). `ROLE_SUPER_ADMIN` still bypasses everything, same as it already did for active/approved.
 

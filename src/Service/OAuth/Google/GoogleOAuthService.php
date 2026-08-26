@@ -140,9 +140,24 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     private function verifyIdToken(string $idToken): array
     {
         if ($this->googlePublicKeys === null) {
-            $this->googlePublicKeys = $this->httpClient
-                ->request('GET', $_ENV['GOOGLE_CERTS_URI'])
-                ->toArray();
+            // БАГФИКС (26.08.2026, найден при аудите на предмет
+            // необработанных 500): этот запрос раньше не был обёрнут
+            // try/catch вовсе — временная недоступность/таймаут/5xx у
+            // Google (GOOGLE_CERTS_URI) вылетал бы необработанным
+            // TransportExceptionInterface/ServerExceptionInterface прямо
+            // из fetchUserData(), в 500 Internal Server Error вместо
+            // внятной ошибки — тот же класс бага, что был у email/login
+            // в User (см. её докблок), просто источник исключения другой
+            // (сеть, а не БД).
+            try {
+                $this->googlePublicKeys = $this->httpClient
+                    ->request('GET', $_ENV['GOOGLE_CERTS_URI'])
+                    ->toArray();
+            } catch (Exception) {
+                throw new BadRequestHttpException(
+                    AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
+                );
+            }
         }
 
         try {
