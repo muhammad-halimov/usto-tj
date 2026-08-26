@@ -30,7 +30,7 @@ Distinguish the two formats by shape (`violations` array present vs. a flat `cod
 | POST | `/api/refresh_token` | — (cookie-based) | `{ token, refresh_token_expiration }` | Rotates refresh token (single_use: true). |
 | POST | `/api/invalidate_token` | — | — | Symfony firewall logout. |
 | POST | `/api/logout` | — | `{ success: bool, message }` | App-level logout endpoint (custom). |
-| POST | `/api/users` | User registration payload (see §3), validation groups `Default,registration` | User | Public registration. |
+| POST | `/api/users` | User registration payload (see §3), validation groups `Default,registration` | User | Public registration. Automatically sends the confirmation email (same one `POST /confirm-account-tokenless/` resends) right after the account is created — **fixed** (was previously not wired up at all despite the confirm/resend endpoints already existing; a fresh registration got no email and just sat `active=false` with no way to become active except the admin manually resending from EasyAdmin). A transport failure (SMTP down, etc.) is logged server-side and does **not** fail the registration request itself — the account is still created `201`, just without an email having gone out; the user can still trigger `POST /confirm-account-tokenless/` afterward once authenticated. |
 | POST | `/api/confirm-account/` | `{ token }` | `{ success, message, redirectUrl }` | Confirms account via emailed token. |
 | POST | `/api/confirm-account-tokenless/` | — (Bearer auth) | `{ success, message, redirectUrl }` | Confirms already-authenticated user. |
 | POST | `/api/change-password/send-otp/` | `{ email }` | — | Sends OTP code to email. |
