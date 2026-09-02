@@ -83,15 +83,15 @@ use App\Dto\OAuth\TelegramCallbackInput;
  *
  * 2) Telegram — НЕ authorization code flow вообще, а Telegram Login Widget:
  *    фронтенд встраивает виджет Telegram, тот сам показывает попап и
- *    возвращает ПОДПИСАННЫЙ払лоад {id, first_name, last_name, username,
+ *    возвращает ПОДПИСАННЫЙ пейлоад {id, first_name, last_name, username,
  *    photo_url, auth_date, hash} прямо в JS-колбэк — эндпоинта /url тут
- *    в принципе нет и не нужно. Фронтенд шлёт (уже camelCase,
- *    БЕЗ hash/auth_date!) POST /auth/telegram/callback, тело —
- *    TelegramCallbackInput → TelegramOAuthCallbackController (НЕ наследует
- *    AbstractOAuthCallbackController — форма данных другая) →
+ *    в принципе нет и не нужно. Фронтенд шлёт (уже camelCase, включая
+ *    hash/authDate — обязательны с 27.08.2026) POST /auth/telegram/callback,
+ *    тело — TelegramCallbackInput → TelegramOAuthCallbackController (НЕ
+ *    наследует AbstractOAuthCallbackController — форма данных другая) →
  *    TelegramOAuthService::handleCallback() — см. её докблок в самом
- *    классе, там же — про то, что ПОДПИСЬ (hash) в этом ЛОГИН-потоке НЕ
- *    проверяется вовсе (в отличие от потока привязки в ProfileOAuth).
+ *    классе: подпись (hash) проверяется через TelegramHashVerifierService,
+ *    тем же сервисом, что и поток привязки в ProfileOAuth.
  *
  * Общие для (1) и (2) детали:
  *   - "role" — 'master'|'client'|null, влияет только на роль ВНОВЬ

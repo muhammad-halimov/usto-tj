@@ -57,7 +57,7 @@ Distinguish the two formats by shape (`violations` array present vs. a flat `cod
 | POST | `/api/auth/instagram/callback` | `{ code, state, role? }` | `{ user, token, message, status }` |
 | GET | `/api/auth/facebook/url` | — | `{ url }` |
 | POST | `/api/auth/facebook/callback` | `{ code, state, role? }` | `{ user, token, message, status }` |
-| POST | `/api/auth/telegram/callback` | `{ id, username?, firstName?, lastName?, photoUrl?, role? }` | `{ user, token, message, status }` |
+| POST | `/api/auth/telegram/callback` | `{ id, hash, authDate, username?, firstName?, lastName?, photoUrl?, role? }` | `{ user, token, message, status }` |
 | POST | `/api/profile/oauth/link` | (Bearer) | — |
 | DELETE | `/api/profile/oauth/unlink/{provider}` | (Bearer) | — |
 | GET | `/api/profile/oauth/providers` | (Bearer) | — |
@@ -67,6 +67,8 @@ Distinguish the two formats by shape (`violations` array present vs. a flat `cod
 **Instagram-specific limitation (Meta platform restriction, not fixable server-side)**: since Meta shut down the Instagram Basic Display API (Dec 4, 2024), `instagram_business_basic` (what this app uses) only works for **Professional** (Business/Creator) Instagram accounts — a **Personal** account can complete the OAuth consent screen and code exchange fine, but the profile-fetch step then fails. Surfaced as its own error code `oauth_instagram_professional_required` (`400`) rather than the generic `oauth_code_exchange_failed`, with a user-facing message telling them to switch their Instagram account to Professional (Settings → Account type). Frontend should handle this code distinctly (e.g. show that specific guidance) rather than a generic "login failed" toast.
 
 **Google-specific**: `POST /auth/google/callback` used to be able to crash with a raw `500` (not the `oauth_code_exchange_failed` `400` you'd expect) if Google's certs endpoint was transiently unreachable while verifying the `id_token` — fixed; a transient failure there now also comes back as the normal `oauth_code_exchange_failed` `400` like every other provider-side hiccup.
+
+**Telegram-specific, `hash`/`authDate` now required (fixed 27.08.2026, breaking change)**: `POST /auth/telegram/callback` used to accept just `{ id, username?, firstName?, lastName?, photoUrl?, role? }` and verify the request by making a live call to Telegram's Bot API (`getChat`) — which not only failed to prove the request actually came from the claimed account, but **broke login/registration entirely for any user who had never started a conversation with the bot** (`getChat` on a private chat the bot has no prior context on returns "chat not found" — this is documented Telegram Bot API behavior, not a bug specific to this backend). That's very likely the cause of any "user not found" report from Telegram login. Fixed: the endpoint now requires `hash` and `authDate` (the same fields Telegram Login Widget already provides, and that `POST /profile/oauth/link` already required) and verifies the widget's HMAC signature instead — no live Telegram call anymore, no dependency on the user having interacted with the bot before, and it actually proves authenticity (which the old check didn't). `oauth_id_hash_required`-style rejection isn't reused here since these are now plain `#[Assert\NotBlank]` DTO fields (missing → standard `ConstraintViolationList`, `422`); `oauth_telegram_expired` (`auth_date` older than 600s) and `oauth_invalid_signature` (bad hash) are the same `{code, message}` codes `/profile/oauth/link` already used for the same checks.
 
 ## 3. USERS
 

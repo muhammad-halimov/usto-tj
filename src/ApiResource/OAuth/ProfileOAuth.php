@@ -29,8 +29,10 @@ use App\Controller\Api\OAuth\Profile\UnlinkOAuthProviderController;
  *     GeneralOAuth, разница только в том, КУДА фронтенд отправит
  *     полученный code/state); для telegram — сырые поля виджета
  *     {provider:'telegram', id, hash, auth_date, first_name?, ...} —
- *     и ВОТ ТУТ, в отличие от /auth/telegram/callback (логин), подпись
- *     (hash) реально проверяется (verifyTelegramHash()) — см. её докблок.
+ *     подпись (hash) проверяется через TelegramHashVerifierService
+ *     (verifyTelegramHash() здесь и TelegramOAuthService::handleCallback()
+ *     в /auth/telegram/callback — логин — используют один и тот же сервис
+ *     с 27.08.2026, см. его докблок).
  *
  *   DELETE /profile/oauth/unlink/{provider} — UnlinkOAuthProviderController.
  *     Отказывает, если это последний способ входа (нет пароля И это

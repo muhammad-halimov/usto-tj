@@ -12,6 +12,7 @@ use App\Service\Extra\StateStorageService;
 use App\Service\OAuth\Google\GoogleOAuthService;
 use App\Service\OAuth\Meta\Facebook\FacebookOAuthService;
 use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
+use App\Service\OAuth\Telegram\TelegramHashVerifierService;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -38,10 +39,9 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  * набор Url/Callback контроллеров. Ветвление по провайдеру — внутри
  * resolveProviderId().
  *
- * В отличие от TelegramOAuthService::handleCallback() (login-флоу),
- * здесь Telegram-ветка ПРАВИЛЬНО проверяет HMAC-подпись виджета
- * (verifyTelegramHash()) и свежесть auth_date — см. подробное сравнение
- * в докблоке TelegramOAuthService.
+ * Telegram-ветка проверяет HMAC-подпись виджета (verifyTelegramHash() →
+ * TelegramHashVerifierService, общий с TelegramOAuthService::
+ * handleCallback() — login-флоу) и свежесть auth_date.
  */
 class LinkOAuthProviderController extends AbstractController
 {
@@ -64,6 +64,7 @@ class LinkOAuthProviderController extends AbstractController
         private readonly GoogleOAuthService          $googleService,
         private readonly FacebookOAuthService        $facebookService,
         private readonly InstagramOAuthService       $instagramService,
+        private readonly TelegramHashVerifierService $telegramHashVerifier,
         private readonly JWTTokenManagerInterface    $jwtManager,
     ) {}
 
@@ -215,16 +216,15 @@ class LinkOAuthProviderController extends AbstractController
     }
 
     /**
-     * Стандартная проверка подписи Telegram Login Widget: собрать все
-     * присланные поля (кроме hash), отсортировать по ключу, склеить в
-     * "key=value\n..." и сверить HMAC-SHA256 с ключом sha256(bot_token)
-     * против присланного hash — так, как требует официальная документация
-     * Telegram Login Widget. hash_equals() — намеренно constant-time
-     * сравнение, а не === (защита от timing-атак).
-     *
-     * Это единственное место во всём проекте, где HMAC Telegram-виджета
-     * ДЕЙСТВИТЕЛЬНО проверяется — сравните с TelegramOAuthService::
-     * handleCallback() (login-флоу), где такой проверки нет вовсе.
+     * БАГФИКС (27.08.2026): раньше здесь была своя копия проверки HMAC, с
+     * секретом из $_ENV['OUATH_TELEGRAM_CLIENT_SECRET'] — переменной,
+     * которой нет ни в одном .env этого проекта (только TELEGRAM_BOT_TOKEN,
+     * см. TelegramHashVerifierService), т.е. эта проверка скорее всего
+     * ВСЕГДА проваливалась (пустой секрет → hash никогда не совпадёт) —
+     * привязка Telegram, судя по всему, была сломана точно так же, как
+     * оказался сломан логин через Telegram (см. TelegramOAuthService).
+     * Теперь оба флоу используют один и тот же TelegramHashVerifierService
+     * с одним и тем же (реально заданным) TELEGRAM_BOT_TOKEN.
      */
     private function verifyTelegramHash(array $body, string $hash): void
     {
@@ -234,10 +234,8 @@ class LinkOAuthProviderController extends AbstractController
                 $fields[$key] = (string) $body[$key];
             }
         }
-        ksort($fields);
-        $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
-        $secretKey = hash('sha256', $_ENV['OUATH_TELEGRAM_CLIENT_SECRET'], true);
-        if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
+
+        if (!$this->telegramHashVerifier->verify($fields, $hash)) {
             throw new AppMessageException(AppMessages::OAUTH_INVALID_SIGNATURE);
         }
     }

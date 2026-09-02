@@ -9,14 +9,7 @@ use App\Entity\User;
 use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Exception;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Telegram-логин — СТРУКТУРНО другой флоу, чем у Google/Facebook/
@@ -31,53 +24,55 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * OAuth*Interface — он самодостаточен, т.к. флоу принципиально не
  * укладывается в схему "code+state" (нет этих двух сущностей вовсе).
  *
- * ============================================================
- * ВНИМАНИЕ, ПОТЕНЦИАЛЬНАЯ УЯЗВИМОСТЬ (не исправлено, только описано):
- * handleCallback() НЕ проверяет HMAC-подпись (поле hash), которую
- * Telegram Login Widget обязан присылать вместе с данными — единственная
- * проверка здесь это checkTelegramUserExists() (см. ниже), которая лишь
- * подтверждает, что numeric id соответствует РЕАЛЬНОМУ Telegram-аккаунту,
- * но НИКАК не доказывает, что запрос на самом деле пришёл от владельца
- * этого id. Т.е. теоретически, зная (или подобрав) чужой Telegram id,
- * можно залогиниться ИМ через этот эндпоинт.
- *
- * Для сравнения: LinkOAuthProviderController::verifyTelegramHash()
- * (используется в ДРУГОМ флоу — привязка провайдера у уже залогиненного
- * юзера, POST /profile/oauth/link) делает это ПРАВИЛЬНО — пересчитывает
- * hash_hmac('sha256', $dataCheckString, hash('sha256', BOT_TOKEN, true))
- * и сверяет с присланным hash, плюс проверяет auth_date на свежесть (не
- * старше 600 сек). Тот же самый алгоритм проверки стоило бы добавить и
- * сюда, в handleCallback(), прежде чем доверять $id/$username/... —
- * поля password/token в реальности начинаются с полей, присылаемых
- * Telegram-виджетом, а не с проверенного сервером источника.
- * ============================================================
+ * БАГФИКС (27.08.2026, найден по жалобе "нету такого пользователя" при
+ * логине через Telegram): до этого фикса подлинность запроса вообще не
+ * проверялась — единственной "защитой" был живой запрос к Bot API
+ * (checkTelegramUserExists() → getChat), который (а) не доказывал, что
+ * запрос пришёл от реального владельца id (можно было залогиниться под
+ * чужим Telegram id, зная/подобрав его — см. историю в git), и (б) что
+ * гораздо хуже как баг — getChat для приватного чата с ботом НЕ
+ * срабатывает, пока пользователь сам не написал боту хотя бы раз
+ * ("Bad Request: chat not found", задокументированное поведение Telegram
+ * Bot API) — то есть ЛЮБОЙ новый пользователь, никогда не писавший боту,
+ * получал "USER_NOT_FOUND" при попытке зарегистрироваться/залогиниться
+ * через виджет, хотя сам виджет его уже успешно авторизовал. Теперь
+ * вместо этого проверяется HMAC-подпись (hash/authDate), которую виджет
+ * обязан присылать — тот же алгоритм и код, что уже использовал
+ * LinkOAuthProviderController для флоу привязки, вынесенный в
+ * TelegramHashVerifierService, чтобы не дублировать. Живой запрос к
+ * Telegram больше не нужен вовсе — подпись самодостаточна.
  */
 readonly class TelegramOAuthService
 {
     public function __construct(
-        private UserRepository           $userRepository,
-        private EntityManagerInterface   $entityManager,
-        private JWTTokenManagerInterface $jwtManager,
-        private HttpClientInterface      $httpClient,
+        private UserRepository              $userRepository,
+        private EntityManagerInterface      $entityManager,
+        private JWTTokenManagerInterface    $jwtManager,
+        private TelegramHashVerifierService $hashVerifier,
     ){}
 
     /**
-     * Точка входа флоу логина через Telegram — см. предупреждение о
-     * непроверенной подписи в докблоке класса выше.
-     *
-     * @throws TransportExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws ClientExceptionInterface
+     * Точка входа флоу логина через Telegram. Проверяет подпись
+     * (hash/authDate) ПЕРЕД тем, как доверять любым другим полям —
+     * см. докблок класса и TelegramHashVerifierService.
      */
-    public function handleCallback(int $id, ?string $username, ?string $firstName, ?string $lastName, ?string $photoUrl, ?string $role): array
+    public function handleCallback(int $id, ?string $username, ?string $firstName, ?string $lastName, ?string $photoUrl, ?string $role, string $hash, int $authDate): array
     {
-        // Подтверждает только "этот id — реальный Telegram-аккаунт",
-        // НЕ "этот запрос действительно от владельца аккаунта" (нет
-        // проверки hash) — см. докблок класса.
-        if (!$this->checkTelegramUserExists($id)) {
-            throw new AppMessageException(AppMessages::USER_NOT_FOUND);
+        if (time() - $authDate > 600) {
+            throw new AppMessageException(AppMessages::OAUTH_TELEGRAM_EXPIRED);
+        }
+
+        $verifiedFields = [
+            'id'         => $id,
+            'first_name' => $firstName,
+            'last_name'  => $lastName,
+            'username'   => $username,
+            'photo_url'  => $photoUrl,
+            'auth_date'  => $authDate,
+        ];
+
+        if (!$this->hashVerifier->verify($verifiedFields, $hash)) {
+            throw new AppMessageException(AppMessages::OAUTH_INVALID_SIGNATURE);
         }
 
         $input            = new TelegramCallbackInput();
@@ -150,31 +145,4 @@ readonly class TelegramOAuthService
         }
     }
 
-    /**
-     * @throws TransportExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws ClientExceptionInterface
-     */
-    /**
-     * Живой запрос к Bot API (getChat) — единственная проверка, что id
-     * реальный. НЕ проверяет, что запрос пришёл от владельца id (нет
-     * HMAC-проверки, см. докблок класса) — это отдельная и куда более
-     * важная проверка, отсутствующая здесь.
-     */
-    private function checkTelegramUserExists(int $userId): bool
-    {
-        try {
-            $data = $this->httpClient->request(
-                'GET',
-                "https://api.telegram.org/bot{$_ENV['TELEGRAM_BOT_TOKEN']}/getChat",
-                ['query' => ['chat_id' => $userId]]
-            )->toArray(false);
-
-            return $data['ok'] ?? false;
-        } catch (Exception) {
-            return false;
-        }
-    }
 }
