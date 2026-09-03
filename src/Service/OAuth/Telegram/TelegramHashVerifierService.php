@@ -2,6 +2,8 @@
 
 namespace App\Service\OAuth\Telegram;
 
+use Psr\Log\LoggerInterface;
+
 /**
  * Проверка HMAC-подписи Telegram Login Widget — официальный алгоритм из
  * документации Telegram (https://core.telegram.org/widgets/login#checking-
@@ -30,6 +32,8 @@ namespace App\Service\OAuth\Telegram;
  */
 readonly class TelegramHashVerifierService
 {
+    public function __construct(private LoggerInterface $logger) {}
+
     /**
      * @param array<string, scalar|null> $fields Все поля, присланные виджетом,
      *                                            КРОМЕ hash (id, first_name,
@@ -53,7 +57,24 @@ readonly class TelegramHashVerifierService
         );
 
         $secretKey = hash('sha256', $_ENV['TELEGRAM_BOT_TOKEN'], true);
+        $computedHash = hash_hmac('sha256', $dataCheckString, $secretKey);
+        $isValid = hash_equals($computedHash, $hash);
 
-        return hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash);
+        // ВРЕМЕННОЕ диагностическое логирование (добавлено 03.09.2026, по
+        // жалобе "неверная подпись" в проде после деплоя фикса) — ничего
+        // секретного здесь нет (dataCheckString — публичные данные профиля,
+        // сам bot token не логируется), но это временно для отладки
+        // конкретного случая рассинхрона, не постоянный лог на каждый
+        // логин — можно убрать после того, как найдём причину.
+        if (!$isValid) {
+            $this->logger->warning('Telegram OAuth: подпись не совпала', [
+                'dataCheckString' => $dataCheckString,
+                'receivedHash'    => $hash,
+                'computedHash'    => $computedHash,
+                'botTokenTail'    => substr($_ENV['TELEGRAM_BOT_TOKEN'] ?? '', -6),
+            ]);
+        }
+
+        return $isValid;
     }
 }
