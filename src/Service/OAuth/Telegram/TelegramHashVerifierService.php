@@ -66,8 +66,15 @@ readonly class TelegramHashVerifierService
         // сам bot token не логируется), но это временно для отладки
         // конкретного случая рассинхрона, не постоянный лог на каждый
         // логин — можно убрать после того, как найдём причину.
+        //
+        // ->error(), а не ->warning(): на проде main-хендлер — fingers_crossed
+        // с action_level: error (см. config/packages/monolog.yaml) — он
+        // копит всё, что ниже этого уровня, в буфере на время запроса и
+        // МОЛЧА ВЫБРАСЫВАЕТ буфер, если в запросе не случилось ничего
+        // уровня error. warning() тут никогда бы не долетел до stderr —
+        // ровно поэтому лог был пуст при первой попытке диагностики.
         if (!$isValid) {
-            $this->logger->warning('Telegram OAuth: подпись не совпала', [
+            $this->logger->error('Telegram OAuth: подпись не совпала', [
                 'dataCheckString' => $dataCheckString,
                 'receivedHash'    => $hash,
                 'computedHash'    => $computedHash,
