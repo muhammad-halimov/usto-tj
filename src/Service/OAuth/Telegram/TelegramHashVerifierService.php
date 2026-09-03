@@ -25,10 +25,17 @@ use Psr\Log\LoggerInterface;
  * местом, используется теперь ОБОИМИ флоу — TelegramOAuthService (логин)
  * и LinkOAuthProviderController (привязка).
  *
- * Общий bot token — TELEGRAM_BOT_TOKEN (тот же секрет, что используется
- * для вызовов Bot API вроде getChat/sendMessage — по протоколу Telegram
- * Login Widget secret_key = SHA256(bot_token), это ровно тот же токен,
- * никакой отдельной "OAuth-секрет"-переменной Telegram не предусматривает).
+ * БАГФИКС №2 (03.09.2026, найден сразу же после первого — по жалобе
+ * "неверная подпись" на все попытки логина): секрет для HMAC должен быть
+ * токеном ИМЕННО того бота, что зашит в виджете на фронте
+ * (data-telegram-login="ustoyobtj_auth_bot"), а НЕ TELEGRAM_BOT_TOKEN —
+ * та переменная принадлежит СОВСЕМ ДРУГОМУ боту (ustoyobtj_tech_support_bot,
+ * используется для уведомлений техподдержки — AbstractMailerService,
+ * TelegramBotController, NotifyNewTechSupportTelegramBotService — этих
+ * НЕ трогать). Два разных бота — два разных секрета, подпись виджента
+ * логина никогда не могла совпасть с сверкой по чужому боту. Используем
+ * отдельную переменную TELEGRAM_AUTH_BOT_TOKEN — токен ustoyobtj_auth_bot,
+ * взятый у @BotFather (никакой другой источник этот токен не знает).
  */
 readonly class TelegramHashVerifierService
 {
@@ -56,16 +63,22 @@ readonly class TelegramHashVerifierService
             array_map(fn($k, $v) => "$k=$v", array_keys($dataCheckFields), $dataCheckFields)
         );
 
-        $secretKey = hash('sha256', $_ENV['TELEGRAM_BOT_TOKEN'], true);
+        $secretKey = hash('sha256', $_ENV['TELEGRAM_AUTH_BOT_TOKEN'], true);
         $computedHash = hash_hmac('sha256', $dataCheckString, $secretKey);
         $isValid = hash_equals($computedHash, $hash);
 
-        // ВРЕМЕННОЕ диагностическое логирование (добавлено 03.09.2026, по
-        // жалобе "неверная подпись" в проде после деплоя фикса) — ничего
-        // секретного здесь нет (dataCheckString — публичные данные профиля,
-        // сам bot token не логируется), но это временно для отладки
-        // конкретного случая рассинхрона, не постоянный лог на каждый
-        // логин — можно убрать после того, как найдём причину.
+        // Диагностическое логирование (добавлено 03.09.2026, по жалобе
+        // "неверная подпись" — причина оказалась в том, что сверяли с
+        // токеном чужого бота, см. докблок класса выше). Оставлено
+        // постоянно, не только на время отладки: несовпадение подписи
+        // ВООБЩЕ не должно происходить у легитимных запросов после этого
+        // фикса — если это снова случится (например токен бота
+        // перевыпустят у @BotFather и забудут обновить .env), лог сразу
+        // покажет, в чём дело, вместо повторного цикла "не работает,
+        // разбираемся с нуля". Ничего секретного не логируется —
+        // dataCheckString это только публичные данные Telegram-профиля,
+        // сам bot token наружу не идёт (только последние 6 символов, для
+        // сверки при копипасте).
         //
         // ->error(), а не ->warning(): на проде main-хендлер — fingers_crossed
         // с action_level: error (см. config/packages/monolog.yaml) — он
@@ -78,7 +91,7 @@ readonly class TelegramHashVerifierService
                 'dataCheckString' => $dataCheckString,
                 'receivedHash'    => $hash,
                 'computedHash'    => $computedHash,
-                'botTokenTail'    => substr($_ENV['TELEGRAM_BOT_TOKEN'] ?? '', -6),
+                'botTokenTail'    => substr($_ENV['TELEGRAM_AUTH_BOT_TOKEN'] ?? '', -6),
             ]);
         }
 

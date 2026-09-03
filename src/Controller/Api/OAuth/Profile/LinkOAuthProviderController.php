@@ -218,13 +218,14 @@ class LinkOAuthProviderController extends AbstractController
     /**
      * БАГФИКС (27.08.2026): раньше здесь была своя копия проверки HMAC, с
      * секретом из $_ENV['OUATH_TELEGRAM_CLIENT_SECRET'] — переменной,
-     * которой нет ни в одном .env этого проекта (только TELEGRAM_BOT_TOKEN,
-     * см. TelegramHashVerifierService), т.е. эта проверка скорее всего
-     * ВСЕГДА проваливалась (пустой секрет → hash никогда не совпадёт) —
-     * привязка Telegram, судя по всему, была сломана точно так же, как
-     * оказался сломан логин через Telegram (см. TelegramOAuthService).
-     * Теперь оба флоу используют один и тот же TelegramHashVerifierService
-     * с одним и тем же (реально заданным) TELEGRAM_BOT_TOKEN.
+     * которой нет ни в одном .env этого проекта, т.е. эта проверка скорее
+     * всего ВСЕГДА проваливалась (пустой секрет → hash никогда не
+     * совпадёт) — привязка Telegram, судя по всему, была сломана точно
+     * так же, как оказался сломан логин через Telegram (см.
+     * TelegramOAuthService). Теперь оба флоу используют один и тот же
+     * TelegramHashVerifierService с TELEGRAM_AUTH_BOT_TOKEN (см. её
+     * докблок — это токен ОТДЕЛЬНОГО бота ustoyobtj_auth_bot, не
+     * TELEGRAM_BOT_TOKEN, который принадлежит боту техподдержки).
      */
     private function verifyTelegramHash(array $body, string $hash): void
     {
