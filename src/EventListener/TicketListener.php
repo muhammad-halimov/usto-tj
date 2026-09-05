@@ -2,6 +2,7 @@
 
 namespace App\EventListener;
 
+use App\ApiResource\AppMessages;
 use App\Entity\Extra\EntityRevision;
 use App\Entity\Geography\Abstract\Address;
 use App\Entity\Geography\Abstract\AddressComponent;
@@ -17,6 +18,7 @@ use Doctrine\ORM\Event\PostUpdateEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
+use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\UnitOfWork;
 use Symfony\Bundle\SecurityBundle\Security;
 
@@ -101,6 +103,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  *   description/snapshot, а не вообще на любой апдейт заявки, иначе админ
  *   получал бы уведомление о своём же действии при простановке approved).
  */
+#[AsEntityListener(event: Events::postPersist, entity: Ticket::class)]
 #[AsEntityListener(event: Events::preUpdate, entity: Ticket::class)]
 #[AsEntityListener(event: Events::postUpdate, entity: Ticket::class)]
 #[AsDoctrineListener(event: Events::onFlush)]
@@ -138,6 +141,20 @@ class TicketListener
         'category'         => 'Категория',
         'subcategory'      => 'Подкатегория',
         'unit'             => 'Единицы',
+    ];
+
+    /**
+     * 7 уровней геоиерархии адреса (Address::getProvince()/getCity()/...),
+     * в порядке от крупного к мелкому. Единственное место, где этот список
+     * перечислен явно — addressSnapshot()/geoRefFromRow()/DQL-запрос
+     * "старого" состояния адреса в onFlush() все строятся по нему циклом,
+     * вместо того чтобы вручную дублировать одни и те же 7 строк в
+     * нескольких местах (было именно так раньше — 7 руками выписанных
+     * LEFT JOIN на translation, сперва в сыром SQL, потом дословно
+     * повторённых в QueryBuilder).
+     */
+    private const array GEO_LEVELS = [
+        'province', 'city', 'suburb', 'district', 'community', 'settlement', 'village',
     ];
 
     /**
@@ -201,6 +218,79 @@ class TicketListener
      * без единого реального изменения — ровно так и было, показано вживую.
      */
     private const array STRIP_TAGS_FIELDS = ['description', 'notice'];
+
+    /**
+     * БАГФИКС (05.09.2026, по жалобе "не приходит уведомление о новом
+     * объявлении"): до этого фикса `TicketApproval` создавалась ЕДИНСТВЕННО
+     * внутри preUpdate/postUpdate/onFlush этого же листенера — то есть
+     * только когда объявление уже существующее ПРАВЯТ. Сам факт СОЗДАНИЯ
+     * нового тикета не порождал ни `TicketApproval`, ни уведомления вообще —
+     * `ApiPostTicketController` просто персистит Ticket, и на этом всё:
+     * админ узнавал о новом объявлении только если автор его потом хоть
+     * как-то редактировал (это и объясняло "правка уведомляет, создание —
+     * нет"). Теперь при постоянно КАЖДОМ создании тикета сразу заводится
+     * "нулевая" TicketApproval — снимок вида {old: null, new: <значение>}
+     * по всем заполненным NOTIFIABLE_FIELDS (пустые поля пропускаем, чтобы
+     * не засорять уведомление строками вида "Бюджет: (пусто) → (пусто)").
+     * Дальше отрабатывает УЖЕ существующая машина без изменений:
+     * TicketApprovalListener::prePersist на TicketApproval назначает
+     * наименее загруженного админа, postPersist — шлёт уведомление.
+     *
+     * persist+flush здесь безопасны по той же причине, что и в
+     * postUpdate() ниже: postPersist вызывается уже ПОСЛЕ INSERT самого
+     * Ticket, текущий flush завершён — тот же паттерн, что уже
+     * использует UserListener::postPersist() для письма подтверждения.
+     *
+     * Адрес включаем в ТОТ ЖЕ снимок явно (а не полагаемся на отдельную
+     * ветку onFlush() ниже) и сразу помечаем $addressChangeHandled —
+     * поймано живым тестом: если тикет создаётся сразу с адресом, вложенный
+     * flush() из этого метода запускает СВОЙ onFlush(), а тот видит
+     * коллекцию addresses как "изменившуюся" — причём проверка
+     * "$ticket->getId() === null" его на этот раз НЕ спасает (id уже
+     * назначен предыдущим INSERT'ом), из-за чего заводилась ВТОРАЯ,
+     * лишняя TicketApproval только с адресом вместо одной цельной.
+     */
+    public function postPersist(Ticket $ticket): void
+    {
+        $snapshot = [];
+        foreach (self::NOTIFIABLE_FIELDS as $field => $label) {
+            $getter = 'get' . ucfirst($field);
+            $value  = $ticket->$getter();
+
+            if ($value === null || $value === '') continue;
+
+            $snapshot[$field] = ['old' => null, 'new' => $this->toSnapshotValue($value)];
+        }
+
+        $addresses = $ticket->getAddresses();
+        if (!$addresses->isEmpty()) {
+            $snapshot['address'] = [
+                'old' => [],
+                'new' => array_values(array_map(
+                    fn(Address $address): array => $this->addressSnapshot($address),
+                    $addresses->toArray(),
+                )),
+            ];
+        }
+
+        // См. докблок выше — гасит повторную обработку того же адреса в
+        // onFlush() ниже, если flush() чуть дальше спровоцирует его вложенный вызов.
+        $this->addressChangeHandled[spl_object_id($ticket)] = true;
+
+        // Совсем без полей (теоретически — все NOTIFIABLE_FIELDS пусты и
+        // адреса нет) заводить нечего показывать админу.
+        if (!$snapshot) return;
+
+        $approval = (new TicketApproval())
+            ->setTicket($ticket)
+            // true — это создание, а не правка, см. TicketApproval::appendSnapshot()/
+            // isCreationOnly() (05.09.2026, по жалобе на уведомление-"диф" для новых тикетов).
+            ->appendSnapshot($snapshot, true)
+            ->refreshDescriptionFromSnapshot();
+
+        $this->entityManager->persist($approval);
+        $this->entityManager->flush();
+    }
 
     public function preUpdate(Ticket $ticket, PreUpdateEventArgs $event): void
     {
@@ -300,35 +390,50 @@ class TicketListener
             // не был одобрен ни разу, это не правка, а создание.
             if ($ticket->getId() === null) continue;
 
-            // JOIN на translation (locale='ru'), а не на address_component:
+            // DQL/QueryBuilder, а не сырой SQL (как было раньше) — те же 7
+            // JOIN'ов на translation, но через ассоциации Doctrine
+            // (a.province.translations и т.д.), а не через названия таблиц/
+            // колонок руками. join('a.tickets', ...) — Address::$tickets
+            // это inverse-сторона ManyToMany (mappedBy: 'addresses' в
+            // Ticket) — для JOIN в DQL неважно, какая сторона владеющая,
+            // ассоциация промаплена в обе стороны и путь валиден. Не через
             // AddressComponent::$title (общее поле из TitleTrait, лежит в
-            // базовой таблице address_component при JOINED-наследовании)
-            // здесь у геосправочников пустой — реальное название только в
+            // базовой таблице address_component при JOINED-наследовании) —
+            // оно у геосправочников пустое, реальное название только в
             // Translation (см. Province/City/... — заполняются через
             // addTranslation() в фикстурах/админке, а не через setTitle()
-            // напрямую). 'ru' — тот же дефолт, что и у остального
-            // человекочитаемого текста в этом классе (labels вида 'Адрес').
-            $oldRows = $this->entityManager->getConnection()->fetchAllAssociative(
-                "SELECT
-                    a.province_id,   ptr.title AS province_title,
-                    a.city_id,       ctr.title AS city_title,
-                    a.suburb_id,     sutr.title AS suburb_title,
-                    a.district_id,   dtr.title AS district_title,
-                    a.community_id,  cotr.title AS community_title,
-                    a.settlement_id, setr.title AS settlement_title,
-                    a.village_id,    vtr.title AS village_title
-                 FROM address a
-                 INNER JOIN ticket_address ta ON ta.address_id = a.id
-                 LEFT JOIN translation ptr  ON ptr.address_id  = a.province_id   AND ptr.locale  = 'ru'
-                 LEFT JOIN translation ctr  ON ctr.address_id  = a.city_id       AND ctr.locale  = 'ru'
-                 LEFT JOIN translation sutr ON sutr.address_id = a.suburb_id     AND sutr.locale = 'ru'
-                 LEFT JOIN translation dtr  ON dtr.address_id  = a.district_id   AND dtr.locale  = 'ru'
-                 LEFT JOIN translation cotr ON cotr.address_id = a.community_id  AND cotr.locale = 'ru'
-                 LEFT JOIN translation setr ON setr.address_id = a.settlement_id AND setr.locale = 'ru'
-                 LEFT JOIN translation vtr  ON vtr.address_id  = a.village_id    AND vtr.locale  = 'ru'
-                 WHERE ta.ticket_id = ?",
-                [$ticket->getId()],
-            );
+            // напрямую). IDENTITY(a.{level}) — id связанного справочника без
+            // необходимости самого его join'ить ради id, join нужен только
+            // чтобы дотянуться до его translations.
+            //
+            // Локаль — AppMessages::getLocale() (то же ?locale= текущего
+            // запроса, что и у сообщений об ошибках, см.
+            // AppErrorLocaleListener), а НЕ захардкоженная 'ru' (как было
+            // раньше) — снимок адреса иначе всегда писался бы по-русски,
+            // даже если тикет создан/изменён с ?locale=tj или ?locale=eng.
+            // Тот же источник локали переиспользован ниже в geoRef().
+            //
+            // Строим SELECT/JOIN циклом по GEO_LEVELS, а не вручную (было —
+            // 7 одинаковых по форме строк подряд, менять/читать было тяжело
+            // и легко было ошибиться в одной из 7 копий при правке).
+            $qb = $this->entityManager->createQueryBuilder()
+                ->from(Address::class, 'a')
+                ->innerJoin('a.tickets', 'tk', Join::WITH, 'tk.id = :ticketId')
+                ->setParameter('ticketId', $ticket->getId())
+                ->setParameter('locale', AppMessages::getLocale());
+
+            foreach (self::GEO_LEVELS as $i => $level) {
+                $componentAlias = "c{$i}";
+                $translationAlias = "tr{$i}";
+
+                $qb
+                    ->addSelect("IDENTITY(a.{$level}) AS {$level}_id")
+                    ->addSelect("{$translationAlias}.title AS {$level}_title")
+                    ->leftJoin("a.{$level}", $componentAlias)
+                    ->leftJoin("{$componentAlias}.translations", $translationAlias, Join::WITH, "{$translationAlias}.locale = :locale");
+            }
+
+            $oldRows = $qb->getQuery()->getScalarResult();
 
             // array_values() на обеих сторонах — не косметика: array_map()
             // сохраняет исходные ключи, а $collection->toArray() у Doctrine-
@@ -425,10 +530,11 @@ class TicketListener
     }
 
     /**
-     * title — из Translation (locale='ru'), не AddressComponent::getTitle():
-     * у геосправочников это общее поле из TitleTrait пустое, реальное
-     * название заполняется только через переводы (см. onFlush() — тот же
-     * 'ru'-дефолт и то же обоснование, что и там).
+     * title — из Translation (локаль текущего запроса, AppMessages::
+     * getLocale()), не AddressComponent::getTitle(): у геосправочников это
+     * общее поле из TitleTrait пустое, реальное название заполняется только
+     * через переводы (см. onFlush() — тот же источник локали и то же
+     * обоснование, что и там).
      *
      * @return ?array{id: int, title: ?string}
      */
@@ -436,9 +542,10 @@ class TicketListener
     {
         if ($component === null) return null;
 
-        $title = null;
+        $locale = AppMessages::getLocale();
+        $title  = null;
         foreach ($component->getTranslations() as $translation) {
-            if ($translation->getLocale() === 'ru') {
+            if ($translation->getLocale() === $locale) {
                 $title = $translation->getTitle();
                 break;
             }
@@ -448,9 +555,10 @@ class TicketListener
     }
 
     /**
-     * То же самое {id, title}, что и geoRef(), но из сырой строки
-     * fetchAllAssociative() (см. onFlush) — там нет объектов AddressComponent,
-     * только "{level}_id"/"{level}_title" колонки из джойна.
+     * То же самое {id, title}, что и geoRef(), но из скалярной строки
+     * QueryBuilder::getScalarResult() (см. onFlush) — там нет объектов
+     * AddressComponent, только "{level}_id"/"{level}_title" алиасы из
+     * IDENTITY(a.{level})/{level}.translations.title.
      *
      * @param array<string, mixed> $row
      * @return ?array{id: int, title: ?string}

@@ -54,10 +54,12 @@ class TicketApproval
     private ?Ticket $ticket = null;
 
     /**
-     * @var array<int, array{at: string, changes: array<string, mixed>}>
+     * @var array<int, array{at: string, changes: array<string, mixed>, isNew?: bool}>
      * Список правок за окно, см. докблок класса. 'at' — ISO 8601
      * (DateTimeImmutable::ATOM), 'changes' — снимок этой конкретной правки
      * в формате {field: {old, new}}, тот же, что уходит в EntityRevision.
+     * 'isNew' — только у самого первого элемента, см. appendSnapshot()/
+     * isCreationOnly() и докблок TicketListener::postPersist() (05.09.2026).
      */
     #[ORM\Column(type: 'json')]
     private array $snapshot = [];
@@ -85,27 +87,59 @@ class TicketApproval
      * Вызывается при переиспользовании заявки в пределах 24ч-окна (см.
      * TicketListener::resolveApproval); у новой заявки просто становится
      * первым и единственным элементом списка.
+     *
+     * $isNew (добавлено 05.09.2026, см. TicketListener::postPersist()) —
+     * true ТОЛЬКО для самой первой записи заявки, заведённой прямо на
+     * СОЗДАНИЕ тикета (это не правка, а исходное содержимое объявления) —
+     * см. isCreationOnly() ниже, которая по этому флагу решает, как
+     * уведомление и description должны выглядеть ("Новое объявление", а не
+     * "Изменены поля"). Ни один последующий вызов (реальная правка тикета)
+     * этот параметр не передаёт — как только появляется ВТОРАЯ запись,
+     * isCreationOnly() автоматически становится false.
      */
-    public function appendSnapshot(array $changes): static
+    public function appendSnapshot(array $changes, bool $isNew = false): static
     {
-        $this->snapshot[] = [
+        $entry = [
             'at'      => (new \DateTimeImmutable())->format(DATE_ATOM),
             'changes' => $changes,
         ];
+
+        if ($isNew) $entry['isNew'] = true;
+
+        $this->snapshot[] = $entry;
 
         return $this;
     }
 
     /**
-     * Пересобирает человекочитаемый $description ("Изменены поля: ...") из
-     * АКТУАЛЬНОГО списка $snapshot (объединение полей по ВСЕМ накопленным
-     * правкам, без повторов) — единая точка после любого appendSnapshot()/
-     * setSnapshot(), вместо ручной склейки строк на стороне вызывающего кода
-     * (TicketListener раньше собирал строку из $labels отдельно от snapshot —
-     * при накоплении за 24ч это было бы неверно: $labels новой правки не
-     * включали бы поля, изменившиеся ПРЕЖДЕ в этом же окне). FIELD_LABELS
-     * переиспользован из EntityRevision — один и тот же перевод имён полей,
-     * не дублируем.
+     * true, если заявка ещё ни разу не редактировалась после создания —
+     * единственная запись в $snapshot и она сама помечена isNew (см.
+     * appendSnapshot()). Как только тикет хоть раз содержательно
+     * отредактируют, добавится вторая запись (без isNew) — и это условие
+     * само перестанет выполняться, никакого отдельного сброса флага не
+     * требуется. Используется уведомлениями (Telegram/email) и
+     * refreshDescriptionFromSnapshot() ниже, чтобы не путать "вот новое
+     * объявление" с "вот что поменялось" — семантически разные вещи.
+     */
+    public function isCreationOnly(): bool
+    {
+        return count($this->snapshot) === 1 && ($this->snapshot[0]['isNew'] ?? false);
+    }
+
+    /**
+     * Пересобирает человекочитаемый $description из АКТУАЛЬНОГО списка
+     * $snapshot (объединение полей по ВСЕМ накопленным правкам, без
+     * повторов) — единая точка после любого appendSnapshot()/setSnapshot(),
+     * вместо ручной склейки строк на стороне вызывающего кода (TicketListener
+     * раньше собирал строку из $labels отдельно от snapshot — при накоплении
+     * за 24ч это было бы неверно: $labels новой правки не включали бы поля,
+     * изменившиеся ПРЕЖДЕ в этом же окне). FIELD_LABELS переиспользован из
+     * EntityRevision — один и тот же перевод имён полей, не дублируем.
+     *
+     * Для isCreationOnly() (см. выше) текст другой — "Изменены поля: ..."
+     * вводит в заблуждение, когда речь о самой первой публикации объявления,
+     * а не о правке (05.09.2026, по жалобе на уведомление, которое читалось
+     * как диф правки для только что созданного тикета).
      */
     public function refreshDescriptionFromSnapshot(): static
     {
@@ -121,7 +155,11 @@ class TicketApproval
             array_keys($fields),
         );
 
-        $this->setDescription('Изменены поля: ' . implode(', ', $labels));
+        $this->setDescription(
+            $this->isCreationOnly()
+                ? 'Новое объявление на проверку'
+                : 'Изменены поля: ' . implode(', ', $labels),
+        );
 
         return $this;
     }

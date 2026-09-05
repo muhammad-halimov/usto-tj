@@ -36,22 +36,30 @@ class NotifyNewTicketApprovalEmailService extends AbstractTicketApprovalNotifica
         // ниже (см. тот же довод в NotifyNewTicketApprovalTelegramBotService,
         // где полная история к тому же реально упиралась в защитный лимит
         // длины и обрезалась посреди строки). Уже экранированный HTML с
-        // "<br>" между строками, можно вставлять как есть. Пусто у
-        // по-настоящему новых заявок (заведены не в ответ на правку тикета).
+        // "<br>" между строками, можно вставлять как есть.
+        //
+        // isCreationOnly() (05.09.2026, по жалобе "это сейчас просто
+        // модифицированное редактирование"): для только что созданного
+        // тикета блок "Изменения" скрываем целиком — он показывал бы
+        // "(пусто) → значение" по каждому полю, хотя объявление просто ещё
+        // ни разу не публиковалось, а не редактировалось. Заголовок и тема
+        // письма для этого случая тоже отдельные.
+        $isNew       = $ticketApproval->isCreationOnly();
         $changes     = $ticketApproval->getLatestChangeSummary();
-        $changesHtml = $changes !== '—'
+        $changesHtml = !$isNew && $changes !== '—'
             ? "<p style=\"color:#667eea\"><strong>Изменения:</strong><br>{$changes}</p>"
             : '';
         // Текстовая версия письма — getLatestChangeSummaryPlain(): то же
         // самое, но с "\n" вместо "<br>" и без HTML-экранирования.
-        $changesText = $changes !== '—' ? $ticketApproval->getLatestChangeSummaryPlain() : '';
+        $changesText = !$isNew && $changes !== '—' ? $ticketApproval->getLatestChangeSummaryPlain() : '';
+        $heading     = $isNew ? 'Новое объявление на проверку' : 'Услуга/объявление на проверку';
 
         return $this->sendEmail(
             to:      $user->getEmail(),
-            subject: "Услуга/объявление на проверку | {$siteName}",
-            text:    "Услуга/объявление на проверку\n\n{$changesText}\n\n{$ticket?->getTitle()}\nКатегория: {$category} | Бюджет: {$budget}\nАвтор: {$authorId}\n\n{$ticket?->getDescription()}\n\n{$url}",
+            subject: "{$heading} | {$siteName}",
+            text:    "{$heading}\n\n{$changesText}\n\n{$ticket?->getTitle()}\nКатегория: {$category} | Бюджет: {$budget}\nАвтор: {$authorId}\n\n{$ticket?->getDescription()}\n\n{$url}",
             html:    $this->htmlEmail(
-                'Услуга/объявление на проверку',
+                $heading,
                 $changesHtml
                 . "<p>Заголовок: <strong>{$title}</strong></p>"
                 . "<p>Категория: <strong>{$category}</strong> | Бюджет: <strong>{$budget}</strong></p>"
