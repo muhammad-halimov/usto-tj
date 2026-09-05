@@ -96,22 +96,37 @@ abstract class AbstractMailerService
      * Instagram OAuth (см. InstagramOAuthService) — причина сбоя терялась
      * полностью, из логов нельзя было понять, что вообще произошло.
      *
+     * $inlineKeyboard (добавлено 05.09.2026, по просьбе кнопок "Открыть
+     * админку"/"Подтвердить" под уведомлением о заявке) — ряды кнопок в
+     * формате Telegram Bot API (each строка — массив кнопок вида
+     * ['text' => ..., 'url' => ...] ЛИБО ['text' => ..., 'callback_data' =>
+     * ...], см. https://core.telegram.org/bots/api#inlinekeyboardmarkup).
+     * Пусто по умолчанию — большинство вызовов (tech support и т.п.) кнопок
+     * не используют вообще.
+     *
      * @param string $chatId
      * @param string $message
+     * @param array<int, array<int, array{text: string, url?: string, callback_data?: string}>> $inlineKeyboard
      * @return bool
      */
-    protected function sendTelegram(string $chatId, string $message): bool
+    protected function sendTelegram(string $chatId, string $message, array $inlineKeyboard = []): bool
     {
         $ch = curl_init("{$_ENV['TELEGRAM_API_URL']}/bot{$_ENV['TELEGRAM_BOT_TOKEN']}/sendMessage");
 
+        $fields = [
+            'chat_id' => $chatId,
+            'text' => $message,
+            'parse_mode' => 'HTML',
+            'disable_web_page_preview' => true,
+        ];
+
+        if ($inlineKeyboard) {
+            $fields['reply_markup'] = json_encode(['inline_keyboard' => $inlineKeyboard]);
+        }
+
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS     => http_build_query([
-                'chat_id' => $chatId,
-                'text' => $message,
-                'parse_mode' => 'HTML',
-                'disable_web_page_preview' => true
-            ]),
+            CURLOPT_POSTFIELDS     => http_build_query($fields),
             CURLOPT_POST           => 1,
             CURLOPT_TIMEOUT        => 10,
         ]);

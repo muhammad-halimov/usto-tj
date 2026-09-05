@@ -49,15 +49,41 @@ class NotifyNewTicketApprovalTelegramBotService extends AbstractTicketApprovalNo
         $changes = $ticketApproval->getLatestChangeSummary("\n");
         $changes = mb_substr($changes, 0, 1000) . (mb_strlen($changes) > 1000 ? '…' : '');
 
-        $message =
-            ($isNew ? "🆕 Новое объявление на проверку\n\n" : "🔎 Услуга/объявление на проверку\n\n") .
-            (!$isNew && $changes !== '—' ? "✏️ <b>Изменения:</b>\n{$changes}\n\n" : '') .
-            "📌 <b>{$ticket?->getTitle()}</b>\n" .
-            "📂 {$this->category($ticket)} | 💰 {$this->budget($ticket)}\n" .
-            "👤 {$this->owner($ticket)}\n" .
-            "📝 {$desc}\n\n" .
-            "🔗 <a href='{$this->ticketApprovalAdminUrl($ticketApproval)}'>Открыть в админке</a>";
+        // Разделитель + подписанные поля вместо "📂 X | 💰 Y" в одну строку
+        // (05.09.2026, по жалобе "плохо выглядит") — та же информация,
+        // просто в столбик и с явными подписями, чтобы не приходилось
+        // расшифровывать порядок по значкам.
+        $divider = '▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️';
+        $adminUrl = $this->ticketApprovalAdminUrl($ticketApproval);
 
-        return $this->sendTelegram($telegramId, $message);
+        $message =
+            ($isNew ? "🆕 <b>Новое объявление на проверку</b>\n" : "🔎 <b>Услуга/объявление на проверку</b>\n") .
+            "{$divider}\n\n" .
+            (!$isNew && $changes !== '—' ? "✏️ <b>Изменения:</b>\n{$changes}\n\n" : '') .
+            "📌 <b>{$ticket?->getTitle()}</b>\n\n" .
+            "📂 Категория: {$this->category($ticket)}\n" .
+            "💰 Бюджет: {$this->budget($ticket)}\n" .
+            "👤 Автор: {$this->owner($ticket)}\n\n" .
+            "📝 {$desc}\n\n" .
+            "{$divider}\n" .
+            "🔗 <a href='{$adminUrl}'>Открыть в админке</a>";
+
+        // Кнопки под сообщением (05.09.2026, по просьбе "добавь две кнопки,
+        // открыть админку и подтвердить") — ссылка выше в тексте ("🔗
+        // Открыть в админке") специально ОСТАВЛЕНА как есть, кнопки — это
+        // ДОПОЛНИТЕЛЬНЫЙ, более удобный на телефоне способ сделать то же
+        // самое + одобрить прямо из Telegram одним тапом, не заходя в
+        // админку. Callback "approve_ticket_approval:{id}" обрабатывается в
+        // TelegramBotController::webhook() — там же проверка прав (только
+        // ROLE_ADMIN по telegram_chat_id) и сам вызов
+        // TicketApproval::setApproved(true) (тот же метод, что и
+        // переключатель в EasyAdmin/batchApprove — вся защитная логика
+        // setApproved() — банальный тикет и т.п. — работает так же).
+        $keyboard = [[
+            ['text' => '🔗 Открыть в админке', 'url' => $adminUrl],
+            ['text' => '✅ Подтвердить', 'callback_data' => "approve_ticket_approval:{$ticketApproval->getId()}"],
+        ]];
+
+        return $this->sendTelegram($telegramId, $message, $keyboard);
     }
 }
