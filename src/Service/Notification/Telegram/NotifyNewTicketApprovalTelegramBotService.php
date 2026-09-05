@@ -86,7 +86,7 @@ class NotifyNewTicketApprovalTelegramBotService extends AbstractTicketApprovalNo
         // переключатель в EasyAdmin/batchApprove — вся защитная логика
         // setApproved() — банальный тикет и т.п. — работает так же).
         $keyboard = [[
-            ['text' => '🔗 Админке', 'url' => $adminUrl],
+            ['text' => '🔗 Админка', 'url' => $adminUrl],
             ['text' => '✅ Подтвердить', 'callback_data' => "approve_ticket_approval:{$ticketApproval->getId()}"],
         ]];
 
