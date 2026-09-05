@@ -91,7 +91,7 @@ Distinguish the two formats by shape (`violations` array present vs. a flat `cod
 ```ts
 interface User {
   id: number;
-  email: string | null;
+  email: string | null;                // BREAKING (05.09.2026): only present on GET /users/me (own profile) now — see note below
   login: string | null;
   name: string | null;
   surname: string | null;
@@ -158,6 +158,8 @@ interface OAuthProvider {
 Registration body (`POST /api/users`): standard User writable fields — `email`, `password`, `name`, `surname`, `patronymic?`, `gender?`, `dateOfBirth?`, phones etc. (validation groups `registration`). A duplicate `email` → `409 email_already_exists`, duplicate `login` → `409 login_already_exists`, `dateOfBirth` under 18 → `400 user_underage` — all three are the standard `{code, message}` `AppMessages` shape (see "Error format" above), checked in `UserListener`/`User::validateDateOfBirth()` on both create and update (so this applies to `PATCH /users/{id}` too, not just registration).
 
 `User.banned` — same mechanism as `Ticket.banned` (§4): never writable via the API, toggled only from EasyAdmin by ROLE_SUPER_ADMIN. Setting it forces `active=false`/`approved=false` immediately, and while `true` neither can be set back to `true` through any code path — including self-activation via `POST /confirm-account/` (token) and `POST /confirm-account-tokenless/` (resend). On top of the entity-level guard, `AccessService::check()` now hard-rejects a banned user (`403 access_denied`) on **every** authenticated endpoint that goes through `checkedUser()` — unconditionally, regardless of the `activeAndApproved` flag some endpoints pass `false` for (that flag only relaxes the "email not confirmed yet" gate, not a ban). `ROLE_SUPER_ADMIN` still bypasses everything, same as it already did for active/approved.
+
+**`User.email` — BREAKING (05.09.2026): now only visible on `GET /users/me`.** Previously `email` was serialized wherever a `User` gets embedded whole (`Ticket.author`/`Ticket.master`, `Review.master`/`Review.client`, `Chat`/`ChatMessage` participants, `Favorite`/`BlackList` targets, `TechSupport.author`) — meaning any authenticated (or even anonymous, for public `/tickets`/`/reviews`) caller could read any other user's email just by viewing a ticket, review, or chat they're part of. Fixed: `email` is gone from every one of those response shapes, including the **public single/collection profile** `GET /users/{id}` / `GET /users` (it never showed there either, before or after — only the embedded-elsewhere leak is what's new here). If any frontend code reads `ticket.master.email`, `review.client.email`, `chat.replyAuthor.email`, etc. to show a contact address, it now gets `undefined` — there's no replacement field; contacting another user is expected to go through the chat/appeal system, not raw email.
 
 ## 4. TICKETS (services/listings)
 

@@ -311,29 +311,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?int $id = null;
 
+    /**
+     * БАГФИКС (05.09.2026): раньше email был в группах MASTERS/CLIENTS/
+     * CHATS/TICKETS/REVIEWS и т.д. — то есть светился в ЛЮБОМ месте, где
+     * User встраивается в другую сущность целиком (автор/мастер тикета,
+     * сторона чата, сторона отзыва, техподдержка...) — то есть публично,
+     * кому угодно. Единственная группа теперь — USERS_ME: email виден
+     * только самому владельцу на GET /users/me (эта операция включает
+     * USERS_ME в normalizationContext — см. G::OPS_USERS_ME), и нигде
+     * больше, включая даже публичный профиль GET /users/{id} (тот
+     * использует MASTERS/CLIENTS/USER_PUBLIC — USERS_ME туда не входит).
+     */
     #[ORM\Column(length: 180, unique: true, nullable: true)]
     #[Groups([
-        G::MASTERS,
-        G::CLIENTS,
-
-        G::REVIEWS,
-        G::REVIEWS_CLIENT,
-
-        G::GALLERIES,
-
-        G::MASTER_TICKETS,
-        G::CLIENT_TICKETS,
-
-        G::CHATS,
-        G::CHAT_MESSAGES,
-
-        G::APPEAL_TICKET,
-
-        G::FAVORITES,
-        G::BLACK_LISTS,
-
-        G::TECH_SUPPORT,
-        G::TECH_SUPPORT_MESSAGES,
+        G::USERS_ME,
     ])]
     private ?string $email = null;
 

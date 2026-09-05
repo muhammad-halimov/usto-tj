@@ -2,10 +2,12 @@
 
 namespace App\Service\Notification\Abstract;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Email;
+use Symfony\Contracts\Service\Attribute\Required;
 
 /**
  * Базовый класс для email-сервисов.
@@ -18,6 +20,23 @@ use Symfony\Component\Mime\Email;
  */
 abstract class AbstractMailerService
 {
+    protected LoggerInterface $logger;
+
+    /**
+     * Setter-injection (как у AbstractApiHelperController::setBaseDependencies()),
+     * а не конструктор: у 4 конкретных наследников (NotifyNewTicketApproval*,
+     * NotifyNewTechSupport*, AccountConfirmationService,
+     * AccountChangePasswordService) УЖЕ есть свои конструкторы — добавление
+     * параметра сюда через __construct() потребовало бы прокидывать его
+     * через все их parent::__construct() вручную. Symfony вызывает это
+     * автоматически после создания сервиса благодаря #[Required].
+     */
+    #[Required]
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
+    }
+
     protected function siteName(): string { return $_ENV['FRONTEND_URL']; }
 
     protected function htmlEmail(string $title, string $body, string $footer): string
@@ -67,6 +86,16 @@ abstract class AbstractMailerService
     }
 
     /**
+     * БАГФИКС (05.09.2026, по жалобе "не приходит уведомление о новом
+     * объявлении"): раньше при неуспехе (код ответа Telegram — не 200)
+     * метод просто молча возвращал false — ни разу не логировался ни
+     * реальный HTTP-код, ни тело ответа Telegram (там обычно понятная
+     * причина: "chat not found" — бот заблокирован получателем, невалидный
+     * chat_id и т.п. — или "Unauthorized" — протух/неверный
+     * TELEGRAM_BOT_TOKEN). Тот же класс проблемы, что уже чинили у
+     * Instagram OAuth (см. InstagramOAuthService) — причина сбоя терялась
+     * полностью, из логов нельзя было понять, что вообще произошло.
+     *
      * @param string $chatId
      * @param string $message
      * @return bool
@@ -87,9 +116,22 @@ abstract class AbstractMailerService
             CURLOPT_TIMEOUT        => 10,
         ]);
 
-        curl_exec($ch);
+        $response = curl_exec($ch);
+        $curlErrno = curl_errno($ch);
+        $curlError = curl_error($ch);
+        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200;
+        if ($httpCode !== 200) {
+            $this->logger->error('Telegram: sendMessage не удался', [
+                'chatId'    => $chatId,
+                'httpCode'  => $httpCode,
+                'response'  => $response,
+                'curlErrno' => $curlErrno,
+                'curlError' => $curlError,
+            ]);
+        }
+
+        return $httpCode === 200;
     }
 }
