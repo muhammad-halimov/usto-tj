@@ -25,7 +25,7 @@ class NotifyNewTicketApprovalEmailService extends AbstractTicketApprovalNotifica
         $desc       = htmlspecialchars($ticket?->getDescription() ?? '', ENT_QUOTES, 'UTF-8');
         $category   = $this->category($ticket);
         $budget     = $this->budget($ticket);
-        $authorId   = $ticket?->getAuthor()?->getEmail() ?? 'Неизвестен';
+        $authorId   = $this->owner($ticket);
         $author     = htmlspecialchars($authorId, ENT_QUOTES, 'UTF-8');
 
         // Детальный снимок "поле: было → стало" ТОЛЬКО последней правки (см.

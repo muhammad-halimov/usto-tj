@@ -54,7 +54,7 @@ class NotifyNewTicketApprovalTelegramBotService extends AbstractTicketApprovalNo
             (!$isNew && $changes !== '—' ? "✏️ <b>Изменения:</b>\n{$changes}\n\n" : '') .
             "📌 <b>{$ticket?->getTitle()}</b>\n" .
             "📂 {$this->category($ticket)} | 💰 {$this->budget($ticket)}\n" .
-            "👤 " . ($ticket?->getAuthor()?->getEmail() ?? 'Неизвестен') . "\n" .
+            "👤 {$this->owner($ticket)}\n" .
             "📝 {$desc}\n\n" .
             "🔗 <a href='{$this->ticketApprovalAdminUrl($ticketApproval)}'>Открыть в админке</a>";
 

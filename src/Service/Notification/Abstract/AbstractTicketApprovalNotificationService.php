@@ -44,4 +44,23 @@ abstract class AbstractTicketApprovalNotificationService extends AbstractMailerS
 
         return $ticket?->getBudget() !== null ? "{$ticket->getBudget()} TJS" : 'Не указан';
     }
+
+    /**
+     * Email автора тикета — БАГФИКС (05.09.2026, по жалобе "автор
+     * куда-то пропал"): у Ticket ровно ОДНО из двух полей заполнено, никогда
+     * оба сразу — $author (объявление от клиента, ROLE_CLIENT) либо $master
+     * (услуга от мастера, ROLE_MASTER), см. ApiPostTicketController::
+     * handle() — при создании явно выставляется одно и обнуляется другое
+     * (setAuthor($bearer)->setMaster(null) либо наоборот). Уведомления
+     * проверяли ТОЛЬКО getAuthor() — то есть каждая заявка от мастера (а не
+     * от клиента) уходила с "Неизвестен" вместо реального email, хотя автор
+     * был прекрасно известен, просто лежал в другом поле. Тот же приём
+     * (getAuthor() ?? getMaster()) уже применяется в
+     * ApiPostUniversalImageController — переиспользуем его здесь, а не
+     * дублируем в каждом из двух notification-сервисов по отдельности.
+     */
+    protected function owner(?Ticket $ticket): string
+    {
+        return ($ticket?->getAuthor() ?? $ticket?->getMaster())?->getEmail() ?? 'Неизвестен';
+    }
 }
