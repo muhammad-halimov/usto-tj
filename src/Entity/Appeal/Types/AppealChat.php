@@ -21,8 +21,7 @@ class AppealChat extends Appeal
     public function __toString(): string
     {
         $title = $this->getTitle();
-        $id    = UuidUtil::short($this->getId());
-        return "#$id Жалоба на чат" . ($title ? ": $title" : '');
+        return $title ? "Жалоба на чат: $title" : 'Жалоба на чат #' . UuidUtil::short($this->getId());
     }
 
     #[ORM\ManyToOne(inversedBy: 'appealChats')]

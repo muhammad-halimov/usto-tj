@@ -89,7 +89,7 @@ class Gallery implements HasImagesInterface
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ' Gallery';
+        return 'Gallery';
     }
 
     #[ORM\Id]

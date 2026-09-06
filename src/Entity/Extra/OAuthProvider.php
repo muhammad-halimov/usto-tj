@@ -39,11 +39,11 @@ class OAuthProvider
 
     public function __toString(): string
     {
-        if ($this->provider !== '') return '#' . UuidUtil::short($this->id) . " $this->provider";
+        if ($this->provider !== '') return $this->provider;
 
         return $this->providerId !== ''
-            ? '#' . UuidUtil::short($this->id) . " OAuth provider ID {$this->providerId}"
-            : '#' . UuidUtil::short($this->id) . ' Новый OAuth provider';
+            ? "OAuth provider ID {$this->providerId}"
+            : 'Новый OAuth provider';
     }
 
     #[ORM\Id]

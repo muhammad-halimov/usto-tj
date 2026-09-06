@@ -164,7 +164,7 @@ class EntityRevision
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . " EntityRevision ({$this->entityType}#" . UuidUtil::short($this->entityId) . ", {$this->action})";
+        return "EntityRevision ({$this->entityType}#" . UuidUtil::short($this->entityId) . ", {$this->action})";
     }
 
     #[ORM\Id]

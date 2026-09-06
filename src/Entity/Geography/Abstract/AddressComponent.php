@@ -45,9 +45,7 @@ abstract class AddressComponent
             }
         }
 
-        $label = !empty($titles) ? ' ' . implode(', ', $titles) : '';
-
-        return '#' . UuidUtil::short($this->id) . $label;
+        return !empty($titles) ? implode(', ', $titles) : ('#' . UuidUtil::short($this->id));
     }
 
     public function __construct()

@@ -21,8 +21,7 @@ class AppealReview extends Appeal
     public function __toString(): string
     {
         $title = $this->getTitle();
-        $id    = UuidUtil::short($this->getId());
-        return "#$id Жалоба на отзыв" . ($title ? ": $title" : '');
+        return $title ? "Жалоба на отзыв: $title" : 'Жалоба на отзыв #' . UuidUtil::short($this->getId());
     }
 
     #[ORM\ManyToOne(inversedBy: 'appealReviews')]

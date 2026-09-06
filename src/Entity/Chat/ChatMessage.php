@@ -88,7 +88,7 @@ class ChatMessage implements EditableMessageInterface
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ($this->description ? " $this->description" : '');
+        return $this->description ?: ('#' . UuidUtil::short($this->id));
     }
 
     #[ORM\Id]

@@ -53,7 +53,7 @@ class Legal
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ($this->title ? " $this->title" : '');
+        return $this->title ?: ('#' . UuidUtil::short($this->id));
     }
 
     public const array TYPES = [

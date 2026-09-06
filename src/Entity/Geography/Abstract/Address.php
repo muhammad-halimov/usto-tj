@@ -50,7 +50,7 @@ class Address
 
         $label = !empty($parts) ? implode(', ', $parts) : 'Адрес';
 
-        return '#' . ($this->id !== null ? UuidUtil::short($this->id) : 'новый') . " $label";
+        return $label;
     }
 
     public function __toArray(): array

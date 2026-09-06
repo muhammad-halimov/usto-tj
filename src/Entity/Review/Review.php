@@ -128,7 +128,7 @@ class Review implements HasImagesInterface
     public function __toString(): string
     {
         $desc = $this->description ? mb_strimwidth(strip_tags($this->description), 0, 50, '…') : null;
-        return '#' . UuidUtil::short($this->id) . ($desc ? " $desc" : '');
+        return $desc ?: ('#' . UuidUtil::short($this->id));
     }
 
     public const array TYPES = [

@@ -62,7 +62,7 @@ class AppealReason
     public function __toString(): string
     {
         if ($this->translations->isEmpty()) {
-            return '#' . UuidUtil::short($this->id) . ($this->code ? " $this->code" : '');
+            return $this->code ?: ('#' . UuidUtil::short($this->id));
         }
 
         $titles = [];
@@ -75,7 +75,7 @@ class AppealReason
 
         $label = !empty($titles) ? implode(', ', $titles) : $this->code;
 
-        return "#$this->id" . ($label ? " $label" : '');
+        return $label ?: ('#' . UuidUtil::short($this->id));
     }
 
     #[ORM\Id]

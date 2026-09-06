@@ -51,6 +51,6 @@ class Favorite extends AbstractCollectionEntry
 {
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ' Favorite';
+        return 'Favorite';
     }
 }

@@ -68,7 +68,7 @@ class BlackList
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ' BlackList';
+        return 'BlackList';
     }
 
     #[ORM\Id]

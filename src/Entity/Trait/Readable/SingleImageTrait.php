@@ -31,7 +31,7 @@ trait SingleImageTrait
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ($this->image ? " $this->image" : '');
+        return $this->image ?: ('#' . UuidUtil::short($this->id));
     }
 
     /**

@@ -27,9 +27,9 @@ class Education
     public function __toString(): string
     {
         if ($this->beginning && $this->ending)
-            return '#' . UuidUtil::short($this->id) . " $this->title, $this->beginning - $this->ending";
+            return "$this->title, $this->beginning - $this->ending";
 
-        return '#' . UuidUtil::short($this->id) . ($this->title ? " $this->title" : '');
+        return $this->title ?: ('#' . UuidUtil::short($this->id));
     }
 
     #[ORM\Id]

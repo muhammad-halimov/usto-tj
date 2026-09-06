@@ -123,7 +123,7 @@ class Chat
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ' Chat';
+        return 'Chat';
     }
 
     #[ORM\Id]

@@ -20,7 +20,6 @@ class AppealUser extends Appeal
     public function __toString(): string
     {
         $title = $this->getTitle();
-        $id    = UuidUtil::short($this->getId());
-        return "#$id Жалоба на пользователя" . ($title ? ": $title" : '');
+        return $title ? "Жалоба на пользователя: $title" : 'Жалоба на пользователя #' . UuidUtil::short($this->getId());
     }
 }

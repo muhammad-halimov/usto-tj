@@ -20,7 +20,6 @@ class AppealTicket extends Appeal
     public function __toString(): string
     {
         $title = $this->getTitle();
-        $id    = UuidUtil::short($this->getId());
-        return "#$id Жалоба на услугу/объявление" . ($title ? ": $title" : '');
+        return $title ? "Жалоба на услугу/объявление: $title" : 'Жалоба на услугу/объявление #' . UuidUtil::short($this->getId());
     }
 }

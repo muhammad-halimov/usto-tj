@@ -23,7 +23,7 @@ class SocialNetwork
 
     public function __toString(): string
     {
-        return '#' . UuidUtil::short($this->id) . ($this->network ? " $this->network" : '');
+        return $this->network ?: ('#' . UuidUtil::short($this->id));
     }
 
     const array NETWORKS = [
