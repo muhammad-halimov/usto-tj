@@ -1,6 +1,8 @@
 <?php
 namespace App\Entity\Geography\Abstract;
 
+use App\Service\Extra\UuidUtil;
+
 use App\Entity\Extra\Translation;
 use App\Entity\Trait\NonReadable\CreatedAtTrait;
 use App\Entity\Trait\NonReadable\UpdatedAtTrait;
@@ -45,7 +47,7 @@ abstract class AddressComponent
 
         $label = !empty($titles) ? ' ' . implode(', ', $titles) : '';
 
-        return "#$this->id{$label}";
+        return '#' . UuidUtil::short($this->id) . $label;
     }
 
     public function __construct()

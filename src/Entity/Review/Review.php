@@ -2,6 +2,8 @@
 
 namespace App\Entity\Review;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
@@ -126,7 +128,7 @@ class Review implements HasImagesInterface
     public function __toString(): string
     {
         $desc = $this->description ? mb_strimwidth(strip_tags($this->description), 0, 50, '…') : null;
-        return "#{$this->id}" . ($desc ? " $desc" : '');
+        return '#' . UuidUtil::short($this->id) . ($desc ? " $desc" : '');
     }
 
     public const array TYPES = [

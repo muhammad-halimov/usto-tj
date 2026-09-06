@@ -2,6 +2,8 @@
 
 namespace App\Entity\User;
 
+use App\Service\Extra\UuidUtil;
+
 use App\Entity\Trait\NonReadable\CreatedAtTrait;
 use App\Entity\Trait\NonReadable\UpdatedAtTrait;
 use App\Entity\Trait\Readable\G;
@@ -21,7 +23,7 @@ class SocialNetwork
 
     public function __toString(): string
     {
-        return "#$this->id" . ($this->network ? " $this->network" : '');
+        return '#' . UuidUtil::short($this->id) . ($this->network ? " $this->network" : '');
     }
 
     const array NETWORKS = [

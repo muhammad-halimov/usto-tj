@@ -2,6 +2,8 @@
 
 namespace App\Entity\Ticket;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
@@ -108,14 +110,14 @@ class Ticket implements HasImagesInterface
         $label = $this->title ?? 'Ticket';
         $counterpart = $this->author ?? $this->master;
 
-        if (!$counterpart) return "#$this->id $label";
+        if (!$counterpart) return '#' . UuidUtil::short($this->id) . " $label";
 
         $roles = array_values(array_diff($counterpart->getRoles(), ['ROLE_USER']));
         $role = $roles[0] ?? 'ROLE_USER';
 
         $fullName = trim(($counterpart->getName() ?? '') . ' ' . ($counterpart->getSurname() ?? ''));
 
-        return "#$this->id $label - ID #{$counterpart->getId()} $fullName, ({$counterpart->getEmail()}), [$role]";
+        return '#' . UuidUtil::short($this->id) . " $label - ID #" . UuidUtil::short($counterpart->getId()) . " $fullName, ({$counterpart->getEmail()}), [$role]";
     }
 
     public function __construct()

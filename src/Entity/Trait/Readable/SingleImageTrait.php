@@ -2,6 +2,8 @@
 
 namespace App\Entity\Trait\Readable;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiProperty;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
@@ -29,7 +31,7 @@ trait SingleImageTrait
 
     public function __toString(): string
     {
-        return "#$this->id" . ($this->image ? " $this->image" : '');
+        return '#' . UuidUtil::short($this->id) . ($this->image ? " $this->image" : '');
     }
 
     /**

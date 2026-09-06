@@ -2,6 +2,8 @@
 
 namespace App\Entity\Extra;
 
+use App\Service\Extra\UuidUtil;
+
 use App\Entity\Geography\Abstract\AddressComponent;
 use App\Entity\Legal\Legal;
 use App\Entity\Ticket\Category;
@@ -28,7 +30,7 @@ class Translation
 
     public function __toString(): string
     {
-        return "#$this->id" . ($this->title ? " $this->title" : '');
+        return '#' . UuidUtil::short($this->id) . ($this->title ? " $this->title" : '');
     }
 
     public function __toArray(): array

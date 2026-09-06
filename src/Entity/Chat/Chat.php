@@ -2,6 +2,8 @@
 
 namespace App\Entity\Chat;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -121,7 +123,7 @@ class Chat
 
     public function __toString(): string
     {
-        return "#$this->id Chat";
+        return '#' . UuidUtil::short($this->id) . ' Chat';
     }
 
     #[ORM\Id]

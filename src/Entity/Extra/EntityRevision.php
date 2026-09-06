@@ -2,6 +2,8 @@
 
 namespace App\Entity\Extra;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
@@ -162,7 +164,7 @@ class EntityRevision
 
     public function __toString(): string
     {
-        return "#{$this->id} EntityRevision ({$this->entityType}#{$this->entityId}, {$this->action})";
+        return '#' . UuidUtil::short($this->id) . " EntityRevision ({$this->entityType}#" . UuidUtil::short($this->entityId) . ", {$this->action})";
     }
 
     #[ORM\Id]

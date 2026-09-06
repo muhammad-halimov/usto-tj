@@ -2,6 +2,8 @@
 
 namespace App\Entity\Appeal\Types;
 
+use App\Service\Extra\UuidUtil;
+
 use App\Entity\Appeal\Appeal\Appeal;
 use App\Repository\Appeal\AppealTicketRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -18,7 +20,7 @@ class AppealTicket extends Appeal
     public function __toString(): string
     {
         $title = $this->getTitle();
-        $id    = $this->getId();
+        $id    = UuidUtil::short($this->getId());
         return "#$id Жалоба на услугу/объявление" . ($title ? ": $title" : '');
     }
 }

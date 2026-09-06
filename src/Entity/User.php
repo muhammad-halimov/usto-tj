@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
@@ -255,9 +257,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $roles = implode(',', $this->roles);
 
-        if($this->name && $this->surname) return "#$this->id, $this->name $this->surname, ({$this->getEmail()}), [$roles]";
+        if($this->name && $this->surname) return '#' . UuidUtil::short($this->id) . ", $this->name $this->surname, ({$this->getEmail()}), [$roles]";
 
-        return "#$this->id" . ($this->getEmail() ? ", {$this->getEmail()}" : '');
+        return '#' . UuidUtil::short($this->id) . ($this->getEmail() ? ", {$this->getEmail()}" : '');
     }
 
     public function __construct()

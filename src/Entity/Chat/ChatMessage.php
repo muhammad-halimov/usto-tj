@@ -2,6 +2,8 @@
 
 namespace App\Entity\Chat;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -86,7 +88,7 @@ class ChatMessage implements EditableMessageInterface
 
     public function __toString(): string
     {
-        return "#$this->id" . ($this->description ? " $this->description" : '');
+        return '#' . UuidUtil::short($this->id) . ($this->description ? " $this->description" : '');
     }
 
     #[ORM\Id]

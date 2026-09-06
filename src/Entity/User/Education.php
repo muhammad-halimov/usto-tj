@@ -2,6 +2,8 @@
 
 namespace App\Entity\User;
 
+use App\Service\Extra\UuidUtil;
+
 use App\Entity\Trait\NonReadable\CreatedAtTrait;
 use App\Entity\Trait\NonReadable\UpdatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
@@ -25,9 +27,9 @@ class Education
     public function __toString(): string
     {
         if ($this->beginning && $this->ending)
-            return "#$this->id $this->title, $this->beginning - $this->ending";
+            return '#' . UuidUtil::short($this->id) . " $this->title, $this->beginning - $this->ending";
 
-        return "#$this->id" . ($this->title ? " $this->title" : '');
+        return '#' . UuidUtil::short($this->id) . ($this->title ? " $this->title" : '');
     }
 
     #[ORM\Id]

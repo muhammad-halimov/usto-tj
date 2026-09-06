@@ -2,6 +2,8 @@
 
 namespace App\Entity\Appeal\Reason;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
@@ -60,7 +62,7 @@ class AppealReason
     public function __toString(): string
     {
         if ($this->translations->isEmpty()) {
-            return "#$this->id" . ($this->code ? " $this->code" : '');
+            return '#' . UuidUtil::short($this->id) . ($this->code ? " $this->code" : '');
         }
 
         $titles = [];

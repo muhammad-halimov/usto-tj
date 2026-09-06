@@ -2,6 +2,8 @@
 
 namespace App\Entity\Extra;
 
+use App\Service\Extra\UuidUtil;
+
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
@@ -37,11 +39,11 @@ class OAuthProvider
 
     public function __toString(): string
     {
-        if ($this->provider !== '') return "#$this->id $this->provider";
+        if ($this->provider !== '') return '#' . UuidUtil::short($this->id) . " $this->provider";
 
         return $this->providerId !== ''
-            ? "#$this->id OAuth provider ID {$this->providerId}"
-            : "#$this->id Новый OAuth provider";
+            ? '#' . UuidUtil::short($this->id) . " OAuth provider ID {$this->providerId}"
+            : '#' . UuidUtil::short($this->id) . ' Новый OAuth provider';
     }
 
     #[ORM\Id]

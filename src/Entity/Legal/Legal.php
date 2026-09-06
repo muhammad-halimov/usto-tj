@@ -2,6 +2,8 @@
 
 namespace App\Entity\Legal;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
@@ -51,7 +53,7 @@ class Legal
 
     public function __toString(): string
     {
-        return "#{$this->id}" . ($this->title ? " $this->title" : '');
+        return '#' . UuidUtil::short($this->id) . ($this->title ? " $this->title" : '');
     }
 
     public const array TYPES = [

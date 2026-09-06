@@ -2,6 +2,8 @@
 
 namespace App\Entity\Ticket;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -60,7 +62,7 @@ class Unit
 
         $label = !empty($titles) ? ' ' . implode(', ', $titles) : '';
 
-        return "#$this->id{$label}";
+        return '#' . UuidUtil::short($this->id) . $label;
     }
 
     public function __construct()

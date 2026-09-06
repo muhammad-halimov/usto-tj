@@ -2,6 +2,8 @@
 
 namespace App\Entity\Gallery;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
@@ -87,7 +89,7 @@ class Gallery implements HasImagesInterface
 
     public function __toString(): string
     {
-        return "#$this->id Gallery";
+        return '#' . UuidUtil::short($this->id) . ' Gallery';
     }
 
     #[ORM\Id]

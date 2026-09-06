@@ -2,6 +2,8 @@
 
 namespace App\Entity\User;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\G;
@@ -23,7 +25,7 @@ class Phone
 {
     use CreatedAtTrait, UpdatedAtTrait;
 
-    public function __toString(): string { return "#$this->id" . ($this->phone ? " $this->phone" : ''); }
+    public function __toString(): string { return '#' . UuidUtil::short($this->id) . ($this->phone ? " $this->phone" : ''); }
 
     public const array CODES = [
         '+992' => '+992', // Таджикистан

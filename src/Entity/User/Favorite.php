@@ -2,6 +2,8 @@
 
 namespace App\Entity\User;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -49,6 +51,6 @@ class Favorite extends AbstractCollectionEntry
 {
     public function __toString(): string
     {
-        return "#{$this->id} Favorite";
+        return '#' . UuidUtil::short($this->id) . ' Favorite';
     }
 }

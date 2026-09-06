@@ -2,6 +2,8 @@
 
 namespace App\Entity\User;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -74,7 +76,7 @@ class Occupation
 
         $label = !empty($titles) ? ' ' . implode(', ', $titles) : '';
 
-        return "#$this->id{$label}";
+        return '#' . UuidUtil::short($this->id) . $label;
     }
 
     #[ORM\Id]

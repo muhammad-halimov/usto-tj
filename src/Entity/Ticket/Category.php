@@ -2,6 +2,8 @@
 
 namespace App\Entity\Ticket;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
@@ -67,7 +69,7 @@ class Category
 
         $label = !empty($titles) ? ' ' . implode(', ', $titles) : '';
 
-        return "#$this->id{$label}";
+        return '#' . UuidUtil::short($this->id) . $label;
     }
 
     public function __construct()

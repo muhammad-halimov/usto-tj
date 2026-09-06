@@ -2,6 +2,8 @@
 
 namespace App\Entity\User;
 
+use App\Service\Extra\UuidUtil;
+
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -66,7 +68,7 @@ class BlackList
 
     public function __toString(): string
     {
-        return "#{$this->id} BlackList";
+        return '#' . UuidUtil::short($this->id) . ' BlackList';
     }
 
     #[ORM\Id]
