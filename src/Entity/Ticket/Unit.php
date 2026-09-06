@@ -17,6 +17,8 @@ use App\State\Localization\Title\UnitTitleLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 
@@ -26,7 +28,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
     operations: [
         new Get(
             uriTemplate: '/units/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             provider: UnitTitleLocalizationProvider::class,
         ),
         new GetCollection(
@@ -68,8 +70,9 @@ class Unit
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::UNITS,
         G::MASTER_TICKETS,
@@ -85,7 +88,7 @@ class Unit
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     /**
      * @var Collection<int, Ticket>
@@ -100,7 +103,7 @@ class Unit
     #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'unit', cascade: ['persist'])]
     private Collection $translations;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

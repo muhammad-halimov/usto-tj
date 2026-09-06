@@ -12,14 +12,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 
 /**
  * Просмотр audit trail в админке. Ничего, кроме retention (expiresAt),
@@ -63,8 +62,10 @@ class EntityRevisionCrudController extends AbstractCrudController
         return $filters
             ->add(ChoiceFilter::new('entityType', 'Тип сущности')->setChoices(EntityRevision::ENTITY_TYPES))
             ->add(ChoiceFilter::new('action', 'Действие')->setChoices(EntityRevision::ACTIONS))
-            ->add(NumericFilter::new('entityId', 'ID сущности'))
-            ->add(NumericFilter::new('parentId', 'ID родителя'))
+            // TextFilter, а не NumericFilter (06.09.2026, переход на UUID-PK) —
+            // entityId/parentId теперь UUID-строки, не числа.
+            ->add(TextFilter::new('entityId', 'ID сущности'))
+            ->add(TextFilter::new('parentId', 'ID родителя'))
             ->add(ChoiceFilter::new('entity', 'Сущность')->setChoices(array_flip(EntityRevision::ENTITIES)))
             ->add(EntityFilter::new('actor', 'Кто изменил'))
             ->add(DateTimeFilter::new('createdAt', 'Создано'))
@@ -81,13 +82,15 @@ class EntityRevisionCrudController extends AbstractCrudController
             ->setDisabled()
             ->setColumns(2);
 
-        yield IntegerField::new('entityId', 'ID сущности')
+        // TextField, а не IntegerField (06.09.2026, переход на UUID-PK) —
+        // entityId/parentId/actorId теперь UUID-строки, не числа.
+        yield TextField::new('entityId', 'ID сущности')
             ->setDisabled()
             ->setColumns(2);
 
         // ID прямого родителя (Chat/Ticket/TechSupport — см. EntityRevision::
         // $parentId), пусто для entityType=ticket, у него родителя нет.
-        yield IntegerField::new('parentId', 'ID родителя')
+        yield TextField::new('parentId', 'ID родителя')
             ->setDisabled()
             ->setHelp('Пусто у "Объявление / услуга" — Ticket корень иерархии, родителя у него нет.')
             ->setColumns(2);
@@ -124,7 +127,7 @@ class EntityRevisionCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setColumns(3);
 
-        yield IntegerField::new('actorId', 'ID автора (на момент правки)')
+        yield TextField::new('actorId', 'ID автора (на момент правки)')
             ->setDisabled()
             ->hideOnIndex()
             ->setColumns(1);

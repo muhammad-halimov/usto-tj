@@ -34,7 +34,7 @@ class ApiAssignTechSupportController extends AbstractApiPatchController
 
     protected function getNotFoundError(): string { return AppMessages::TECH_SUPPORT_NOT_FOUND; }
 
-    protected function getEntityById(int $id): ?object
+    protected function getEntityById(string $id): ?object
     {
         return $this->techSupportRepository->find($id);
     }

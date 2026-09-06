@@ -31,7 +31,7 @@ use Doctrine\ORM\Mapping as ORM;
         ),
         new Delete(
             uriTemplate: '/favorites/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: ['groups' => G::OPS_FAVORITES],
             security:
                 "is_granted('ROLE_ADMIN')

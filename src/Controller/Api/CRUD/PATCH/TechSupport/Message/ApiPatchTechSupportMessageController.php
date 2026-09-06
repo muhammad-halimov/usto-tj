@@ -22,7 +22,7 @@ class ApiPatchTechSupportMessageController extends AbstractApiPatchController
 
     protected function getInputClass(): string { return TechSupportMessagePatchInput::class; }
 
-    protected function getEntityById(int $id): ?object
+    protected function getEntityById(string $id): ?object
     {
         // Ищем само сообщение по ID — только из базы, без доверия к данным запроса.
         return $this->entityManager->find(TechSupportMessage::class, $id);

@@ -10,6 +10,8 @@ use App\Entity\User;
 use App\Repository\User\PhoneRepository;
 use App\Validator\Constraints as AppAssert;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -41,10 +43,11 @@ class Phone
     ];
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([G::PHONES_READ, G::PHONES_WRITE])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'phones')]
     #[ORM\JoinColumn(nullable: false)]
@@ -72,7 +75,7 @@ class Phone
     #[ApiProperty(writable: false)]
     private bool $verified = false;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

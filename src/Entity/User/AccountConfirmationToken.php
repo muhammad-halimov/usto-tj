@@ -7,6 +7,8 @@ use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 
 #[ORM\Table(name: 'account_confirmation_token')]
 #[ORM\Entity]
@@ -16,9 +18,10 @@ class AccountConfirmationToken
     use createdAtTrait, updatedAtTrait;
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(name: "user_id", referencedColumnName: "id", nullable: true, onDelete: "SET NULL")]
@@ -30,7 +33,7 @@ class AccountConfirmationToken
     #[ORM\Column(type: 'datetime')]
     private DateTimeInterface $expiresAt;
 
-    public function getId(): ?int { return $this->id; }
+    public function getId(): ?Uuid { return $this->id; }
     public function getUser(): User { return $this->user; }
     public function setUser(User $user): void { $this->user = $user; }
     public function getToken(): string { return $this->token; }

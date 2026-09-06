@@ -114,7 +114,7 @@ abstract class AbstractApiHelperController extends AbstractController
      * @throws OptimisticLockException
      * @throws ORMException
      */
-    protected function getEntityById(int $id): ?object
+    protected function getEntityById(string $id): ?object
     {
         return $this->entityManager->find($this->getEntityClass(), $id) ?: null;
     }

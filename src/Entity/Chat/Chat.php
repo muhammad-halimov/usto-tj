@@ -33,6 +33,8 @@ use App\Repository\Chat\ChatRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -43,7 +45,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     operations: [
         new Get(
             uriTemplate: '/chats/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiGetChatController::class,
             normalizationContext: ['groups' => G::OPS_CHATS],
         ),
@@ -51,7 +53,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         // Фронтенд вызывает его перед открытием SSE-соединения.
         new Get(
             uriTemplate: '/chats/{id}/subscribe',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiGetChatSubscribeTokenController::class,
             normalizationContext: ['groups' => G::OPS_CHATS],
         ),
@@ -79,7 +81,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         // normalizationContext — группы ChatMessage (OPS_CHAT_MSGS), а не Chat.
         new GetCollection(
             uriTemplate: '/chats/{id}/messages',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiGetChatMessagesController::class,
             normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
         ),
@@ -91,20 +93,20 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/chats/{id}/read',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostMarkChatReadController::class,
             deserialize: false,
         ),
         new Patch(
             uriTemplate: '/chats/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPatchChatController::class,
             normalizationContext: ['groups' => G::OPS_CHATS],
             input: ChatPatchInput::class,
         ),
         new Delete(
             uriTemplate: '/chats/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiDeleteChatController::class,
         )
     ],
@@ -123,14 +125,15 @@ class Chat
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::CHATS,
         G::CHAT_MESSAGES,
         G::APPEAL_CHAT,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
@@ -235,7 +238,7 @@ class Chat
         $this->appealChats = new ArrayCollection();
     }
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

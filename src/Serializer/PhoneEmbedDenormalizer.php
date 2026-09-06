@@ -36,7 +36,11 @@ final class PhoneEmbedDenormalizer implements DenormalizerInterface, Denormalize
     {
         $context[self::ALREADY_CALLED] = true;
 
-        $phone = $this->em->find(Phone::class, (int) $data['id']);
+        // (int) убран (06.09.2026, переход на UUID-PK) — Phone::$id теперь
+        // UUID-строка, приведение к int обнулило бы её (find() ничего не
+        // нашёл бы, denormalize() тихо создавал бы дублирующий Phone вместо
+        // обновления существующего).
+        $phone = $this->em->find(Phone::class, $data['id']);
 
         if (!$phone) {
             unset($data['id']);

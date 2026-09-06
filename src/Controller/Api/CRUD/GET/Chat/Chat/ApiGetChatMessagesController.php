@@ -41,7 +41,9 @@ class ApiGetChatMessagesController extends AbstractApiGetCollectionController
         $id = $this->requestStack->getCurrentRequest()?->attributes->get('id');
         if (!$id) return null;
 
-        $chat = $this->chatRepository->find((int) $id);
+        // (int) убран (06.09.2026, переход на UUID-PK) — Chat::$id теперь
+        // UUID-строка.
+        $chat = $this->chatRepository->find($id);
         if (!$chat) return null;
 
         if ($chat->getAuthor() !== $user && $chat->getReplyAuthor() !== $user) return null;

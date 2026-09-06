@@ -33,7 +33,7 @@ class ApiPatchTicketController extends AbstractApiHelperController
 
     protected function setSerializationGroups(): array { return G::OPS_TICKETS_FULL; }
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    public function __invoke(string $id, Request $request): JsonResponse
     {
         $bearerUser = $this->checkedUser();
 

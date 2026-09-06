@@ -27,6 +27,8 @@ use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
@@ -38,7 +40,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     operations: [
         new Get(
             uriTemplate: '/chat-messages/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiGetChatMessageController::class,
             normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
         ),
@@ -50,20 +52,20 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Post(
             uriTemplate: '/chat-messages/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/chat-messages/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPatchChatMessageController::class,
             normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
             input: ChatMessagePatchInput::class,
         ),
         new Delete(
             uriTemplate: '/chat-messages/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiDeleteChatMessageController::class,
         )
     ],
@@ -88,13 +90,14 @@ class ChatMessage implements EditableMessageInterface
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::CHATS,
         G::CHAT_MESSAGES
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[Groups([
@@ -174,7 +177,7 @@ class ChatMessage implements EditableMessageInterface
     #[ApiProperty(writable: false)]
     private Collection $images;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

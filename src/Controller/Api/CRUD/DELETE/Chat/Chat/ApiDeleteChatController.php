@@ -27,7 +27,7 @@ class ApiDeleteChatController extends AbstractApiHelperController
 {
     public function __construct(private readonly ChatRepository $chatRepository) {}
 
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(string $id): JsonResponse
     {
         $bearer = $this->checkedUser();
 

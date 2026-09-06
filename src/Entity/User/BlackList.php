@@ -15,6 +15,8 @@ use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Repository\User\BlackListRepository;
 use App\State\CollectionEntry\BlackListStateProvider;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 /**
@@ -45,7 +47,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         ),
         new Delete(
             uriTemplate: '/black-lists/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: ['groups' => G::OPS_BLACK_LISTS],
             security:
                 "is_granted('ROLE_ADMIN')
@@ -68,10 +70,11 @@ class BlackList
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([G::BLACK_LISTS])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     /** Кто поставил блок (из Bearer-токена, не выводится в ответе). */
     #[ORM\ManyToOne]
@@ -85,7 +88,7 @@ class BlackList
     #[Groups([G::BLACK_LISTS])]
     private ?User $user = null;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

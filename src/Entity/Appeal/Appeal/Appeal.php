@@ -33,6 +33,8 @@ use App\State\Localization\Appeal\AppealLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
@@ -67,7 +69,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Post(
             uriTemplate: '/appeals/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
@@ -97,8 +99,9 @@ abstract class Appeal implements HasImagesInterface
     ];
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::APPEAL,
         G::APPEAL_CHAT,
@@ -106,7 +109,7 @@ abstract class Appeal implements HasImagesInterface
         G::APPEAL_REVIEW,
         G::APPEAL_USER
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'appeals')]
     #[Groups([
@@ -157,7 +160,7 @@ abstract class Appeal implements HasImagesInterface
         return "#$this->id" . ($this->title ? " $this->title" : '');
     }
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

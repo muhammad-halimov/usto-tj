@@ -3,6 +3,7 @@
 namespace App\Controller\Api\CRUD\Abstract;
 
 use App\ApiResource\AppMessages;
+use App\Service\Extra\UuidUtil;
 use App\Entity\Geography\Abstract\Address;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\City\Suburb;
@@ -98,7 +99,7 @@ trait AddressValidationTrait
                 /** @var City $city */
                 $city = $iri->extract($item['city'], City::class, 'cities');
 
-                if ($city->getProvince()?->getId() !== $province->getId()) {
+                if (!UuidUtil::same($city->getProvince()?->getId(), $province->getId())) {
                     return $this->errorJson(AppMessages::CITY_NOT_IN_PROVINCE);
                 }
 
@@ -106,7 +107,7 @@ trait AddressValidationTrait
                 if (!empty($item['suburb'])) {
                     /** @var Suburb $suburb */
                     $suburb = $iri->extract($item['suburb'], Suburb::class, 'suburbs');
-                    if ($suburb->getCities()?->getId() !== $city->getId()) {
+                    if (!UuidUtil::same($suburb->getCities()?->getId(), $city->getId())) {
                         return $this->errorJson(AppMessages::SUBURB_NOT_IN_CITY);
                     }
                 }
@@ -119,7 +120,7 @@ trait AddressValidationTrait
                 /** @var District $district */
                 $district = $iri->extract($item['district'], District::class, 'districts');
 
-                if ($district->getProvince()?->getId() !== $province->getId()) {
+                if (!UuidUtil::same($district->getProvince()?->getId(), $province->getId())) {
                     return $this->errorJson(AppMessages::DISTRICT_NOT_IN_PROVINCE);
                 }
 
@@ -130,7 +131,7 @@ trait AddressValidationTrait
                 if (!empty($item['community'])) {
                     /** @var Community $community */
                     $community = $iri->extract($item['community'], Community::class, 'communities');
-                    if ($community->getDistrict()?->getId() !== $district->getId()) {
+                    if (!UuidUtil::same($community->getDistrict()?->getId(), $district->getId())) {
                         return $this->errorJson(AppMessages::COMMUNITY_NOT_IN_DISTRICT);
                     }
                 }
@@ -138,7 +139,7 @@ trait AddressValidationTrait
                 if (!empty($item['settlement'])) {
                     /** @var Settlement $settlement */
                     $settlement = $iri->extract($item['settlement'], Settlement::class, 'settlements');
-                    if ($settlement->getDistrict()?->getId() !== $district->getId()) {
+                    if (!UuidUtil::same($settlement->getDistrict()?->getId(), $district->getId())) {
                         return $this->errorJson(AppMessages::SETTLEMENT_NOT_IN_DISTRICT);
                     }
                 }
@@ -149,7 +150,7 @@ trait AddressValidationTrait
                     }
                     /** @var Village $village */
                     $village = $iri->extract($item['village'], Village::class, 'villages');
-                    if ($village->getSettlement()?->getId() !== $settlement->getId()) {
+                    if (!UuidUtil::same($village->getSettlement()?->getId(), $settlement->getId())) {
                         return $this->errorJson(AppMessages::VILLAGE_NOT_IN_SETTLEMENT);
                     }
                 }

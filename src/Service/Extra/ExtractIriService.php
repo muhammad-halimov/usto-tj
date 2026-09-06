@@ -32,9 +32,19 @@ readonly class ExtractIriService
     {
         if ($entityClass === null) throw new AppMessageException(AppMessages::MISSING_REQUIRED_FIELDS);
 
-        // Извлекаем ID из IRI. Если передано число — regex не срабатывает,
-        // и $id остаётся оригинальной строкой (фаллбак на число).
-        preg_match("#/api/$routeName/(\d+)#", $iriOrId, $matches);
+        // Извлекаем ID из IRI. Если передан голый ID (без префикса
+        // /api/...) — regex не срабатывает, и $id остаётся оригинальной
+        // строкой (фаллбак).
+        //
+        // БАГФИКС (06.09.2026, переход на UUID-PK): было "(\d+)" — работало,
+        // пока ID были числами. У UUID (например "01a0781d-0789-...")
+        // "\d+" жадно матчит только ЧИСЛОВОЙ ПРЕФИКС до первой буквы —
+        // "01" вместо всего UUID целиком — и именно это "01" потом летело
+        // в Doctrine как значение UUID-колонки, взрываясь
+        // ConversionException. "[^/]+$" — весь последний сегмент пути,
+        // независимо от формата ID (не только UUID — любой, если формат
+        // снова когда-то поменяется).
+        preg_match("#/api/$routeName/([^/]+)$#", $iriOrId, $matches);
         $id = $matches[1] ?? $iriOrId;
 
         $entity = $this->em->getRepository($entityClass)->find($id);

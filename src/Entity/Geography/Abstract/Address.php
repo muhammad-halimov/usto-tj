@@ -2,6 +2,7 @@
 namespace App\Entity\Geography\Abstract;
 
 use App\Entity\Geography\City\City;
+use App\Service\Extra\UuidUtil;
 use App\Entity\Geography\City\Suburb;
 use App\Entity\Geography\District\Community;
 use App\Entity\Geography\District\District;
@@ -16,6 +17,8 @@ use App\Entity\User;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -69,7 +72,10 @@ class Address
         $this->tickets = new ArrayCollection();
     }
 
-    #[ORM\Id, ORM\GeneratedValue, ORM\Column]
+    #[ORM\Id]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::USER_PUBLIC,
         G::MASTERS,
@@ -92,7 +98,7 @@ class Address
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(targetEntity: Province::class)]
     #[Groups([
@@ -283,7 +289,7 @@ class Address
     #[Ignore]
     private Collection $tickets;
 
-    public function getId(): ?int { return $this->id; }
+    public function getId(): ?Uuid { return $this->id; }
     public function getProvince(): ?Province { return $this->province; }
     public function setProvince(?Province $province): self { $this->province = $province; return $this; }
     public function getDistrict(): ?District { return $this->district; }
@@ -365,31 +371,31 @@ class Address
     #[Assert\Callback]
     public function validateGeographyHierarchy(ExecutionContextInterface $context): void
     {
-        if ($this->city !== null && $this->city->getProvince()?->getId() !== $this->province?->getId()) {
+        if ($this->city !== null && !UuidUtil::same($this->city->getProvince()?->getId(), $this->province?->getId())) {
             $context->buildViolation('Город не принадлежит указанному региону')
                 ->atPath('city')
                 ->addViolation();
         }
 
-        if ($this->suburb !== null && $this->suburb->getCities()?->getId() !== $this->city?->getId()) {
+        if ($this->suburb !== null && !UuidUtil::same($this->suburb->getCities()?->getId(), $this->city?->getId())) {
             $context->buildViolation('Подрайон не принадлежит указанному городу')
                 ->atPath('suburb')
                 ->addViolation();
         }
 
-        if ($this->district !== null && $this->district->getProvince()?->getId() !== $this->province?->getId()) {
+        if ($this->district !== null && !UuidUtil::same($this->district->getProvince()?->getId(), $this->province?->getId())) {
             $context->buildViolation('Район не принадлежит указанному региону')
                 ->atPath('district')
                 ->addViolation();
         }
 
-        if ($this->community !== null && $this->community->getDistrict()?->getId() !== $this->district?->getId()) {
+        if ($this->community !== null && !UuidUtil::same($this->community->getDistrict()?->getId(), $this->district?->getId())) {
             $context->buildViolation('Джамоат не принадлежит указанному району')
                 ->atPath('community')
                 ->addViolation();
         }
 
-        if ($this->settlement !== null && $this->settlement->getDistrict()?->getId() !== $this->district?->getId()) {
+        if ($this->settlement !== null && !UuidUtil::same($this->settlement->getDistrict()?->getId(), $this->district?->getId())) {
             $context->buildViolation('Населённый пункт не принадлежит указанному району')
                 ->atPath('settlement')
                 ->addViolation();
@@ -400,7 +406,7 @@ class Address
                 $context->buildViolation('Требуется населённый пункт при указании деревни')
                     ->atPath('village')
                     ->addViolation();
-            } elseif ($this->village->getSettlement()?->getId() !== $this->settlement->getId()) {
+            } elseif (!UuidUtil::same($this->village->getSettlement()?->getId(), $this->settlement->getId())) {
                 $context->buildViolation('Деревня не принадлежит указанному населённому пункту')
                     ->atPath('village')
                     ->addViolation();

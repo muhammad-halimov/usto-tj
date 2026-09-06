@@ -35,7 +35,7 @@ class ApiGetChatSubscribeTokenController extends AbstractApiHelperController
         private readonly string         $mercureJwtSecret, // Инжектируется из services.yaml (bind $mercureJwtSecret)
     ) {}
 
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(string $id): JsonResponse
     {
         $bearerUser = $this->checkedUser();
 

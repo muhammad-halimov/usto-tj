@@ -8,6 +8,8 @@ use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use App\Repository\User\SocialNetworkRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 
@@ -39,8 +41,9 @@ class SocialNetwork
     ];
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::SOCIAL,
         G::USER_PUBLIC,
@@ -59,7 +62,7 @@ class SocialNetwork
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'socialNetworks')]
     #[Ignore]
@@ -106,7 +109,7 @@ class SocialNetwork
     ])]
     private ?string $handle = null;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

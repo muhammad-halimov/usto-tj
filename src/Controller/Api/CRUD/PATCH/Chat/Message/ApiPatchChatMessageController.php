@@ -27,7 +27,7 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
     }
 
-    protected function getEntityById(int $id): ?object
+    protected function getEntityById(string $id): ?object
     {
         return $this->entityManager->find(ChatMessage::class, $id);
     }

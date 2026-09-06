@@ -11,6 +11,7 @@ use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * MERCURE — что это такое (простыми словами):
@@ -159,10 +160,10 @@ class ChatMessageListener
     }
 
     /**
-     * Формат топика: "chat:42" — уникален для каждого чата.
+     * Формат топика: "chat:<uuid>" — уникален для каждого чата.
      * Именно на этот string подписывается браузер через EventSource.
      */
-    private function topic(int $chatId): string
+    private function topic(Uuid $chatId): string
     {
         return "chat:{$chatId}";
     }

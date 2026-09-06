@@ -62,7 +62,7 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
      * @throws OptimisticLockException
      * @throws ORMException
      */
-    public function __invoke(int $id, Request $request): JsonResponse
+    public function __invoke(string $id, Request $request): JsonResponse
     {
         $entity = $this->entityManager->find($this->getAttribute('_api_resource_class'), $id);
 

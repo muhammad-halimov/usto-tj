@@ -35,7 +35,7 @@ abstract class AbstractApiPatchController extends AbstractApiHelperController
      * @throws OptimisticLockException
      * @throws ORMException
      */
-    final public function __invoke(int $id): JsonResponse
+    final public function __invoke(string $id): JsonResponse
     {
         $bearer = $this->checkedUser($this->getUserGrade());
 

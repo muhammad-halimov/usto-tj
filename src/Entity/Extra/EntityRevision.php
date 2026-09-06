@@ -14,6 +14,8 @@ use App\Entity\Trait\Readable\SnapshotSummaryTrait;
 use App\Entity\User;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 /**
@@ -47,7 +49,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         ),
         new Get(
             uriTemplate: '/entity-revisions/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             security: "is_granted('ROLE_ADMIN')",
             normalizationContext: ['groups' => [G::ENTITY_REVISIONS]],
         ),
@@ -164,19 +166,23 @@ class EntityRevision
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([G::ENTITY_REVISIONS])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     /** Короткий строковый дискриминатор версионируемой сущности — 'ticket' и т.д. */
     #[ORM\Column(length: 32)]
     #[Groups([G::ENTITY_REVISIONS])]
     private ?string $entityType = null;
 
-    #[ORM\Column]
+    // uuid, а не голый int (06.09.2026, переход на UUID-PK) — entityId
+    // полиморфный (не настоящая ORM-связь, см. докблок класса), ссылается
+    // на ID сущности любого типа из ENTITIES — все они теперь Uuid.
+    #[ORM\Column(type: 'uuid')]
     #[Groups([G::ENTITY_REVISIONS])]
-    private ?int $entityId = null;
+    private ?Uuid $entityId = null;
 
     /**
      * ID сущности, которой непосредственно принадлежит entityId, если она
@@ -191,9 +197,9 @@ class EntityRevision
      * (см. $snapshot) — parentId у них общий, это ID их владельца, а не
      * какого-то конкретного фото из списка.
      */
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(type: 'uuid', nullable: true)]
     #[Groups([G::ENTITY_REVISIONS])]
-    private ?int $parentId = null;
+    private ?Uuid $parentId = null;
 
     /**
      * Короткое имя класса сущности, которой принадлежит $parentId (или
@@ -249,9 +255,11 @@ class EntityRevision
 
     // name задано явно: без него Doctrine дала бы ту же колонку actor_id,
     // что уже занята FK-полем $actor выше (обе — camelCase actorId).
-    #[ORM\Column(name: 'actor_id_snapshot', nullable: true)]
+    // uuid, а не голый int (06.09.2026, переход на UUID-PK) — снимок
+    // User::$id, теперь тоже Uuid (см. setActor() ниже).
+    #[ORM\Column(name: 'actor_id_snapshot', type: 'uuid', nullable: true)]
     #[Groups([G::ENTITY_REVISIONS])]
-    private ?int $actorId = null;
+    private ?Uuid $actorId = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([G::ENTITY_REVISIONS])]
@@ -274,7 +282,7 @@ class EntityRevision
     #[Groups([G::ENTITY_REVISIONS])]
     private ?DateTimeImmutable $expiresAt;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }
@@ -290,23 +298,23 @@ class EntityRevision
         return $this;
     }
 
-    public function getEntityId(): ?int
+    public function getEntityId(): ?Uuid
     {
         return $this->entityId;
     }
 
-    public function setEntityId(int $entityId): static
+    public function setEntityId(Uuid $entityId): static
     {
         $this->entityId = $entityId;
         return $this;
     }
 
-    public function getParentId(): ?int
+    public function getParentId(): ?Uuid
     {
         return $this->parentId;
     }
 
-    public function setParentId(?int $parentId): static
+    public function setParentId(?Uuid $parentId): static
     {
         $this->parentId = $parentId;
         return $this;
@@ -376,7 +384,7 @@ class EntityRevision
         return $this->actorLabel;
     }
 
-    public function getActorId(): ?int
+    public function getActorId(): ?Uuid
     {
         return $this->actorId;
     }

@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Exception\AppMessageException;
 use App\Repository\User\UserRepository;
 use App\Service\Auth\AccountConfirmationService;
+use App\Service\Extra\UuidUtil;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
 use Psr\Log\LoggerInterface;
@@ -77,16 +78,27 @@ readonly class UserListener
      *
      * Сравниваем по id, а не просто "нашли ли что-то": на preUpdate
      * findOneBy() с НЕизменённым email/login находит самого же
-     * редактируемого пользователя — это не дубликат, а он сам.
-     * На prePersist $user->getId() ещё null, так что любая найденная
-     * строка — чужая, сравнение отработает верно и без спецкейса.
+     * редактируемого пользователя — это не дубликат, а он сам. На
+     * prePersist сравнение тоже корректно (хоть и по другой причине,
+     * см. ниже) — любая найденная строка чужая.
+     *
+     * UuidUtil::same(), а не !== (06.09.2026, переход на UUID-PK) — Uuid
+     * объект, !== у объектов в PHP сравнивает ссылку, а не значение.
+     * Заодно поменялась причина, почему prePersist-ветка вообще
+     * корректна: раньше $user->getId() был null (автоинкремент назначается
+     * только в БД при INSERT), и null !== <чей-то реальный id> всегда
+     * true. Теперь у CUSTOM-генератора (UuidGenerator) id генерируется
+     * СРАЗУ при persist(), ещё ДО prePersist — то есть на prePersist
+     * $user->getId() уже реальный, но только что сгенерированный UUID,
+     * который просто физически не может совпасть ни с каким существующим
+     * в БД — тот же результат (запись всегда "чужая"), другая причина.
      */
     private function checkUniqueness(User $user): void
     {
         $email = $user->getEmail();
         if ($email !== null) {
             $existing = $this->userRepository->findOneBy(['email' => $email]);
-            if ($existing !== null && $existing->getId() !== $user->getId()) {
+            if ($existing !== null && !UuidUtil::same($existing->getId(), $user->getId())) {
                 throw new AppMessageException(AppMessages::EMAIL_ALREADY_EXISTS);
             }
         }
@@ -94,7 +106,7 @@ readonly class UserListener
         $login = $user->getLogin();
         if ($login !== null) {
             $existing = $this->userRepository->findOneBy(['login' => $login]);
-            if ($existing !== null && $existing->getId() !== $user->getId()) {
+            if ($existing !== null && !UuidUtil::same($existing->getId(), $user->getId())) {
                 throw new AppMessageException(AppMessages::LOGIN_ALREADY_EXISTS);
             }
         }

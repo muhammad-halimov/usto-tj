@@ -62,7 +62,9 @@ class TicketViewSubscriber implements EventSubscriberInterface
         // md5 используется исключительно для безопасного формирования ключа кэша:
         // IP может содержать символы (: для IPv6), недопустимые в ключах Redis
         $ip       = $event->getRequest()->getClientIp() ?? 'unknown';
-        $cacheKey = sprintf('ticket_view_%d_%s', $ticket->getId(), md5($ip));
+        // %s, а не %d (06.09.2026, переход на UUID-PK) — Ticket::$id теперь
+        // Uuid-объект, не число.
+        $cacheKey = sprintf('ticket_view_%s_%s', $ticket->getId(), md5($ip));
 
         $item = $this->ticketViewsCachePool->getItem($cacheKey);
         // Ключ уже есть — этот IP уже смотрел тикет в течение TTL, выходим

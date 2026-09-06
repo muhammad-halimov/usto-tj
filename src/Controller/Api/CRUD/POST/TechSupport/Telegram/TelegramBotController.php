@@ -53,7 +53,10 @@ class TelegramBotController extends AbstractApiHelperController
                 return;
             }
 
-            $approval = $this->entityManager->getRepository(TicketApproval::class)->find((int) $id);
+            // (int) убран (06.09.2026, переход на UUID-PK) — TicketApproval::
+            // $id теперь UUID-строка в callback_data, приведение к int
+            // обнулило бы её (find() никогда бы не находил заявку).
+            $approval = $this->entityManager->getRepository(TicketApproval::class)->find($id);
 
             if (!$approval) {
                 $bot->reply('⚠️ Заявка не найдена — возможно, уже удалена.');

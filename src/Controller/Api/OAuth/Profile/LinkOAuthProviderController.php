@@ -3,6 +3,7 @@
 namespace App\Controller\Api\OAuth\Profile;
 
 use App\ApiResource\AppMessages;
+use App\Service\Extra\UuidUtil;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Exception\AppMessageException;
@@ -101,7 +102,7 @@ class LinkOAuthProviderController extends AbstractController
             // Тот же providerId уже привязан — либо к ДРУГОМУ юзеру
             // (кто-то опередил / это чужой аккаунт — TAKEN), либо к
             // текущему же (повторный клик — ALREADY_LINKED).
-            if ($existing->getUser()->getId() !== $currentUser->getId()) {
+            if (!UuidUtil::same($existing->getUser()->getId(), $currentUser->getId())) {
                 throw new AppMessageException(AppMessages::OAUTH_PROVIDER_TAKEN);
             }
             throw new AppMessageException(AppMessages::OAUTH_ALREADY_LINKED);

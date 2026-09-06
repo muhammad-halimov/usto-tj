@@ -157,8 +157,10 @@ class TicketApprovalCrudController extends AbstractCrudController
             ->setEntityId($ticket->getId())
             ->generateUrl();
 
+        // %s, а не %d (06.09.2026, переход на UUID-PK) — Ticket::$id
+        // теперь Uuid-объект, не число; %d привёл бы к 0/предупреждению.
         /** @noinspection HtmlUnknownTarget */
-        return sprintf('<a href="%s" target="_blank">Открыть карточку тикета #%d ↗</a>', $url, $ticket->getId());
+        return sprintf('<a href="%s" target="_blank">Открыть карточку тикета #%s ↗</a>', $url, $ticket->getId());
     }
 
     /**

@@ -37,7 +37,7 @@ class ApiPostMarkTechSupportReadController extends AbstractApiHelperController
         private readonly TechSupportMessageRepository  $techSupportMessageRepository,
     ) {}
 
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(string $id): JsonResponse
     {
         $bearer = $this->checkedUser();
 

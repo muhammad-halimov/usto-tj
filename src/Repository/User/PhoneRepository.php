@@ -34,7 +34,7 @@ class PhoneRepository extends ServiceEntityRepository
     /**
      * Найти все телефоны пользователя
      */
-    public function findByOwner(int $ownerId): array
+    public function findByOwner(string $ownerId): array
     {
         return $this->createQueryBuilder('p')
             ->where('p.owner = :ownerId')
@@ -48,7 +48,7 @@ class PhoneRepository extends ServiceEntityRepository
     /**
      * Найти основной телефон пользователя
      */
-    public function findMainPhone(int $ownerId): ?Phone
+    public function findMainPhone(string $ownerId): ?Phone
     {
         return $this->createQueryBuilder('p')
             ->where('p.owner = :ownerId')
@@ -61,7 +61,7 @@ class PhoneRepository extends ServiceEntityRepository
     /**
      * Проверить существование телефона
      */
-    public function phoneExists(string $phone, ?int $excludeId = null): bool
+    public function phoneExists(string $phone, ?string $excludeId = null): bool
     {
         $cleaned = preg_replace('/[^\d+]/', '', $phone);
 
@@ -81,7 +81,7 @@ class PhoneRepository extends ServiceEntityRepository
     /**
      * Найти верифицированные телефоны
      */
-    public function findVerifiedPhones(int $ownerId): array
+    public function findVerifiedPhones(string $ownerId): array
     {
         return $this->createQueryBuilder('p')
             ->where('p.owner = :ownerId')

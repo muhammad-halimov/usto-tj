@@ -39,7 +39,7 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
 
     protected function getInputClass(): string { return TechSupportPatchInput::class; }
 
-    protected function getEntityById(int $id): ?object
+    protected function getEntityById(string $id): ?object
     {
         return $this->techSupportRepository->find($id);
     }

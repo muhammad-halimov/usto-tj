@@ -29,7 +29,7 @@ class ApiPostMarkChatReadController extends AbstractApiHelperController
         private readonly ChatMessageRepository $chatMessageRepository,
     ) {}
 
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(string $id): JsonResponse
     {
         $bearer = $this->checkedUser();
 

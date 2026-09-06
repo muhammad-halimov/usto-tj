@@ -26,6 +26,8 @@ use App\Repository\Gallery\GalleryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: GalleryRepository::class)]
@@ -51,20 +53,20 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Post(
             uriTemplate: '/galleries/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostUniversalImageController::class,
             normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/galleries/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPatchGalleryController::class,
             normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
         ),
         new Delete(
             uriTemplate: '/galleries/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
             security:
                 "is_granted('ROLE_ADMIN')
@@ -89,12 +91,13 @@ class Gallery implements HasImagesInterface
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::GALLERIES,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'galleries')]
     #[Groups([
@@ -118,7 +121,7 @@ class Gallery implements HasImagesInterface
         $this->images = new ArrayCollection();
     }
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

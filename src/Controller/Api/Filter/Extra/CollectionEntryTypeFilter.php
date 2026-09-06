@@ -36,20 +36,28 @@ final class CollectionEntryTypeFilter extends AbstractFilter
             return;
         }
 
-        if ($property === 'user' && is_numeric($value)) {
+        // БАГФИКС (06.09.2026, переход на UUID-PK): было is_numeric($value)
+        // — на реальном UUID всегда false (дефисы/буквы), фильтр молча
+        // переставал бы срабатывать вообще — НЕ "пусто", а хуже: просто
+        // игнорировался бы, отдавая ВСЕ записи без фильтрации по
+        // user/ticket. is_string() — минимальная защита от мусора
+        // (массив/объект в query), не строгая валидация формата UUID:
+        // не найдёт — просто 0 совпадений, не критично, в отличие от
+        // молчаливого пропуска всего фильтра.
+        if ($property === 'user' && is_string($value) && $value !== '') {
             $param = $queryNameGenerator->generateParameterName('user');
             $queryBuilder
                 ->andWhere("IDENTITY($alias.user) = :$param")
-                ->setParameter($param, (int) $value);
+                ->setParameter($param, $value);
 
             return;
         }
 
-        if ($property === 'ticket' && is_numeric($value)) {
+        if ($property === 'ticket' && is_string($value) && $value !== '') {
             $param = $queryNameGenerator->generateParameterName('ticket');
             $queryBuilder
                 ->andWhere("IDENTITY($alias.ticket) = :$param")
-                ->setParameter($param, (int) $value);
+                ->setParameter($param, $value);
         }
     }
 
@@ -64,15 +72,15 @@ final class CollectionEntryTypeFilter extends AbstractFilter
             ],
             'user' => [
                 'property' => 'user',
-                'type'     => 'integer',
+                'type'     => 'string',
                 'required' => false,
-                'openapi'  => ['description' => 'Filter by target user ID'],
+                'openapi'  => ['description' => 'Filter by target user ID (UUID)'],
             ],
             'ticket' => [
                 'property' => 'ticket',
-                'type'     => 'integer',
+                'type'     => 'string',
                 'required' => false,
-                'openapi'  => ['description' => 'Filter by target ticket ID'],
+                'openapi'  => ['description' => 'Filter by target ticket ID (UUID)'],
             ],
         ];
     }

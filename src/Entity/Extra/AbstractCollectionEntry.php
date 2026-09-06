@@ -10,6 +10,8 @@ use App\Entity\Trait\Readable\TypeTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 /**
@@ -28,10 +30,11 @@ abstract class AbstractCollectionEntry
     use CreatedAtTrait, UpdatedAtTrait, TypeTrait;
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([G::BLACK_LISTS, G::FAVORITES])]
-    protected ?int $id = null;
+    protected ?Uuid $id = null;
 
     /** The user who owns this entry (set from Bearer token, not exposed in output) */
     #[ORM\ManyToOne]
@@ -51,7 +54,7 @@ abstract class AbstractCollectionEntry
     #[Groups([G::BLACK_LISTS, G::FAVORITES])]
     protected ?Ticket $ticket = null;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

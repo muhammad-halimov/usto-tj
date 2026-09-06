@@ -24,7 +24,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     operations: [
         new Get(
             uriTemplate: '/districts/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             provider: DistrictLocalizationProvider::class
         ),
         new GetCollection(

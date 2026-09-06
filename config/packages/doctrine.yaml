@@ -8,6 +8,15 @@ doctrine:
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
+
+        # UUID-первичные ключи (06.09.2026, переход всех сущностей на UUID —
+        # см. UuidIdTrait) — реальный Postgres-тип `uuid`, гидратируется в
+        # Symfony\Component\Uid\Uuid (не голая строка), сравнение/сортировка
+        # на стороне БД нативные, не строковые.
+        types:
+            uuid: Symfony\Bridge\Doctrine\Types\UuidType
+        mapping_types:
+            uuid: uuid
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true

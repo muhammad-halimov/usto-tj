@@ -53,7 +53,7 @@ class TicketRepository extends ServiceEntityRepository
      *   - approved=false → виден только автору (по userId)
      *   - null           → тикет не существует или доступ запрещён → 404
      */
-    public function findVisibleById(int $id, ?int $userId = null): ?Ticket
+    public function findVisibleById(string $id, ?string $userId = null): ?Ticket
     {
         $qb = $this->createQueryBuilder('t')
             ->where('t.id = :id')

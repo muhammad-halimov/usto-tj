@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
  */
 class ApiDeleteChatMessageController extends AbstractApiHelperController
 {
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(string $id): JsonResponse
     {
         $bearer = $this->checkedUser();
 

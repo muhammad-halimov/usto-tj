@@ -35,6 +35,8 @@ use App\Repository\Review\ReviewRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -50,7 +52,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new Get(
             uriTemplate: '/reviews/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: ['groups' => G::OPS_REVIEWS, 'skip_null_values' => false],
             provider: ReviewLocalizationProvider::class,
         ),
@@ -62,7 +64,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Post(
             uriTemplate: '/reviews/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostUniversalImageController::class,
             normalizationContext: ['groups' => G::OPS_REVIEWS],
             input: ImageInput::class,
@@ -74,14 +76,14 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new Patch(
             uriTemplate: '/reviews/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPatchReviewController::class,
             normalizationContext: ['groups' => G::OPS_REVIEWS],
             input: ReviewPatchInput::class,
         ),
         new Delete(
             uriTemplate: '/reviews/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: ['groups' => G::OPS_REVIEWS],
             security:
                 "is_granted('ROLE_ADMIN')
@@ -133,14 +135,15 @@ class Review implements HasImagesInterface
     ];
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::REVIEWS,
         G::REVIEWS_CLIENT,
         G::APPEAL_REVIEW,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
@@ -197,7 +200,7 @@ class Review implements HasImagesInterface
     ])]
     private Collection $images;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

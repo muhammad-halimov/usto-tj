@@ -38,6 +38,8 @@ use App\Repository\TechSupport\TechSupportRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Context;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -61,21 +63,21 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         // ROLE_ADMIN: тикеты конкретного пользователя по его ID.
         new GetCollection(
             uriTemplate: '/tech-supports/user/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiUserApiTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
         // ROLE_ADMIN: тикеты, назначенные на конкретного администратора по его ID.
         new GetCollection(
             uriTemplate: '/tech-supports/admin/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiAdminApiTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
         // Автор / администрант / ROLE_ADMIN: получить один тикет по ID.
         new Get(
             uriTemplate: '/tech-supports/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiGetTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
@@ -84,7 +86,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         // открытием SSE-соединения на топик "tech-support:{id}".
         new Get(
             uriTemplate: '/tech-supports/{id}/subscribe',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiGetTechSupportSubscribeTokenController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
@@ -107,7 +109,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         // Админ: то же плюс title/reason/priority/description/images.
         new Patch(
             uriTemplate: '/tech-supports/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPatchTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: TechSupportPatchInput::class,
@@ -115,7 +117,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         // ROLE_ADMIN: назначить администранта на тикет. Тело: { "administrant": <userId> }.
         new Patch(
             uriTemplate: '/tech-supports/{id}/assign',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiAssignTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: TechSupportAssignInput::class,
@@ -124,7 +126,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         // Аналог /chats/{id}/read (см. Chat).
         new Post(
             uriTemplate: '/tech-supports/{id}/read',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostMarkTechSupportReadController::class,
             deserialize: false,
         ),
@@ -132,7 +134,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Post(
             uriTemplate: '/tech-supports/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostUniversalImageController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: ImageInput::class,
@@ -178,13 +180,14 @@ class TechSupport implements HasImagesInterface
     ];
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
@@ -271,7 +274,7 @@ class TechSupport implements HasImagesInterface
     #[ApiProperty(writable: false)]
     private Collection $images;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

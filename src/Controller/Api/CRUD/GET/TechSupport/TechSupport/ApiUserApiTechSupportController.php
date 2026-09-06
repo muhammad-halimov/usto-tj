@@ -15,7 +15,8 @@ class ApiUserApiTechSupportController extends AbstractApiTechSupportController
         // Берём {id} из URL (/tech-supports/user/{id}) — это ID целевого пользователя,
         // тикеты которого хочет посмотреть администратор.
         // Раньше {id} в URL полностью игнорировался, и возвращались тикеты самого администратора.
-        $targetId = (int) $this->requestStack->getCurrentRequest()->attributes->get('id');
+        // (int) убран (06.09.2026, переход на UUID-PK) — User::$id теперь UUID-строка.
+        $targetId = $this->requestStack->getCurrentRequest()->attributes->get('id');
         $target   = $this->entityManager->find(User::class, $targetId);
 
         if (!$target) return null;

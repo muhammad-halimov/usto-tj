@@ -27,7 +27,7 @@ class ApiPatchGalleryController extends AbstractApiPatchController
         if ($entity->getUser()) $this->localizationService->localizeUser($entity->getUser(), $this->getLocale());
     }
 
-    protected function getEntityById(int $id): ?object
+    protected function getEntityById(string $id): ?object
     {
         return $this->entityManager->find($this->getEntityClass(), $id);
     }

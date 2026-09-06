@@ -20,6 +20,8 @@ use App\Entity\Trait\Readable\SingleImageTrait;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
@@ -44,7 +46,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     operations: [
         new Delete(
             uriTemplate: '/multiple-images/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiDeleteMultipleImageController::class,
         ),
     ],
@@ -58,8 +60,9 @@ class MultipleImage
      * где изображение может появиться в ответе API.
      */
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::CATEGORIES,
         G::MASTER_TICKETS,
@@ -86,7 +89,7 @@ class MultipleImage
         G::USER_PUBLIC,
         G::TICKET_IMAGES,
     ])]
-    protected ?int $id = null;
+    protected ?Uuid $id = null;
 
     /**
      * Автор загрузки — проставляется при загрузке через чат или техподдержку.
@@ -171,7 +174,7 @@ class MultipleImage
     #[ApiProperty(writable: false)]
     private ?Appeal $appeal = null;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

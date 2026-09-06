@@ -1,5 +1,9 @@
 # USTOYOB.TJ API — Reference for Frontend Integration
 
+**BREAKING (06.09.2026): every entity ID is now a UUID string, not an integer.** All primary keys across the whole API (`Ticket.id`, `User.id`, `Category.id`, `TicketApproval.id`, everything) switched from auto-increment integers to UUIDv7 strings (e.g. `"01a0781d-0592-7152-8740-31dcf966cf93"`) — done in one shot (schema recreated, no data migration, project pre-release). Anything on the frontend typed `id: number` needs to become `id: string`; any client-side sorting/parsing that assumed a numeric, sequential ID (e.g. "newest = highest id") no longer works — UUIDv7 IDs are still roughly time-ordered as strings (safe to string-sort ascending for creation order), but arithmetic on them (`id + 1`, `id > 5`) is meaningless. IRIs (`/api/tickets/{id}`) and query filters (`?author={id}`) are unaffected in shape — just pass the UUID string exactly as returned.
+
+**New on `Ticket`: `slug` field** — a decorative, non-persisted, always-live transliteration of `title` (e.g. `"Ремонт крана"` → `"remont-krana"`), for building readable share URLs. It is NOT an identifier — the backend never looks at it for entity resolution. Recommended pattern: build links as `/tickets/{id}?slug={slug}` (query string, ignored server-side) rather than putting it in the path, so no routing changes are needed on either side.
+
 Base URL: `/api`
 Formats: `application/ld+json` (default), `application/json`, `multipart/form-data` (uploads), PATCH uses `application/merge-patch+json`
 Auth: JWT Bearer (Lexik) + HttpOnly refresh-token cookie (Gesdinet)

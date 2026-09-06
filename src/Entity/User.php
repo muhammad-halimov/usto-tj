@@ -65,6 +65,8 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -111,7 +113,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         ),
         new Get(
             uriTemplate: '/users/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: [
                 'groups' => G::OPS_USERS_PUBLIC,
                 'skip_null_values' => false,
@@ -150,13 +152,13 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Post(
             uriTemplate: '/users/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/users/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: [
                 'groups' => G::OPS_USERS_ME,
                 'skip_null_values' => false,
@@ -178,7 +180,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         ),
         new Delete(
             uriTemplate: '/users/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             security:
                 "is_granted('ROLE_ADMIN') or
                  ((is_granted('ROLE_MASTER') or
@@ -283,8 +285,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::USER_PUBLIC,
         G::MASTERS,
@@ -309,7 +312,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     /**
      * БАГФИКС (05.09.2026): раньше email был в группах MASTERS/CLIENTS/
@@ -986,7 +989,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: TicketApproval::class, mappedBy: 'administrant')]
     private Collection $ticketApprovals;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

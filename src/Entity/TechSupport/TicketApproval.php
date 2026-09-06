@@ -11,6 +11,8 @@ use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\TechSupport\TicketApprovalRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Заявка на (повторное) одобрение объявления/услуги — заводится
@@ -40,9 +42,10 @@ class TicketApproval
     use CreatedAtTrait, UpdatedAtTrait, DescriptionTrait, SnapshotSummaryTrait;
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
+    private ?Uuid $id = null;
 
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $approved = false;
@@ -64,7 +67,7 @@ class TicketApproval
     #[ORM\Column(type: 'json')]
     private array $snapshot = [];
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

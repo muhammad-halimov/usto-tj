@@ -8,6 +8,8 @@ use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\UserOAuthProviderRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 /**
@@ -43,10 +45,11 @@ class OAuthProvider
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([G::USERS_ME])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'oauthProviders')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -61,7 +64,7 @@ class OAuthProvider
     #[Groups([G::USERS_ME])]
     private string $providerId = '';
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

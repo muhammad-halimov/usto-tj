@@ -42,6 +42,8 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -57,7 +59,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new Get(
             uriTemplate: '/tickets/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             normalizationContext: ['groups' => G::OPS_TICKETS_FULL, 'skip_null_values' => false],
             provider: TicketGeographyLocalizationProvider::class,
         ),
@@ -75,13 +77,13 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Post(
             uriTemplate: '/tickets/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/tickets/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             controller: ApiPatchTicketController::class,
             normalizationContext: ['groups' => G::OPS_TICKETS_FULL],
             input: TicketPatchInput::class,
@@ -127,8 +129,9 @@ class Ticket implements HasImagesInterface
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::MASTER_TICKETS,
         G::CLIENT_TICKETS,
@@ -139,7 +142,7 @@ class Ticket implements HasImagesInterface
         G::BLACK_LISTS,
         G::CHATS,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
@@ -429,9 +432,39 @@ class Ticket implements HasImagesInterface
     #[ORM\OneToMany(targetEntity: TicketApproval::class, mappedBy: 'ticket')]
     private Collection $ticketApprovals;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
+    }
+
+    /**
+     * Декоративный slug для красивых ссылок (06.09.2026, переход на
+     * UUID-PK — см. обсуждение "UUID + латинизация title" в чате). НЕ
+     * персистится, ничего не идентифицирует сам по себе — реальный lookup
+     * тикета всегда идёт по UUID (см. GetCollection/Get выше). Фронт
+     * собирает ссылку вида /tickets/{id}?slug={slug} — бэкенд слаг из
+     * query читает, но игнорирует при разрешении сущности (это только
+     * читаемость в адресной строке/шаринге, не идентификатор). Живая
+     * проекция $title — меняется вместе с ним при правке, никакой
+     * рассинхронизации/уникальности/регенерации не требуется в принципе,
+     * в отличие от классического персистентного слага.
+     */
+    #[Groups([G::MASTER_TICKETS, G::CLIENT_TICKETS])]
+    public function getSlug(): string
+    {
+        static $translitMap = [
+            'а'=>'a','б'=>'b','в'=>'v','г'=>'g','ғ'=>'gh','д'=>'d','е'=>'e','ё'=>'yo',
+            'ж'=>'zh','з'=>'z','и'=>'i','ӣ'=>'i','й'=>'y','к'=>'k','қ'=>'q','л'=>'l',
+            'м'=>'m','н'=>'n','о'=>'o','п'=>'p','р'=>'r','с'=>'s','т'=>'t','у'=>'u',
+            'ӯ'=>'u','ф'=>'f','х'=>'kh','ҳ'=>'h','ц'=>'ts','ч'=>'ch','ҷ'=>'j','ш'=>'sh',
+            'щ'=>'sch','ъ'=>'','ы'=>'y','ь'=>'','э'=>'e','ю'=>'yu','я'=>'ya',
+        ];
+
+        $lower = mb_strtolower($this->title ?? '');
+        $latin = strtr($lower, $translitMap);
+        $slug  = preg_replace('/[^a-z0-9]+/u', '-', $latin);
+
+        return trim($slug ?? '', '-') ?: 'ticket';
     }
 
     public function getViewsCount(): int

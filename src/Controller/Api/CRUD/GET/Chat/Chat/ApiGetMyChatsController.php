@@ -25,7 +25,11 @@ class ApiGetMyChatsController extends AbstractApiGetCollectionController
     {
         $query = $this->requestStack->getCurrentRequest()?->query;
 
-        $ticketId = ($v = $query?->get('ticket')) !== null && is_numeric($v) ? (int) $v : null;
+        // is_numeric()+(int) убраны (06.09.2026, переход на UUID-PK) —
+        // Ticket::$id теперь UUID-строка, а не число: is_numeric() на
+        // реальном UUID всегда false (там есть дефисы и буквы) — ?ticket=
+        // фильтр тихо переставал бы работать вообще, ВСЕГДА давая null.
+        $ticketId = ($v = $query?->get('ticket')) !== null && $v !== '' ? $v : null;
         $active   = ($v = $query?->get('active'))  !== null ? filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
 
         return $this->chatRepository->findUserChats($user, $ticketId, $active);

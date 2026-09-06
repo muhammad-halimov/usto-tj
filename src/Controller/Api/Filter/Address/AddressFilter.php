@@ -56,12 +56,20 @@ final class AddressFilter extends AbstractFilter
         // JOIN с географическим объектом
         $queryBuilder->leftJoin("$addressAlias.$property", $geoAlias);
 
-        // Проверяем, является ли значение числом (ID) или строкой (title/description)
-        if (is_numeric($value)) {
+        // Проверяем, является ли значение ID (UUID) или строкой (title/description).
+        //
+        // БАГФИКС (06.09.2026, переход на UUID-PK): было is_numeric($value)
+        // — работало, пока ID были числами. У UUID ("01a0781d-0592-...")
+        // is_numeric() всегда false (там дефисы и буквы) — фильтр по ID
+        // тихо переставал бы работать вообще, ВСЕГДА уходя в ветку
+        // текстового поиска по title/description (тот же класс бага, что
+        // уже чинили в ApiGetMyChatsController — is_numeric() на реальном
+        // UUID всегда false).
+        if (preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', (string) $value)) {
             // Поиск по ID
             $queryBuilder
                 ->andWhere("$geoAlias.id = :$parameterName")
-                ->setParameter($parameterName, (int)$value);
+                ->setParameter($parameterName, (string) $value);
         } else {
             // JOIN с переводами для поиска на всех языках (ru, tj, eng)
             $translationAlias = $queryNameGenerator->generateJoinAlias('translations');
@@ -96,7 +104,7 @@ final class AddressFilter extends AbstractFilter
                 'property' => $field,
                 'type' => 'string',
                 'required' => false,
-                'description' => "Filter by $label (numeric for exact ID match, text for case-insensitive partial search in title/description)",
+                'description' => "Filter by $label (UUID for exact ID match, text for case-insensitive partial search in title/description)",
             ];
         }
 

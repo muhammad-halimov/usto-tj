@@ -46,8 +46,10 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
         if ($operation instanceof Get) {
-            $id     = (int) ($uriVariables['id'] ?? 0);
-            $ticket = $this->ticketRepository->find($id);
+            // (int) убран (06.09.2026, переход на UUID-PK) — id тикета
+            // теперь UUID-строка, приведение к int обнулило бы её.
+            $id     = $uriVariables['id'] ?? null;
+            $ticket = $id !== null ? $this->ticketRepository->find($id) : null;
 
             if (!$ticket instanceof Ticket) {
                 return null;

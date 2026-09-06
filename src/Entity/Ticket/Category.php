@@ -21,6 +21,8 @@ use App\State\Localization\Title\CategoryTitleLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
@@ -32,7 +34,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     operations: [
         new Get(
             uriTemplate: '/categories/{id}',
-            requirements: ['id' => '\d+'],
+            requirements: ['id' => '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'],
             provider: CategoryTitleLocalizationProvider::class,
         ),
         new GetCollection(
@@ -76,8 +78,9 @@ class Category
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::CATEGORIES,
         G::MASTER_TICKETS,
@@ -94,7 +97,7 @@ class Category
         G::TECH_SUPPORT_MESSAGES,
         G::OCCUPATIONS,
     ])]
-    private ?int $id = null;
+    private ?Uuid $id = null;
 
     /**
      * @var Collection<int, Ticket>
@@ -122,7 +125,7 @@ class Category
     #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'category', cascade: ['persist'])]
     private Collection $translations;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

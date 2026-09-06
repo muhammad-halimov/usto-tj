@@ -11,6 +11,8 @@ use App\Entity\Trait\Readable\TitleTrait;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\IdGenerator\UuidGenerator;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\HasLifecycleCallbacks]
@@ -52,8 +54,9 @@ abstract class AddressComponent
     }
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column(type: 'integer')]
+    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
+    #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+    #[ORM\Column(type: 'uuid', unique: true)]
     #[Groups([
         G::DISTRICTS,
         G::PROVINCES,
@@ -78,7 +81,7 @@ abstract class AddressComponent
         G::APPEAL_USER,
         G::USER_PUBLIC,
     ])]
-    protected ?int $id = null;
+    protected ?Uuid $id = null;
 
     /**
      * @var Collection<int, Translation>|null
@@ -86,7 +89,7 @@ abstract class AddressComponent
     #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'address', cascade: ['persist'])]
     private ?Collection $translations = null;
 
-    public function getId(): ?int
+    public function getId(): ?Uuid
     {
         return $this->id;
     }

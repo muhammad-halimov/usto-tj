@@ -33,7 +33,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->flush();
     }
 
-    public function findOneByRole(string $role, int $id): ?array
+    public function findOneByRole(string $role, string $id): ?array
     {
         return $this
             ->createQueryBuilder('u')
@@ -84,7 +84,7 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getResult();
     }
 
-    public function findByOccupationId(int $occupationId): array
+    public function findByOccupationId(string $occupationId): array
     {
         return $this->createQueryBuilder('u')
             ->join('u.occupation', 'o')

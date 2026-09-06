@@ -5,6 +5,7 @@ namespace App\Controller\Api\OAuth\Profile;
 use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
+use App\Service\Extra\UuidUtil;
 use App\Exception\AppMessageException;
 use App\Service\Extra\AccessService;
 use DateTimeInterface;
@@ -68,7 +69,7 @@ class UnlinkOAuthProviderController extends AbstractController
             ],
             array_filter(
                 $currentUser->getOauthProviders()->toArray(),
-                fn(OAuthProvider $p) => $p->getId() !== $providerEntity->getId()
+                fn(OAuthProvider $p) => !UuidUtil::same($p->getId(), $providerEntity->getId())
             )
         );
 

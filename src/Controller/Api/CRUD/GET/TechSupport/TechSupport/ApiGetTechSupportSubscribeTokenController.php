@@ -29,7 +29,7 @@ class ApiGetTechSupportSubscribeTokenController extends AbstractApiHelperControl
         private readonly string                $mercureJwtSecret, // bind из services.yaml, общий с чатом
     ) {}
 
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(string $id): JsonResponse
     {
         $bearer = $this->checkedUser();
 

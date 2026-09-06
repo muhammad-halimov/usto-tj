@@ -246,8 +246,9 @@ class TicketListener
      * поймано живым тестом: если тикет создаётся сразу с адресом, вложенный
      * flush() из этого метода запускает СВОЙ onFlush(), а тот видит
      * коллекцию addresses как "изменившуюся" — причём проверка
-     * "$ticket->getId() === null" его на этот раз НЕ спасает (id уже
-     * назначен предыдущим INSERT'ом), из-за чего заводилась ВТОРАЯ,
+     * "$uow->isScheduledForInsert($ticket)" его на этот раз НЕ спасает
+     * (INSERT уже прошёл, тикет больше не в очереди на вставку), из-за
+     * чего заводилась ВТОРАЯ,
      * лишняя TicketApproval только с адресом вместо одной цельной.
      */
     public function postPersist(Ticket $ticket): void
@@ -384,11 +385,22 @@ class TicketListener
             // новая правка, а эхо уже обработанной.
             if (isset($this->addressChangeHandled[spl_object_id($ticket)])) continue;
 
-            // id === null — тикет ещё не существовал в БД до этого flush
-            // (создаётся прямо сейчас, ApiPostTicketController). Новый
-            // тикет не может требовать "повторного" одобрения — он ещё
-            // не был одобрен ни разу, это не правка, а создание.
-            if ($ticket->getId() === null) continue;
+            // БАГФИКС (06.09.2026, переход на UUID-PK): было "id === null"
+            // — тикет ещё не существовал в БД до этого flush (создаётся
+            // прямо сейчас, ApiPostTicketController). При автоинкрементных
+            // int-ID это работало, потому что id назначался только ПОСЛЕ
+            // реального INSERT (post-insert генератор). У UUID
+            // (CustomIdGenerator/UuidGenerator) генератор pre-insert — id
+            // назначается сразу при persist(), то есть ЕЩЁ ДО onFlush()
+            // даже у только что созданного тикета: "getId() === null"
+            // после перехода на UUID был бы всегда false, и этот guard
+            // перестал бы отличать новый тикет от существующего вообще —
+            // адрес нового тикета снова пошёл бы через ветку "правка",
+            // как уже чинили раньше через $addressChangeHandled (см. выше)
+            // — только по другой причине. isScheduledForInsert() — правильная,
+            // не зависящая от стратегии генерации ID проверка "этот тикет
+            // будет вставлен ВПЕРВЫЕ в текущем flush".
+            if ($uow->isScheduledForInsert($ticket)) continue;
 
             // БАГФИКС (05.09.2026, по жалобе "Адрес: (пусто) → X" на КАЖДОЙ
             // правке + "изменения категории вообще не ловятся"): отмечаем
@@ -538,7 +550,7 @@ class TicketListener
      * Название добавлено, чтобы snapshot в EntityRevision был читаем сам по
      * себе — без похода в /api/provinces/{id} и т.д. при разборе спора.
      *
-     * @return array<string, ?array{id: int, title: ?string}>
+     * @return array<string, ?array{id: string, title: ?string}>
      */
     private function addressSnapshot(Address $address): array
     {
@@ -560,7 +572,7 @@ class TicketListener
      * через переводы (см. onFlush() — тот же источник локали и то же
      * обоснование, что и там).
      *
-     * @return ?array{id: int, title: ?string}
+     * @return ?array{id: string, title: ?string}
      */
     private function geoRef(?AddressComponent $component): ?array
     {
@@ -585,7 +597,7 @@ class TicketListener
      * IDENTITY(a.{level})/{level}.translations.title.
      *
      * @param array<string, mixed> $row
-     * @return ?array{id: int, title: ?string}
+     * @return ?array{id: string, title: ?string}
      */
     private function geoRefFromRow(array $row, string $level): ?array
     {
@@ -593,11 +605,14 @@ class TicketListener
 
         if ($id === null) return null;
 
-        return ['id' => (int) $id, 'title' => $row["{$level}_title"] ?? null];
+        // (int) убран (06.09.2026, переход на UUID-PK) — id геосправочника
+        // (province/city/...) теперь UUID-строка, приведение к int
+        // обнулило бы её.
+        return ['id' => $id, 'title' => $row["{$level}_title"] ?? null];
     }
 
     /**
-     * @param array<int, array<string, ?array{id: int, title: ?string}>> $snapshots
+     * @param array<int, array<string, ?array{id: string, title: ?string}>> $snapshots
      * @return string[] отсортированный список канонических строк — для
      *         сравнения "набор адресов тот же/другой" независимо от порядка.
      *         Сравниваем только по id (title — чисто для читаемости снимка,

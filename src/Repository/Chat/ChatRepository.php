@@ -22,10 +22,10 @@ class ChatRepository extends ServiceEntityRepository
     /**
      * Все чаты, где юзер является инициатором ИЛИ реципиентом.
      *
-     * @param int|null  $ticketId фильтр по ID тикета (null — без фильтра)
-     * @param bool|null $active   фильтр по полю active (null — без фильтра)
+     * @param string|null $ticketId фильтр по UUID тикета (null — без фильтра)
+     * @param bool|null   $active   фильтр по полю active (null — без фильтра)
      */
-    public function findUserChats(User $user, ?int $ticketId = null, ?bool $active = null): QueryBuilder
+    public function findUserChats(User $user, ?string $ticketId = null, ?bool $active = null): QueryBuilder
     {
         $qb = $this
             ->createQueryBuilder('c')
